@@ -91,12 +91,43 @@ class ChatAgentNodes:
             
             # Extract response content (only if no tool calls)
             if hasattr(response, 'content') and response.content:
-                state["chat_response"] = response.content
-                state["final_response"] = response.content
+                # Normalize content: LLM may return deeply nested list/dict structures
+                def _to_str(val) -> str:
+                    if val is None:
+                        return ""
+                    if isinstance(val, str):
+                        return val
+                    if isinstance(val, list):
+                        parts = []
+                        for v in val:
+                            s = _to_str(v)
+                            if isinstance(s, str):
+                                parts.append(s)
+                            else:
+                                parts.append(str(s))
+                        return "".join(parts)
+                    if isinstance(val, dict):
+                        # Try common keys, recurse into values
+                        for key in ("text", "content", "output_text"):
+                            if key in val:
+                                return _to_str(val[key])
+                        return ""
+                    return str(val)
+
+                state["chat_response"] = _to_str(response.content)
+                state["final_response"] = _to_str(response.content)
             
             return state
             
         except Exception as e:
+            import traceback as tb
+            tb_str = tb.format_exc()
+            # Write to file to avoid Unicode logger issues on Windows
+            with open("chat_llm_error.log", "a", encoding="utf-8") as f:
+                f.write(f"--- {__import__('datetime').datetime.now()} ---\n")
+                f.write(f"Error: {str(e)}\n")
+                f.write(tb_str)
+                f.write("\n")
             logger.error(f"CHAT LLM: Error: {str(e)}")
             error_msg = AIMessage(content="Xin lỗi, tôi gặp một chút khó khăn. Bạn có thể thử lại không?")
             state["messages"] = [error_msg]

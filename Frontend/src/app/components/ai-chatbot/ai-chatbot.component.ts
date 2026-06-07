@@ -363,7 +363,7 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
                     isFirstToken = false;
                   }
                   if (assistantMessage) {
-                    this.currentStreamContent += '\n\n[ERROR]: ' + event.content;
+                    this.currentStreamContent += '\n\n[ERROR]: ' + (event.error || event.content || 'Unknown error');
                     assistantMessage.content = this.currentStreamContent;
                     assistantMessage.isError = true;
                   }

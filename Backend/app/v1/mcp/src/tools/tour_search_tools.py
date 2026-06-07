@@ -1,4 +1,4 @@
-"""
+﻿"""
 MCP Tools - Tour Package Search
 Search tour packages using semantic vector search with embeddings
 """
@@ -7,6 +7,8 @@ from typing import Optional, Dict, Any, List
 import logging
 import numpy as np
 import os
+import unicodedata
+import re
 from langchain_openai import OpenAIEmbeddings
 from supabase import create_client, Client
 from ..core.config import settings
@@ -16,6 +18,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+def _remove_diacritics(text: str) -> str:
+    """Remove Vietnamese diacritics for search matching.
+    E.g. 'Đà Lạt' -> 'Da Lat', 'Bến Tre' -> 'Ben Tre'
+    """
+    if not text:
+        return ""
+    # Normalize to NFD, then remove combining characters (diacritics)
+    normalized = unicodedata.normalize('NFD', text)
+    stripped = re.sub(r'[̀-ͯˀ-˟]', '', normalized)
+    # Also handle đ/Đ -> d/D specifically (not covered by NFD)
+    stripped = stripped.replace('đ', 'd').replace('Đ', 'D')
+    return stripped.strip()
 
 # Supabase connection - use settings or env vars
 SUPABASE_URL = os.getenv("SUPABASE_URL") or settings.SUPABASE_URL
@@ -373,8 +389,13 @@ class TourPackageSearchService:
         
         if filters.get("destination"):
             destination = filters["destination"]
-            # Use ILIKE for case-insensitive partial match
-            query = query.ilike("destination", f"%{destination}%")
+            # Normalize diacritics: match both 'Da Lat' and 'u0110u00e0 Lu1ea1t'
+            destination_ascii = _remove_diacritics(destination)
+            if destination_ascii.lower() != destination.lower():
+                # Input has no diacritics or differs from stripped form - search both
+                query = query.or_(f"destination.ilike.%{destination}%,destination.ilike.%{destination_ascii}%")
+            else:
+                query = query.ilike("destination", f"%{destination}%")
         
         # Always filter active packages
         query = query.eq("is_active", True)
@@ -496,8 +517,12 @@ class TourPackageSearchService:
         
         if filters.get("destination"):
             destination = filters["destination"].lower()
+            destination_ascii = _remove_diacritics(destination).lower()
             before = len(filtered)
-            filtered = [t for t in filtered if destination in t.get("destination", "").lower()]
+            filtered = [t for t in filtered if (
+                destination in t.get("destination", "").lower() or
+                destination_ascii in _remove_diacritics(t.get("destination", "")).lower()
+            )]
             logger.debug(f"Destination filter ({destination}): {before} -> {len(filtered)}")
         
         return filtered
@@ -532,9 +557,12 @@ class TourPackageSearchService:
                 limit=limit * 2  # Get more for combination
             )
             
-            # Step 3: Run keyword search (full-text)
+            # Step 3: Run keyword search using destination name only (not full sentence)
+            keyword_query = user_message
+            if filters and filters.get("destination"):
+                keyword_query = filters["destination"]
             keyword_results = self._search_tours_by_keyword(
-                query=user_message,
+                query=keyword_query,
                 filters=filters,
                 limit=limit * 2  # Get more for combination
             )

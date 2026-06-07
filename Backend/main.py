@@ -1,8 +1,19 @@
 """
 Main FastAPI Application with LangGraph Integration
 """
-import uvicorn
 import os
+
+# Fix SSL certificate verification on Windows
+# Must be set BEFORE any HTTP client imports (httpx, requests, etc.)
+if os.name == "nt":
+    try:
+        import certifi
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+    except ImportError:
+        pass
+
+import uvicorn
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

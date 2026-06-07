@@ -6,6 +6,16 @@ import os
 from threading import RLock
 from typing import Any, Dict, List, Optional
 
+# Fix SSL certificate verification on Windows
+# httpx (used by mem0) needs a proper CA bundle path
+if os.name == "nt":
+    try:
+        import certifi
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+        os.environ.setdefault("REQUESTS_CA_BUNDLE", certifi.where())
+    except ImportError:
+        pass
+
 from dotenv import load_dotenv
 from mem0 import MemoryClient
 

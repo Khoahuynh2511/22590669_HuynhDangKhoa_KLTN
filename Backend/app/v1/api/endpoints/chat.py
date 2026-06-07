@@ -95,20 +95,20 @@ async def chat_stream(
                     "user_id": user_id
                 }
                 yield f"data: {json.dumps(start_event, ensure_ascii=False)}\n\n"
-                
+
                 # Track response for storage
                 full_response = ""
                 recommendations = []
                 tour_packages = []
                 metadata = {}
-                
+
                 # Track MCP UI data and whether tokens have been streamed
                 pending_mcp_ui_resource = None
                 pending_mcp_ui_html = None
                 pending_tour_packages = None
                 has_streamed_tokens = False
                 is_recommendation_response = False
-                
+
                 # Stream from LangGraph
                 async for event in supervisor_graph.process_message_stream(
                     user_message=request.message,
@@ -116,45 +116,26 @@ async def chat_stream(
                     user_id=user_id
                 ):
                     event_type = event.get("event", "")
-                    
+
                     # Skip unwanted events (reasoning, on_llm_start, etc.) - only process what we need
                     if event_type not in ["on_chat_model_stream", "on_chain_end"]:
                         continue
-                    
+
                     # Stream LLM tokens
                     if event_type == "on_chat_model_stream":
                         chunk = event.get("data", {}).get("chunk", {})
                         if hasattr(chunk, "content") and chunk.content:
                             # Handle complex content (string, list of strings, list of dicts)
                             raw_content = chunk.content
-                            content = ""
-                            
-                            if isinstance(raw_content, str):
-                                content = raw_content
-                            elif isinstance(raw_content, list):
-                                for item in raw_content:
-                                    if isinstance(item, str):
-                                        content += item
-                                    elif isinstance(item, dict):
-                                        # Extract text from dict parts, skip reasoning
-                                        if item.get("type") == "text":
-                                            content += item.get("text", "")
-                                        elif "text" in item:
-                                            content += item.get("text", "")
-                                        elif "content" in item: # some providers use this
-                                            content += item.get("content", "")
-                            elif isinstance(raw_content, dict):
-                                if raw_content.get("type") == "text":
-                                    content = raw_content.get("text", "")
-                                elif "text" in raw_content:
-                                    content = raw_content.get("text", "")
-                                else:
-                                    # Fallback for unknown dict structure
-                                    content = raw_content.get("content", "")
-                            
+                            content = _content_to_text(raw_content)
+
                             # Skip if content is empty (e.g., it was only a reasoning block)
                             if not content:
                                 continue
+
+                            # Safety: ensure full_response is always str before concat
+                            if not isinstance(full_response, str):
+                                full_response = _content_to_text(full_response)
                             
                             token_event = {
                                 "type": "token",
@@ -189,7 +170,8 @@ async def chat_stream(
                         chain_output = event.get("data", {}).get("output", {})
                         if isinstance(chain_output, dict):
                             if "final_response" in chain_output:
-                                full_response = chain_output.get("final_response", full_response)
+                                raw_final = chain_output.get("final_response", full_response)
+                                full_response = _content_to_text(raw_final)
                             if "recommended_package_ids" in chain_output:
                                 recommendations = chain_output.get("recommended_package_ids", [])
                             if "tour_packages" in chain_output:

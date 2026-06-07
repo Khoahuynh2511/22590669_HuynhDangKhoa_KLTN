@@ -49,6 +49,7 @@ dependencies = [
     "modal",
     "psycopg2-binary>=2.9.12",
     "tavily-python>=0.5.0",
+    "pip-system-certs>=5.3",
 ]
 
 [build-system]

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Application Configuration
 """
 import os
@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     DEBUG: bool = True
+
+    @field_validator('DEBUG', mode='before')
+    @classmethod
+    def parse_debug(cls, v):
+        if isinstance(v, bool):
+            return v
+        if isinstance(v, str):
+            return v.lower() in ('true', '1', 'yes')
+        return bool(v)
     
     # OpenAI Configuration
     OPENAI_API_KEY: str
