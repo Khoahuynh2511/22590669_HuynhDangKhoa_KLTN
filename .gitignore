@@ -54,3 +54,6 @@ docker-data/
 # Misc
 .coverage
 htmlcov/
+
+# Claude worktrees
+.claude/worktrees/
