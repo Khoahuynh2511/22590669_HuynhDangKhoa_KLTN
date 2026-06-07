@@ -57,3 +57,8 @@ htmlcov/
 
 # Claude AI
 .claude/
+
+bug.txt
+
+# Temp notes
+bug.txt
