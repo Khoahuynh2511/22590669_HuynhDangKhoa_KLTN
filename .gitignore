@@ -1,4 +1,4 @@
-﻿# ==== Root .gitignore ====
+# ==== Root .gitignore ====
 
 # Database backups & dumps
 *.backup
@@ -55,5 +55,5 @@ docker-data/
 .coverage
 htmlcov/
 
-# Claude worktrees
-.claude/worktrees/
+# Claude AI
+.claude/
