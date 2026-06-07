@@ -1,0 +1,42 @@
+/* You can add global styles to this file, and also import other style files */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// @layer tailwind-base, primeng, tailwind-utilities;
+// @layer tailwind-base {
+//   @tailwind base;
+// }
+// @layer primeng;
+// @layer tailwind-utilities {
+//   @tailwind components;
+//   @tailwind utilities;
+// }
+
+
+*{
+  box-sizing: border-box;
+  color: black;
+}
+
+.container {
+  max-width: 1222px;
+}
+
+.plr16 {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.ptb8 {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+input:focus-visible {
+  outline: none;
+}
+
+input {
+  color: black;
+}

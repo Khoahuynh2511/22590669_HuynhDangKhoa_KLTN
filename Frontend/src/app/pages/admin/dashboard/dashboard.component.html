@@ -1,0 +1,396 @@
+<div class="space-y-6">
+  <div class="flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+    <button 
+      (click)="loadDashboardData()" 
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+      </svg>
+      Làm mới
+    </button>
+  </div>
+
+  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+    {{ errorMessage }}
+  </div>
+
+  <div *ngIf="isLoading" class="text-center py-8">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <p class="mt-2 text-gray-600">Đang tải dữ liệu...</p>
+  </div>
+  
+  <div *ngIf="!isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <!-- Stats Card 1: Revenue -->
+    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 text-white">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-blue-100 text-sm">Doanh thu tháng này</p>
+          <p class="text-3xl font-bold mt-2 text-white">{{ formatPrice(totalRevenue) }}</p>
+          <p class="text-sm mt-2" [class.text-green-200]="revenueGrowth >= 0" [class.text-red-200]="revenueGrowth < 0">
+            <span *ngIf="revenueGrowth >= 0" class="text-white">↑</span>
+            <span *ngIf="revenueGrowth < 0">↓</span>
+            {{ revenueGrowth >= 0 ? '+' : '' }}{{ revenueGrowth.toFixed(1) }}% so với tháng trước
+          </p>
+        </div>
+        <div class="bg-white bg-opacity-20 rounded-full p-3">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Card 2: Pending Bookings -->
+    <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-orange-100 text-sm">Booking chờ duyệt</p>
+          <p class="text-3xl font-bold mt-2 text-white">{{ formatNumber(pendingBookings) }}</p>
+          <a routerLink="/admin/bookings" class="text-sm mt-2 inline-block hover:underline text-white">
+            Xem chi tiết →
+          </a>
+        </div>
+        <div class="bg-white bg-opacity-20 rounded-full p-3">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Card 3: Total Bookings -->
+    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-lg p-6 text-white">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-green-100 text-white">Tổng Bookings</p>
+          <p class="text-3xl font-bold mt-2 text-white">{{ formatNumber(totalBookings) }}</p>
+          <p class="text-sm mt-2 text-green-200">
+            {{ formatNumber(confirmedBookings) }} đã xác nhận
+          </p>
+        </div>
+        <div class="bg-white bg-opacity-20 rounded-full p-3">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Card 4: Reports -->
+    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-lg p-6 text-white">
+      <div class="flex justify-between items-start">
+        <div>
+          <p class="text-purple-100 text-sm">Báo cáo & Thống kê</p>
+          <p class="text-xl font-bold mt-2 text-white">Xem chi tiết</p>
+          <a routerLink="/admin/reports" class="text-sm mt-2 inline-block hover:underline text-white">
+            Truy cập báo cáo →
+          </a>
+        </div>
+        <div class="bg-white bg-opacity-20 rounded-full p-3">
+          <svg class="w-6 h-6" fill="none" stroke="white" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Revenue Chart - Line Chart -->
+  <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+      <h3 class="text-xl font-semibold text-gray-800">Doanh thu 12 tháng gần đây</h3>
+      <span class="text-sm text-gray-500">Tổng: {{ formatPrice(totalRevenue) }}</span>
+    </div>
+    
+    <div *ngIf="revenueChartData.length > 0 && revenueChartData.length < 6" class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+      ⚠️ Hiện tại chỉ có dữ liệu từ {{ revenueChartData.length }} kỳ. Hệ thống sẽ hiển thị đầy đủ hơn khi có thêm bookings.
+    </div>
+    
+    <!-- Line Chart SVG -->
+    <div *ngIf="revenueChartData.length > 0" class="relative">
+      <svg class="w-full" viewBox="0 0 800 300" preserveAspectRatio="xMidYMid meet">
+        <!-- Grid lines -->
+        <line x1="50" y1="20" x2="50" y2="250" stroke="#e5e7eb" stroke-width="2"/>
+        <line x1="50" y1="250" x2="780" y2="250" stroke="#e5e7eb" stroke-width="2"/>
+        
+        <!-- Horizontal grid lines -->
+        <line x1="50" y1="70" x2="780" y2="70" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="120" x2="780" y2="120" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="170" x2="780" y2="170" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        <line x1="50" y1="220" x2="780" y2="220" stroke="#f3f4f6" stroke-width="1" stroke-dasharray="5,5"/>
+        
+        <!-- Line path -->
+        <ng-container *ngIf="getRevenueLinePath() as linePath">
+          <!-- Area under line (gradient fill) -->
+          <defs>
+            <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+              <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0.05" />
+            </linearGradient>
+          </defs>
+          <path [attr.d]="linePath + ' L780,250 L50,250 Z'" fill="url(#areaGradient)" />
+          
+          <!-- Main line -->
+          <path [attr.d]="linePath" fill="none" stroke="#3b82f6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          
+          <!-- Data points -->
+          <g *ngFor="let item of revenueChartData; let i = index">
+            <circle 
+              [attr.cx]="50 + (i * (730 / (revenueChartData.length - 1 || 1)))" 
+              [attr.cy]="250 - (item.revenue / getMaxRevenue() * 230)"
+              r="5" 
+              fill="#3b82f6" 
+              stroke="white" 
+              stroke-width="2"
+              class="hover:r-7 transition-all cursor-pointer"
+              [attr.data-tooltip]="item.period + ': ' + formatPrice(item.revenue)">
+              <title>{{ item.period }}: {{ formatPrice(item.revenue) }} ({{ item.bookings }} bookings)</title>
+            </circle>
+          </g>
+        </ng-container>
+        
+        <!-- X-axis labels -->
+        <g *ngFor="let item of revenueChartData; let i = index">
+          <text 
+            [attr.x]="50 + (i * (730 / (revenueChartData.length - 1 || 1)))" 
+            y="270" 
+            text-anchor="middle" 
+            class="text-xs fill-gray-600"
+            font-size="11">
+            {{ item.period }}
+          </text>
+        </g>
+      </svg>
+      
+      <!-- Legend -->
+      <div class="mt-4 flex items-center justify-center gap-6 text-sm">
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-1 bg-blue-500 rounded"></div>
+          <span class="text-gray-600">Doanh thu</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-4 h-4 rounded-full bg-blue-500 border-2 border-white"></div>
+          <span class="text-gray-600">Điểm dữ liệu</span>
+        </div>
+      </div>
+    </div>
+    
+    <div *ngIf="revenueChartData.length === 0" class="text-center py-8 text-gray-500">
+      <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+      </svg>
+      <p class="font-medium">Chưa có dữ liệu doanh thu</p>
+    </div>
+  </div>
+
+  <!-- Booking Status Distribution -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Pie Chart Style -->
+    <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-lg p-6">
+      <h3 class="text-xl font-semibold text-gray-800 mb-6">Phân bổ Booking theo trạng thái</h3>
+      
+      <div class="flex items-center justify-center mb-6">
+        <div class="relative w-48 h-48">
+          <!-- Simple Donut Chart -->
+          <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" stroke-width="20"/>
+            
+            <!-- Pending (Yellow) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#f59e0b" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(pendingBookings/totalBookings * 251) + ' 251'"
+              stroke-dashoffset="0"/>
+            
+            <!-- OTP Sent (Cyan) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#06b6d4" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(otpSentBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-(pendingBookings/totalBookings * 251)"/>
+            
+            <!-- Confirmed (Green) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#10b981" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(confirmedBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings)/totalBookings * 251)"/>
+            
+            <!-- Completed (Blue) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#3b82f6" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(completedBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings + confirmedBookings)/totalBookings * 251)"/>
+            
+            <!-- Cancelled (Red) -->
+            <circle 
+              *ngIf="totalBookings > 0"
+              cx="50" cy="50" r="40" fill="none" 
+              stroke="#ef4444" 
+              stroke-width="20"
+              [attr.stroke-dasharray]="(cancelledBookings/totalBookings * 251) + ' 251'"
+              [attr.stroke-dashoffset]="-((pendingBookings + otpSentBookings + confirmedBookings + completedBookings)/totalBookings * 251)"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-3xl font-bold text-gray-800">{{ totalBookings }}</span>
+            <span class="text-sm text-gray-500">Tổng</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div *ngFor="let statusData of bookingStatusData" class="flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 rounded" [ngClass]="statusData.color"></div>
+            <span class="text-sm text-gray-700">{{ statusData.label }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-semibold text-gray-800">{{ statusData.count }}</span>
+            <span class="text-xs text-gray-500">({{ getStatusPercentage(statusData.count).toFixed(1) }}%)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Bars Style -->
+    <div *ngIf="!isLoading" class="bg-white rounded-lg shadow-lg p-6">
+      <h3 class="text-xl font-semibold text-gray-800 mb-6">Tiến độ Booking</h3>
+      
+      <div class="space-y-6">
+        <div *ngFor="let statusData of bookingStatusData">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-sm font-medium text-gray-700">{{ statusData.label }}</span>
+            <span class="text-sm font-semibold text-gray-800">{{ statusData.count }} / {{ totalBookings }}</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+            <div 
+              class="h-full transition-all duration-500 rounded-full"
+              [ngClass]="statusData.color"
+              [style.width]="getStatusWidth(statusData.count)">
+            </div>
+          </div>
+          <div class="text-xs text-gray-500 mt-1 text-right">
+            {{ getStatusPercentage(statusData.count).toFixed(1) }}%
+          </div>
+        </div>
+
+        <!-- Total Progress -->
+        <div class="pt-4 border-t border-gray-200">
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-bold text-gray-800">Tổng cộng</span>
+            <span class="text-sm font-bold text-blue-600">{{ totalBookings }} bookings</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Comparison Cards -->
+  <div *ngIf="!isLoading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-green-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600 mb-1">Tỷ lệ xác nhận</p>
+          <p class="text-3xl font-bold text-green-600">
+            {{ totalBookings > 0 ? ((confirmedBookings / totalBookings) * 100).toFixed(1) : 0 }}%
+          </p>
+          <p class="text-xs text-gray-500 mt-1">{{ confirmedBookings }} / {{ totalBookings }} bookings</p>
+        </div>
+        <div class="bg-green-100 rounded-full p-4">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600 mb-1">Tỷ lệ hoàn thành</p>
+          <p class="text-3xl font-bold text-blue-600">
+            {{ totalBookings > 0 ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0 }}%
+          </p>
+          <p class="text-xs text-gray-500 mt-1">{{ completedBookings }} / {{ totalBookings }} bookings</p>
+        </div>
+        <div class="bg-blue-100 rounded-full p-4">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-red-500">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-600 mb-1">Tỷ lệ hủy</p>
+          <p class="text-3xl font-bold text-red-600">
+            {{ totalBookings > 0 ? ((cancelledBookings / totalBookings) * 100).toFixed(1) : 0 }}%
+          </p>
+          <p class="text-xs text-gray-500 mt-1">{{ cancelledBookings }} / {{ totalBookings }} bookings</p>
+        </div>
+        <div class="bg-red-100 rounded-full p-4">
+          <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="bg-white rounded-lg shadow-lg p-6">
+      <h3 class="text-xl font-semibold text-gray-800 mb-4">Thao tác nhanh</h3>
+      <div class="space-y-3">
+        <a routerLink="/admin/tours" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+            </svg>
+          </div>
+          <span class="text-gray-700 font-medium">Thêm tour mới</span>
+        </a>
+        <a routerLink="/admin/bookings" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+          <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+          </div>
+          <span class="text-gray-700 font-medium">Quản lý bookings</span>
+        </a>
+        <a routerLink="/admin/promotions" class="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+          <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <span class="text-gray-700 font-medium">Tạo khuyến mãi</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow-lg p-6">
+      <h3 class="text-xl font-semibold text-gray-800 mb-4">Chào mừng đến Admin Panel</h3>
+      <p class="text-gray-600 mb-4">
+        Đây là trang quản trị hệ thống UITTravel. Bạn có thể quản lý tours, người dùng và các thiết lập hệ thống từ đây.
+      </p>
+      <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+        <p class="text-sm text-blue-800">
+          💡 <strong>Mẹo:</strong> Sử dụng menu bên trái để điều hướng giữa các trang quản lý.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

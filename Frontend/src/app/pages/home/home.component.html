@@ -1,0 +1,235 @@
+<div class="home-container">
+
+  <app-hero></app-hero>
+
+  <app-coupon-list></app-coupon-list>
+
+  <section class="featured-tours section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Tour nổi bật</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Những tour được đánh giá cao nhất từ khách hàng</p>
+        <a routerLink="/tours" class="view-all-btn">Xem tất cả</a>
+      </div>
+
+      @if (isLoadingFeaturedTours) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
+      </div>
+      } @else if (errorMessageFeatured) {
+      <div class="error-state">
+        <p>{{ errorMessageFeatured }}</p>
+        <button class="btn-retry" (click)="loadFeaturedTours()">
+          Thử lại
+        </button>
+      </div>
+      } @else if (featuredTours.length > 0) {
+      <div class="tours-scroll-container">
+        <div class="tours-scroll">
+          @for (tour of getDisplayedFeaturedTours(); track tour.package_id) {
+          <div class="tour-card-wrapper">
+            <app-tour-card [tour]="tour"></app-tour-card>
+          </div>
+          }
+        </div>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <p>Không có tour nổi bật nào</p>
+      </div>
+      }
+    </div>
+  </section>
+
+  <section class="recommended-tours section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Tour đề xuất cho bạn</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Khám phá những hành trình tuyệt vời dành riêng cho bạn</p>
+        <a routerLink="/tours" class="view-all-btn">Xem tất cả</a>
+      </div>
+
+      @if (isLoadingTours) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
+      </div>
+      } @else if (errorMessageRecommended) {
+      <div class="error-state">
+        <p>{{ errorMessageRecommended }}</p>
+        <button class="btn-retry" (click)="loadRecommendedTours()">
+          Thử lại
+        </button>
+      </div>
+      } @else if (recommendedTours.length > 0) {
+      <div class="tours-scroll-container">
+        <div class="tours-scroll">
+          @for (tour of getDisplayedRecommendedTours(); track tour.package_id) {
+          <div class="tour-card-wrapper">
+            <app-tour-card [tour]="tour"></app-tour-card>
+          </div>
+          }
+        </div>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <p>Không có tour nào được đề xuất</p>
+      </div>
+      }
+    </div>
+  </section>
+
+  <section class="latest-tours section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Tour mới nhất</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Những tour mới được thêm vào hệ thống</p>
+        <a routerLink="/tours" class="view-all-btn">Xem tất cả</a>
+      </div>
+
+      @if (isLoadingLatestTours) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
+      </div>
+      } @else if (errorMessageLatest) {
+      <div class="error-state">
+        <p>{{ errorMessageLatest }}</p>
+        <button class="btn-retry" (click)="loadLatestTours()">
+          Thử lại
+        </button>
+      </div>
+      } @else if (latestTours.length > 0) {
+      <div class="tours-scroll-container">
+        <div class="tours-scroll">
+          @for (tour of getDisplayedLatestTours(); track tour.package_id) {
+          <div class="tour-card-wrapper">
+            <app-tour-card [tour]="tour"></app-tour-card>
+          </div>
+          }
+        </div>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <p>Không có tour mới nào</p>
+      </div>
+      }
+    </div>
+  </section>
+
+  <section class="travel-news section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Tin tức & Cẩm nang du lịch</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Cập nhật những thông tin mới nhất về du lịch và các cẩm nang hữu ích</p>
+        <a routerLink="/travel-news" class="view-all-btn">Xem tất cả</a>
+      </div>
+
+      @if (isLoadingTravelNews) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
+      </div>
+      } @else if (errorMessageTravelNews) {
+      <div class="error-state">
+        <p>{{ errorMessageTravelNews }}</p>
+        <button class="btn-retry" (click)="loadTravelNews()">
+          Thử lại
+        </button>
+      </div>
+      } @else if (travelNews.length > 0) {
+      <div class="news-grid">
+        @for (news of travelNews; track news.news_id) {
+        <app-travel-news-card [news]="news"></app-travel-news-card>
+        }
+      </div>
+      } @else {
+      <div class="empty-state">
+        <p>Không có tin tức nào</p>
+      </div>
+      }
+    </div>
+  </section>
+
+  <section class="customer-reviews section-animate">
+    <div class="section-background"></div>
+    <div class="section-container">
+      <div class="section-header">
+        <div class="section-title-wrapper">
+          <div class="title-bg-glow"></div>
+          <h2 class="section-title">
+            <span class="title-text">Đánh giá từ khách hàng</span>
+            <span class="title-shimmer"></span>
+          </h2>
+          <div class="title-underline">
+            <div class="underline-glow"></div>
+          </div>
+        </div>
+        <p class="section-subtitle">Trải nghiệm thực tế từ những khách hàng đã sử dụng dịch vụ</p>
+      </div>
+
+      @if (isLoadingReviews) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải...</p>
+      </div>
+      } @else if (approvedReviews.length > 0) {
+      <div class="reviews-scroll-container">
+        <div class="reviews-scroll">
+          @for (review of approvedReviews; track review.review_id) {
+          <div class="review-card-wrapper">
+            <app-review-card [review]="review"></app-review-card>
+          </div>
+          }
+        </div>
+      </div>
+      } @else {
+      <div class="empty-state">
+        <p>Chưa có đánh giá nào</p>
+      </div>
+      }
+    </div>
+  </section>
+
+</div>

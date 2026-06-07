@@ -1,0 +1,296 @@
+<div class="w-full booking-pages">
+  <div class="container mx-auto p-6 flex gap-4">
+
+    <div class="flex flex-col gap-4">
+      @if (successMessage) {
+      <div class="bg-green-50 border-2 border-green-500 rounded-lg p-4 shadow-lg">
+        <div class="flex items-center gap-3">
+          <div class="flex-shrink-0">
+            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <p class="text-green-800 font-semibold">{{ successMessage }}</p>
+        </div>
+      </div>
+      }
+
+      <div class="bg-white rounded-lg shadow-md p-4">
+        <h2 class="text-xl font-bold mb-4">Thông tin người đặt</h2>
+        <p class="text-gray-600 mb-4">Vui lòng điền đầy đủ thông tin để đảm bảo bạn có thể nhận được voucher xác nhận
+          đặt tour qua email đã cung cấp.</p>
+
+        @if (isLoading && !tourPackage) {
+        <div class="flex justify-center items-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+        } @else if (errorMessage && !tourPackage) {
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p class="text-red-800">{{ errorMessage }}</p>
+        </div>
+        } @else {
+        <form (ngSubmit)="submitForm()">
+          @if (errorMessage) {
+          <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+            <p class="text-red-800 text-sm">{{ errorMessage }}</p>
+          </div>
+          }
+
+          <!-- Number of People -->
+          <div class="mb-4">
+            <label for="numberOfPeople" class="block text-gray-700 mb-2">Số người</label>
+            <input type="number" id="numberOfPeople" [(ngModel)]="numberOfPeople" name="numberOfPeople" required min="1"
+              [max]="tourPackage?.available_slots || 999" (input)="onNumberOfPeopleInput($event)" (ngModelChange)="onNumberOfPeopleChange()"
+              class="mt-1 block w-full border border-gray-300 rounded-md p-2"
+              [class.border-red-500]="numberOfPeople > (tourPackage?.available_slots || 999)"
+              placeholder="Nhập số người">
+
+            <!-- Available slots info -->
+            @if (tourPackage?.available_slots !== undefined) {
+            <div class="mt-2 flex items-center gap-2">
+              <span class="text-sm" [class.text-green-600]="tourPackage.available_slots > 5"
+                [class.text-orange-600]="tourPackage.available_slots <= 5 && tourPackage.available_slots > 0"
+                [class.text-red-600]="tourPackage.available_slots <= 0">
+                <i class="fas fa-users mr-1"></i>
+                Còn {{ tourPackage.available_slots }} chỗ trống
+              </span>
+            </div>
+
+            <!-- Warning if exceeding available slots -->
+            @if (numberOfPeople > tourPackage.available_slots) {
+            <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+              <p class="text-red-600 text-sm flex items-center gap-1">
+                <i class="fas fa-exclamation-triangle"></i>
+                Số người vượt quá số chỗ còn lại ({{ tourPackage.available_slots }} chỗ)
+              </p>
+            </div>
+            }
+
+            @if (tourPackage.available_slots <= 0) { <div class="mt-2 p-2 bg-red-50 border border-red-200 rounded-md">
+              <p class="text-red-600 text-sm flex items-center gap-1">
+                <i class="fas fa-ban"></i>
+                Tour đã hết chỗ trống
+              </p>
+          </div>
+          }
+          }
+      </div>
+
+      <!-- Full Name -->
+      <div class="mb-4">
+        <label for="fullName" class="block text-gray-700">Họ và tên người liên hệ</label>
+        <input type="text" id="fullName" [(ngModel)]="fullName" name="fullName" required
+          class="mt-1 block w-full border border-gray-300 rounded-md p-2" placeholder="Nhập họ và tên">
+      </div>
+
+      <!-- Email -->
+      <div class="mb-4">
+        <label for="email" class="block text-gray-700">Email</label>
+        <input type="email" id="email" [(ngModel)]="email" name="email" required
+          class="mt-1 block w-full border border-gray-300 rounded-md p-2" placeholder="Nhập email">
+      </div>
+
+      <!-- Phone Number -->
+      <div class="mb-4">
+        <label for="phoneNumber" class="block text-gray-700">Số điện thoại</label>
+        <div class="flex">
+          <input type="text" class="w-1/4 border border-gray-300 rounded-md p-2" value="+84" readonly>
+          <input type="text" id="phoneNumber" [(ngModel)]="phoneNumber" name="phoneNumber" required
+            class="w-full border border-gray-300 rounded-md p-2 ml-2" placeholder="Nhập số điện thoại (10 số)"
+            maxlength="10" pattern="[0-9]{10}" (input)="onPhoneNumberInput($event)"
+            [class.border-red-500]="phoneNumber && phoneNumber.length !== 10">
+        </div>
+        @if (phoneNumber && phoneNumber.length !== 10) {
+          <p class="mt-1 text-sm text-red-600">Số điện thoại phải có đúng 10 số</p>
+        }
+      </div>
+
+      </form>
+      }
+    </div>
+
+    <!-- Special Requests Card -->
+    <div class="bg-white rounded-lg shadow-md p-4">
+      <h3 class="text-lg font-bold mb-2">Yêu cầu đặc biệt (tùy chọn)</h3>
+      <p class="text-gray-600 mb-4">Cho chúng tôi biết nếu bạn có yêu cầu đặc biệt nào khác.</p>
+
+      <textarea [(ngModel)]="specialRequests" name="specialRequests" rows="4"
+        class="w-full border border-gray-300 rounded-md p-2" placeholder="Nhập yêu cầu đặc biệt của bạn..."></textarea>
+    </div>
+
+    <!-- price detail -->
+    <div class="bg-white rounded-lg shadow-md p-4">
+      <h2 class="text-xl font-bold mb-4">Chi tiết giá</h2>
+
+      <!-- Available Promotions -->
+      @if (isLoadingPromotions) {
+      <div class="mb-4 text-center py-2">
+        <p class="text-gray-500 text-sm">Đang tải khuyến mãi...</p>
+      </div>
+      } @else if (availablePromotions.length > 0) {
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-2">Mã khuyến mãi có sẵn</h3>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+          @for (promotion of availablePromotions; track promotion.promotion_id) {
+          <div class="border border-gray-200 rounded-lg p-3 hover:border-blue-400 transition-colors"
+            [class.bg-blue-50]="selectedPromotion?.promotion_id === promotion.promotion_id"
+            [class.border-blue-400]="selectedPromotion?.promotion_id === promotion.promotion_id">
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-semibold text-gray-800">{{ promotion.name }}</span>
+                  <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{{ promotion.code }}</span>
+                </div>
+                @if (promotion.description) {
+                <p class="text-xs text-gray-600 mb-1">{{ promotion.description }}</p>
+                }
+                <p class="text-xs text-gray-500">
+                  @if (promotion.discount_type === 'PERCENTAGE') {
+                  Giảm {{ promotion.discount_value }}%
+                  } @else {
+                  Giảm {{ formatPrice(promotion.discount_value) }}
+                  }
+                </p>
+              </div>
+              <div class="ml-2">
+                @if (selectedPromotion?.promotion_id === promotion.promotion_id) {
+                <button (click)="removePromotion()"
+                  class="text-xs text-red-600 hover:text-red-700 px-2 py-1 border border-red-300 rounded hover:bg-red-50 transition-colors">
+                  Hủy
+                </button>
+                } @else {
+                <button (click)="applyPromotion(promotion)"
+                  class="text-xs text-blue-600 hover:text-blue-700 px-2 py-1 border border-blue-300 rounded hover:bg-blue-50 transition-colors">
+                  Áp dụng
+                </button>
+                }
+              </div>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+      }
+
+      <div class="mb-4">
+        <p class="flex justify-between">
+          <span>Giá tour ({{ numberOfPeople }} người)</span>
+          <span>{{ formatPrice(priceBreakdown.roomPrice) }}</span>
+        </p>
+        @if (priceBreakdown.roomDescription) {
+        <p class="text-sm text-gray-600 mt-1">
+          {{ priceBreakdown.roomDescription }}
+        </p>
+        }
+      </div>
+
+      @if (selectedPromotion && discountAmount > 0) {
+      <div class="mb-2">
+        <p class="flex justify-between text-green-600">
+          <span>Giảm giá ({{ selectedPromotion.code }})</span>
+          <span>-{{ formatPrice(discountAmount) }}</span>
+        </p>
+      </div>
+      }
+
+      <div class="border-t border-gray-300 mt-4 pt-2">
+        <p class="flex justify-between font-bold text-lg">
+          <span>Tổng giá</span>
+          <span class="text-blue-600">{{ formatPrice(priceBreakdown.totalPrice) }}</span>
+        </p>
+        @if (selectedPromotion && discountAmount > 0) {
+        <p class="text-xs text-gray-500 mt-1 line-through">{{ formatPrice(priceBreakdown.roomPrice) }}</p>
+        }
+      </div>
+
+      <p class="text-orange-500 text-sm my-4">Bạn không cần thanh toán gì ngay bây giờ!</p>
+
+      <button (click)="proceedToPayment()" [disabled]="isLoading || showOTPForm"
+        class="bg-orange-500 text-white rounded-md py-2 px-4 w-full hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        {{ isLoading ? 'Đang xử lý...' : 'Đặt tour ngay' }}
+      </button>
+    </div>
+
+    <!-- OTP Verification Form -->
+    @if (showOTPForm) {
+    <div class="bg-white rounded-lg shadow-md p-6 border-2 border-blue-500">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="flex-shrink-0">
+          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-800">Xác nhận mã OTP</h3>
+          <p class="text-gray-600 text-sm">Nhập mã OTP 6 số đã được gửi đến email của bạn</p>
+        </div>
+      </div>
+
+      @if (otpSuccessMessage) {
+      <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
+        <p class="text-green-800 text-sm">{{ otpSuccessMessage }}</p>
+      </div>
+      }
+
+      @if (otpErrorMessage) {
+      <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+        <p class="text-red-800 text-sm">{{ otpErrorMessage }}</p>
+      </div>
+      }
+
+      <div class="mb-4">
+        <label for="otpCode" class="block text-gray-700 font-medium mb-2">Mã OTP</label>
+        <input type="text" id="otpCode" [(ngModel)]="otpCode" name="otpCode" (input)="onOTPInput($event)"
+          (keydown.enter)="onOTPEnter()" maxlength="6" placeholder="000000"
+          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-bold tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          [disabled]="isVerifyingOTP">
+        <p class="text-sm text-gray-500 mt-2">Nhập 6 số từ email của bạn (nhấn Enter để xác nhận)</p>
+      </div>
+
+      <div class="flex gap-3">
+        <button (click)="verifyOTP()" [disabled]="isVerifyingOTP || otpCode.length !== 6"
+          class="flex-1 bg-blue-600 text-white rounded-lg py-3 px-4 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
+          @if (isVerifyingOTP) {
+          <span class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+              </path>
+            </svg>
+            Đang xác nhận...
+          </span>
+          } @else {
+          Xác nhận OTP
+          }
+        </button>
+        <button (click)="resendOTP()" [disabled]="isResendingOTP"
+          class="px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
+          @if (isResendingOTP) {
+          <span class="flex items-center gap-2">
+            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+              </path>
+            </svg>
+          </span>
+          } @else {
+          Gửi lại OTP
+          }
+        </button>
+      </div>
+    </div>
+    }
+
+  </div>
+
+
+
+  <div class="flex-auto w-1/3 m-w31 flex flex-col gap-4">
+    <app-booking-card [tourPackage]="tourPackage" [numberOfPeople]="numberOfPeople"></app-booking-card>
+  </div>
+</div>
+</div>

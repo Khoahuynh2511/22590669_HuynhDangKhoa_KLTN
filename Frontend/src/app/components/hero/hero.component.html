@@ -1,0 +1,64 @@
+<section class="relative hero pt-12 ">
+  <div class="relative from-blue-900 to-transparent pt-10">
+    <div class="container mx-auto px-6 py-12 text-white flex flex-col">
+      <h1 class="text-3xl font-bold mx-auto hero-title">Biến Chuyến Đi Thành Hiện Thực Theo Cách Của Bạn</h1>
+      <div class="bg-transparent rounded-lg mt-6 p-6 text-white box-border">
+        
+        <div class="flex justify-center w-full">
+          <div class="mt-6 w-full max-w-4xl wrapper-form relative group">
+              <label class="block text-sm font-semibold mb-2 text-white ml-1">Tìm kiếm tour</label>
+              
+              <div class="relative w-full">
+                <input 
+                  type="text" 
+                  [(ngModel)]="searchQuery" 
+                  (ngModelChange)="onSearchChange()"
+                  (focus)="onFocus()"
+                  (blur)="onBlur()"
+                  placeholder="Nhập tên tour hoặc điểm đến bạn muốn tìm..." 
+                  class="w-full p-4 pr-32 border bg-white rounded-lg shadow-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all" 
+                  autocomplete="off"
+                />
+                <button class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-orange-500 text-white px-6 py-2 rounded-md hover:bg-orange-600 transition-colors font-semibold shadow-sm h-10" (click)="onSearch()">
+                  Tìm kiếm
+                </button>
+              </div>
+              
+              <!-- Search Results Dropdown -->
+              @if (showResults && (searchResults.length > 0 || isLoading)) {
+                <div class="absolute z-50 w-full bg-white shadow-xl rounded-b-lg mt-1 border border-gray-200 overflow-hidden max-h-96 overflow-y-auto text-gray-800 left-0">
+                  @if (isLoading) {
+                    <div class="p-4 text-center text-gray-500 flex items-center justify-center">
+                      <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+                      <span>Đang tìm kiếm...</span>
+                    </div>
+                  } @else {
+                    @for (tour of searchResults; track tour.package_id) {
+                      <div 
+                        (click)="selectTour(tour)"
+                        class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0 flex gap-3 items-center transition-colors duration-150">
+                         <div class="w-12 h-12 flex-shrink-0 bg-gray-200 rounded-md overflow-hidden">
+                            <img [src]="tour.image_url || 'assets/img/default-tour.jpg'" 
+                                class="w-full h-full object-cover" 
+                                alt=""
+                                onerror="this.src='assets/img/default-tour.jpg'">
+                         </div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-medium text-gray-900 text-sm truncate">{{ tour.package_name }}</h4>
+                          <div class="flex items-center text-xs text-gray-500 mt-1 justify-between">
+                            <span class="truncate pr-2"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i> {{ tour.destination }}</span>
+                            <span class="text-orange-600 font-bold whitespace-nowrap">{{ formatPrice(tour.price) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  }
+                </div>
+              }
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>

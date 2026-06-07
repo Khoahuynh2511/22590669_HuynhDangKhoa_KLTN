@@ -1,0 +1,169 @@
+.review-card {
+    background: white;
+    border-radius: 20px;
+    padding: 28px;
+    width: 340px;
+    min-width: 340px;
+    min-height: 280px;
+    box-shadow:
+        0 4px 6px -1px rgba(0, 0, 0, 0.05),
+        0 10px 15px -3px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    position: relative;
+    overflow: hidden;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    &:hover {
+        transform: translateY(-8px);
+        box-shadow:
+            0 10px 25px -5px rgba(0, 0, 0, 0.1),
+            0 20px 35px -10px rgba(0, 0, 0, 0.12);
+
+        &::before {
+            opacity: 1;
+        }
+    }
+
+    .quote-icon {
+        position: absolute;
+        top: 20px;
+        right: 24px;
+
+        i {
+            font-size: 32px;
+            color: #e5e7eb;
+        }
+    }
+
+    .rating-section {
+        display: flex;
+        gap: 4px;
+
+        i {
+            font-size: 18px;
+            color: #fbbf24;
+            filter: drop-shadow(0 1px 2px rgba(251, 191, 36, 0.3));
+
+            &.pi-star {
+                color: #e5e7eb;
+                filter: none;
+            }
+        }
+    }
+
+    .review-content {
+        flex: 1;
+        display: flex;
+        align-items: flex-start;
+
+        .review-comment {
+            color: #374151;
+            font-size: 15px;
+            line-height: 1.7;
+            margin: 0;
+            font-style: italic;
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            line-clamp: 4;
+            overflow: hidden;
+        }
+    }
+
+    .user-section {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-top: 16px;
+        border-top: 1px solid #f3f4f6;
+        margin-top: auto;
+
+        .user-avatar {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 3px solid white;
+
+            .avatar-img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .avatar-initial {
+                color: white;
+                font-size: 20px;
+                font-weight: 700;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+            }
+        }
+
+        .user-info {
+            flex: 1;
+            min-width: 0;
+
+            .user-name {
+                font-size: 15px;
+                font-weight: 700;
+                color: #111827;
+                margin: 0 0 4px 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .tour-name {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+                color: #6b7280;
+                margin: 0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+
+                i {
+                    font-size: 12px;
+                    color: #3b82f6;
+                    flex-shrink: 0;
+                }
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .review-card {
+        width: 300px;
+        min-width: 300px;
+        padding: 24px;
+        min-height: 260px;
+
+        .user-section .user-avatar {
+            width: 44px;
+            height: 44px;
+        }
+    }
+}

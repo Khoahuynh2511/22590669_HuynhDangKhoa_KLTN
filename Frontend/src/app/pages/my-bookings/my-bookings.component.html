@@ -1,0 +1,565 @@
+<div class="bookings-dashboard min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 pb-16 pt-24 font-sans">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    
+    <!-- Header Section -->
+    <div class="page-header mb-10">
+      <div class="header-content">
+        <h1 class="page-title">
+          <span class="title-gradient">Chuyến đi của tôi</span>
+        </h1>
+        <p class="page-subtitle">Quản lý và theo dõi lịch sử đặt tour của bạn</p>
+      </div>
+    </div>
+
+    <!-- Stats Overview - Compact -->
+    <div class="stats-overview mb-8">
+      <div class="stats-container">
+        <div class="stat-item primary">
+          <div class="stat-icon">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Tổng chi tiêu</p>
+            <p class="stat-value">{{ formatPrice(calculateTotalSpent()) }}</p>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Tổng đơn</p>
+            <p class="stat-value">{{ stats.total }}</p>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Chờ xử lý</p>
+            <p class="stat-value">{{ stats.pending }}</p>
+          </div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-icon">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="stat-content">
+            <p class="stat-label">Hoàn thành</p>
+            <p class="stat-value">{{ stats.completed }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="filter-section mb-6">
+      <div class="filter-container">
+        <button 
+          (click)="statusFilter = ''; onStatusFilterChange()" 
+          [class.active]="statusFilter === ''"
+          class="filter-btn">
+          <span>Tất cả</span>
+          <span class="filter-count">{{ stats.total }}</span>
+        </button>
+        <button 
+          (click)="statusFilter = 'pending'; onStatusFilterChange()" 
+          [class.active]="statusFilter === 'pending'"
+          class="filter-btn">
+          <span>Chờ xử lý</span>
+          <span class="filter-count">{{ stats.pending }}</span>
+        </button>
+        <button 
+          (click)="statusFilter = 'otp_sent'; onStatusFilterChange()" 
+          [class.active]="statusFilter === 'otp_sent'"
+          class="filter-btn">
+          <span>Chờ OTP</span>
+          <span class="filter-count">{{ stats.otp_sent }}</span>
+        </button>
+        <button 
+          (click)="statusFilter = 'confirmed'; onStatusFilterChange()"
+          [class.active]="statusFilter === 'confirmed'" 
+          class="filter-btn">
+          <span>Đã xác nhận</span>
+          <span class="filter-count">{{ stats.confirmed }}</span>
+        </button>
+        <button 
+          (click)="statusFilter = 'completed'; onStatusFilterChange()"
+          [class.active]="statusFilter === 'completed'" 
+          class="filter-btn">
+          <span>Hoàn thành</span>
+          <span class="filter-count">{{ stats.completed }}</span>
+        </button>
+        <button 
+          (click)="statusFilter = 'cancelled'; onStatusFilterChange()"
+          [class.active]="statusFilter === 'cancelled'" 
+          class="filter-btn">
+          <span>Đã hủy</span>
+          <span class="filter-count">{{ stats.cancelled }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Content: Horizontal List Layout -->
+    @if (isLoading) {
+      <div class="bookings-list">
+        @for (i of [1,2,3,4,5]; track i) {
+          <div class="booking-item-skeleton">
+            <div class="skeleton-left">
+              <div class="skeleton-line h-6 w-32 mb-3"></div>
+              <div class="skeleton-line h-5 w-64 mb-2"></div>
+              <div class="skeleton-line h-4 w-48"></div>
+            </div>
+            <div class="skeleton-right">
+              <div class="skeleton-line h-8 w-24 mb-2"></div>
+              <div class="skeleton-line h-6 w-32"></div>
+            </div>
+          </div>
+        }
+      </div>
+    } @else if (filteredBookings.length === 0) {
+      <!-- Empty State -->
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg class="w-24 h-24 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <h3 class="empty-title">Chưa có chuyến đi nào</h3>
+        <p class="empty-text">
+          @if (statusFilter) {
+            Không tìm thấy đơn hàng nào trong mục này.
+          } @else {
+            Hãy bắt đầu hành trình khám phá thế giới cùng chúng tôi ngay hôm nay!
+          }
+        </p>
+        @if (!statusFilter) {
+          <a routerLink="/tours" class="empty-btn">
+            <span>Khám phá Tours</span>
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+          </a>
+        }
+      </div>
+    } @else {
+      <div class="bookings-list">
+        @for (booking of filteredBookings; track booking.booking_id) {
+          <div class="booking-item" [class]="'status-' + booking.status">
+            <!-- Left Section: Main Info -->
+            <div class="booking-main">
+              <!-- Header Row -->
+              <div class="booking-header-row">
+                <div class="booking-id-section">
+                  <span class="booking-id">#{{ booking.booking_id.slice(-6) }}</span>
+                  <span class="status-badge" [class]="'badge-' + booking.status">
+                    {{ getStatusText(booking.status) }}
+                  </span>
+                </div>
+                <div class="booking-price-mobile">
+                  <span class="price-label-mobile">Tổng</span>
+                  <span class="price-value-mobile">{{ formatPrice(booking.total_amount) }}</span>
+                </div>
+              </div>
+
+              <!-- Title -->
+              <h3 class="booking-title">{{ booking.tour_name }}</h3>
+
+              <!-- Info Grid -->
+              <div class="booking-info">
+                <div class="info-row">
+                  <div class="info-cell">
+                    <svg class="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span class="info-text">{{ booking.destination }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <svg class="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                    <span class="info-text">{{ booking.number_of_people }} khách</span>
+                  </div>
+                </div>
+                <div class="info-row">
+                  <div class="info-cell">
+                    <svg class="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="info-text">{{ formatDate(booking.start_date) }}</span>
+                  </div>
+                  <div class="info-cell">
+                    <svg class="info-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span class="info-text">{{ getDuration(booking.start_date, booking.end_date) }} ngày</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Section: Price & Actions -->
+            <div class="booking-sidebar">
+              <div class="price-section">
+                <span class="price-label">Tổng thanh toán</span>
+                <span class="price-value">{{ formatPrice(booking.total_amount) }}</span>
+              </div>
+
+              <div class="action-buttons">
+                @if (canEditBooking(booking.status)) {
+                  <button (click)="openEditModal(booking.booking_id)" class="action-btn edit" title="Chỉnh sửa">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                }
+                @if (canDeleteBooking(booking.status)) {
+                  <button (click)="confirmDelete(booking.booking_id)" class="action-btn delete" title="Hủy đơn">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                }
+                @if (canPayBooking(booking.status)) {
+                  <button (click)="processPayment(booking.booking_id)" [disabled]="isBookingProcessingPayment(booking.booking_id)" class="action-btn pay">
+                    @if (isBookingProcessingPayment(booking.booking_id)) {
+                      <div class="spinner-small"></div>
+                    } @else {
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    }
+                    <span>Thanh toán</span>
+                  </button>
+                }
+                <button (click)="openDetailModal(booking.booking_id)" class="action-btn detail">
+                  <span>Chi tiết</span>
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Pagination -->
+      @if (getTotalPages() > 1) {
+        <div class="pagination">
+          <button (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1" class="pagination-btn prev">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            <span>Trước</span>
+          </button>
+          <div class="pagination-numbers">
+            @for (page of getPageNumbers(); track page) {
+              <button (click)="goToPage(page)" [class.active]="currentPage === page" class="pagination-number">
+                {{ page }}
+              </button>
+            }
+          </div>
+          <button (click)="goToPage(currentPage + 1)" [disabled]="currentPage === getTotalPages()" class="pagination-btn next">
+            <span>Sau</span>
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      }
+    }
+  </div>
+</div>
+
+<!-- Detail Modal -->
+@if (showDetailModal) {
+  <div class="modal-backdrop" (click)="closeDetailModal()">
+    <div class="modal-content detail-modal" (click)="$event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="modal-header">
+        <div class="modal-header-content">
+          <div class="modal-status-row">
+            <span [class]="'status-badge-modal ' + bookingDetail?.status">
+              {{ bookingDetail ? getStatusText(bookingDetail.status) : '' }}
+            </span>
+            <span class="modal-booking-id">ID: #{{ bookingDetail?.booking_id }}</span>
+          </div>
+          <h2 class="modal-title">{{ bookingDetail?.tour_package?.package_name }}</h2>
+          <p class="modal-subtitle">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            {{ bookingDetail?.tour_package?.destination }}
+          </p>
+        </div>
+        <button (click)="closeDetailModal()" class="modal-close-btn">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body">
+        @if (isLoadingDetail) {
+          <div class="modal-loading">
+            <div class="spinner"></div>
+            <p>Đang tải chi tiết...</p>
+          </div>
+        } @else if (bookingDetail) {
+          <div class="modal-grid">
+            <!-- Left Column: Info -->
+            <div class="modal-info-column">
+              <!-- Tour Info Cards -->
+              <div class="info-cards-grid">
+                <div class="info-card">
+                  <div class="info-card-icon bg-blue-50 text-blue-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="info-card-label">Thời gian</p>
+                    <p class="info-card-value">{{ formatDate(bookingDetail.tour_package.start_date) }} - {{ formatDate(bookingDetail.tour_package.end_date) }}</p>
+                    <p class="info-card-subtext">({{ bookingDetail.tour_package.duration_days }} ngày)</p>
+                  </div>
+                </div>
+
+                <div class="info-card">
+                  <div class="info-card-icon bg-purple-50 text-purple-600">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p class="info-card-label">Khách hàng</p>
+                    <p class="info-card-value">{{ bookingDetail.contact_name }}</p>
+                    <p class="info-card-subtext">{{ bookingDetail.contact_phone }}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tour Description -->
+              <div class="description-card">
+                <h4 class="description-title">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7" />
+                  </svg>
+                  Lịch trình & Chi tiết
+                </h4>
+                <div class="description-content">
+                  {{ getDescriptionParts(bookingDetail.tour_package.description).main }}
+                </div>
+
+                @if (getDescriptionParts(bookingDetail.tour_package.description).note) {
+                  <div class="description-note">
+                    <p class="note-text">{{ getDescriptionParts(bookingDetail.tour_package.description).note }}</p>
+                  </div>
+                }
+
+                @if (bookingDetail.special_requests) {
+                  <div class="special-requests">
+                    <p class="special-requests-label">Ghi chú của bạn:</p>
+                    <p class="special-requests-text">{{ bookingDetail.special_requests }}</p>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Right Column: Payment Summary -->
+            <div class="modal-payment-column">
+              <div class="payment-summary-card sticky">
+                <h4 class="payment-title">Chi tiết thanh toán</h4>
+
+                <div class="payment-breakdown">
+                  <div class="payment-item">
+                    <span class="payment-label">Đơn giá vé</span>
+                    <span class="payment-value">{{ formatPrice(bookingDetail.tour_package.price) }}</span>
+                  </div>
+                  <div class="payment-item">
+                    <span class="payment-label">Số lượng khách</span>
+                    <span class="payment-value">x {{ bookingDetail.number_of_people }}</span>
+                  </div>
+                  @if (bookingDetail.number_of_people >= 5) {
+                    <div class="payment-item discount">
+                      <span class="payment-label">Ưu đãi nhóm</span>
+                      <span class="payment-value">-0đ (Demo)</span>
+                    </div>
+                  }
+                </div>
+
+                <div class="payment-total">
+                  <span class="total-label">Tổng cộng</span>
+                  <span class="total-value">{{ formatPrice(bookingDetail.total_amount) }}</span>
+                </div>
+
+                @if (isLoadingPayment) {
+                  <div class="payment-loading">
+                    <div class="spinner-small"></div>
+                    <span>Đang tải thông tin thanh toán...</span>
+                  </div>
+                } @else if (paymentInfo) {
+                  <div class="payment-info-card">
+                    <h5 class="payment-info-title">Thông tin thanh toán</h5>
+                    <div class="payment-info-grid">
+                      <div class="payment-info-item">
+                        <span class="payment-info-label">Trạng thái:</span>
+                        <span [class]="'payment-info-value ' + (paymentInfo.payment_status === 'completed' ? 'text-green-600' : paymentInfo.payment_status === 'failed' ? 'text-red-600' : 'text-yellow-600')">
+                          @if (paymentInfo.payment_status === 'completed') {
+                            Thành công
+                          } @else if (paymentInfo.payment_status === 'failed') {
+                            Thất bại
+                          } @else {
+                            Chờ xử lý
+                          }
+                        </span>
+                      </div>
+                      <div class="payment-info-item">
+                        <span class="payment-info-label">Phương thức:</span>
+                        <span class="payment-info-value">{{ paymentInfo.payment_method.toUpperCase() }}</span>
+                      </div>
+                      @if (paymentInfo.transaction_id) {
+                        <div class="payment-info-item">
+                          <span class="payment-info-label">Mã giao dịch:</span>
+                          <span class="payment-info-value font-mono text-xs">{{ paymentInfo.transaction_id }}</span>
+                        </div>
+                      }
+                      @if (paymentInfo.paid_at) {
+                        <div class="payment-info-item">
+                          <span class="payment-info-label">Ngày thanh toán:</span>
+                          <span class="payment-info-value">{{ formatDateTime(paymentInfo.paid_at) }}</span>
+                        </div>
+                      }
+                    </div>
+                  </div>
+                }
+
+                <div class="payment-actions">
+                  @if (canPayBooking(bookingDetail.status)) {
+                    <button (click)="processPayment(bookingDetail.booking_id)" [disabled]="isBookingProcessingPayment(bookingDetail.booking_id)" class="payment-btn primary">
+                      @if (isBookingProcessingPayment(bookingDetail.booking_id)) {
+                        <div class="spinner-small"></div>
+                      }
+                      <span>{{ isBookingProcessingPayment(bookingDetail.booking_id) ? 'Đang xử lý...' : 'Thanh toán VNPay' }}</span>
+                    </button>
+                    @if (getPaymentErrorMessage(bookingDetail.booking_id)) {
+                      <div class="payment-error">{{ getPaymentErrorMessage(bookingDetail.booking_id) }}</div>
+                    }
+                  }
+                  @if (canEditBooking(bookingDetail.status)) {
+                    <button (click)="openEditModal(bookingDetail.booking_id)" class="payment-btn secondary">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Chỉnh sửa thông tin
+                    </button>
+                  }
+                  @if (canDeleteBooking(bookingDetail.status)) {
+                    <button (click)="confirmDelete(bookingDetail.booking_id); closeDetailModal()" class="payment-btn danger">
+                      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Hủy đặt tour
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Edit Modal -->
+@if (showEditModal) {
+  <div class="modal-backdrop" (click)="closeEditModal()">
+    <div class="modal-content edit-modal" (click)="$event.stopPropagation()">
+      <div class="edit-modal-header">
+        <h3 class="edit-modal-title">Cập nhật thông tin</h3>
+        <button (click)="closeEditModal()" class="modal-close-btn">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="edit-modal-body">
+        @if (updateErrorMessage) {
+          <div class="alert alert-error">{{ updateErrorMessage }}</div>
+        }
+        @if (updateSuccessMessage) {
+          <div class="alert alert-success">{{ updateSuccessMessage }}</div>
+        }
+
+        <form (ngSubmit)="updateBooking()" class="edit-form">
+          <div class="form-group">
+            <label class="form-label">Tên liên hệ</label>
+            <input type="text" [(ngModel)]="editForm.contact_name" name="cname" class="form-input" placeholder="Nhập tên người liên hệ">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại</label>
+            <input type="text" [(ngModel)]="editForm.contact_phone" name="cphone" class="form-input" placeholder="Nhập số điện thoại">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số khách</label>
+            <input type="number" [(ngModel)]="editForm.number_of_people" name="cnum" min="1" class="form-input" disabled readonly>
+            <small class="text-gray-500 text-sm mt-1 block">Số khách không thể thay đổi sau khi đặt tour</small>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Yêu cầu đặc biệt</label>
+            <textarea rows="3" [(ngModel)]="editForm.special_requests" name="creq" class="form-textarea" placeholder="Nhập các yêu cầu đặc biệt nếu có..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" (click)="closeEditModal()" class="form-btn cancel">Đóng</button>
+            <button type="submit" [disabled]="isUpdating" class="form-btn submit">
+              @if (isUpdating) {
+                <div class="spinner-small"></div>
+              }
+              Lưu thay đổi
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteConfirm) {
+  <div class="modal-backdrop" (click)="cancelDelete()">
+    <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+      <div class="delete-modal-icon">
+        <svg class="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h3 class="delete-modal-title">Hủy đơn hàng?</h3>
+      <p class="delete-modal-message">Bạn có chắc chắn muốn hủy đơn này không? Hành động này không thể hoàn tác.</p>
+
+      <div class="delete-modal-actions">
+        <button (click)="cancelDelete()" class="delete-btn cancel">Giữ lại</button>
+        <button (click)="deleteBooking()" [disabled]="isDeleting" class="delete-btn confirm">
+          @if (isDeleting) {
+            <div class="spinner-small"></div>
+          }
+          Xác nhận hủy
+        </button>
+      </div>
+    </div>
+  </div>
+}

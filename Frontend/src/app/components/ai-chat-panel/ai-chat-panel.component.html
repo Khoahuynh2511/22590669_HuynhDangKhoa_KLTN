@@ -1,0 +1,99 @@
+<div class="ai-chat-panel">
+  <!-- Chat Body -->
+  <div class="chat-body">
+    <!-- Messages Container -->
+    <div class="messages-container" #messagesContainer>
+      @if (messages.length === 0) {
+        <div class="welcome-message">
+          <i class="fas fa-robot"></i>
+          <h4>Xin chào! Tôi là AI Assistant</h4>
+          <p>Hãy hỏi tôi về tin tức, cẩm nang du lịch hoặc bất kỳ thông tin nào bạn muốn tìm hiểu!</p>
+        </div>
+      }
+
+      @for (message of messages; track $index) {
+        <div class="message" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+          <div class="message-content">
+            @if (message.role === 'user') {
+              <div class="message-bubble user-bubble">
+                {{ message.content }}
+              </div>
+            } @else {
+              <div class="message-bubble assistant-bubble">
+                <div class="message-text" [innerHTML]="formatMessage(message.content)"></div>
+                
+                @if (message.sources && message.sources.length > 0) {
+                  <div class="sources">
+                    <strong>Nguồn tham khảo:</strong>
+                    <ul>
+                      @for (source of message.sources; track source) {
+                        <li>
+                          <a (click)="openSource(source)" class="source-link">
+                            {{ source }}
+                            <i class="fas fa-external-link-alt"></i>
+                          </a>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+          <div class="message-time">
+            {{ formatTime(message.timestamp) }}
+          </div>
+        </div>
+      }
+
+      @if (isSending) {
+        <div class="message assistant">
+          <div class="message-content">
+            <div class="message-bubble assistant-bubble">
+              <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Error Message -->
+      @if (errorMessage) {
+        <div class="error-message">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>{{ errorMessage }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Chat Composer -->
+  <div class="chat-composer">
+    @if (messages.length > 0) {
+      <button class="clear-history-btn" (click)="clearConversation()" title="Xóa lịch sử">
+        <i class="fas fa-trash-alt"></i>
+        Xóa lịch sử
+      </button>
+    }
+    <div class="composer-bar">
+      <textarea
+        [(ngModel)]="currentMessage"
+        (keydown)="onKeyDown($event)"
+        (input)="onTextareaInput($event)"
+        placeholder="Nhập câu hỏi của bạn..."
+        class="message-input"
+        [disabled]="isSending"
+        rows="1"></textarea>
+      <button
+        class="send-btn"
+        (click)="sendMessage()"
+        [disabled]="!currentMessage.trim() || isSending"
+        title="Gửi tin nhắn (Enter)">
+        <i class="fas fa-paper-plane"></i>
+      </button>
+    </div>
+  </div>
+</div>

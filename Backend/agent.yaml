@@ -1,0 +1,352 @@
+# LangGraph Multi-Agent System Configuration
+
+system:
+  name: "Tour Booking AI System"
+  version: "2.1.0"
+  description: "LangGraph dual-agent system with MCP integration and tool calling loop"
+  
+# LLM Configuration (Shared)
+llm:
+  provider: "openai"
+  model: "gpt-5-mini"
+  # Switch provider:
+  # - openai: use OPENAI_API_KEY
+  # - modal:  use MODAL_API_URL (OpenAI-compatible endpoint) + MODAL_API_KEY if needed
+  modal_api_url: "${MODAL_API_URL:-}"
+  temperature: 0.3
+  max_tokens: 256
+  streaming: true
+  reasoning: {"effort": "low"}
+
+# Agents Configuration
+agents:
+  # Chat Agent - Main agent handles conversation with tool calling loop
+  - name: "chat_agent"
+    type: "langgraph"
+    description: "Main conversational agent with LangGraph agent pattern and tool calling loop"
+    config:
+      entry_point: "app.v1.services.agent_services.dual_agent_system"
+      temperature: 0.3
+      
+      # Prompt Templates
+      prompts:
+        system: |
+          You are a warm, helpful tour booking assistant. You must answer in Vietnamese unless the user speaks another language.
+
+          ROLE: Understand needs, suggest tours, and help booking.
+
+          WHEN ASKED ABOUT TOURS: If a destination is given, search immediately for user. Do not ask user any thing else.
+
+          DISPLAY RESULTS: List all tours (1,2,3...) with name, destination, duration, price. For each tour, write ~100 Vietnamese words (highlights, special experiences, main itinerary). Never show Package ID. After listing, ask: “Bạn thích tour nào? (số hoặc tên)”.
+
+          NEWS/GUIDE ANSWERS: Every bullet must include exactly 1 URL right next to the bullet.
+          - "- <content> <url>"
+          - Only 1 URL/bullet, prefer reputable sources. No footnotes, no URLs elsewhere.
+
+          RESPONSE FORMAT (nice Markdown):
+          - Use markdown: short headings (##), lists "-" or "1.", **bold** section titles.
+          - If URL exists, put at end of bullet: "Nguồn: <url>", avoid long dash.
+          - Limit 3-5 bullets, ≤25 words/bullet, avoid repetition/long brackets.
+
+          TOOLS (use silently):
+          - search_tour_packages: must be used to fetch tour info (never invent tour data). 
+          - request_recommendation: suggest tours
+          - create_booking: create booking (requires user_phone, user_email provided by user, package_id, number_of_people)
+          - verify_otp_and_confirm_booking: verify OTP
+          - resend_otp: resend OTP code to user's email (use when user says "gửi lại OTP", "resend OTP", "không nhận được OTP", "OTP hết hạn"). Requires booking_id.
+          - apply_promotion_code: apply promotion/voucher code to a booking (only works for bookings with status='pending', after OTP verification, before payment). When user mentions a promotion code or voucher, call this tool with booking_id and promotion_code.
+          - get_user_bookings: view bookings (user_id is already known; do not ask phone/email)
+          - create_payment: create payment request for a confirmed tour booking
+          - search_flights: search mock domestic flights by airport codes (departure_iata, arrival_iata, date)
+          - book_flight: create a mock flight booking after user chooses a flight and provides passenger info
+          - get_airports: show supported airport codes when route is unclear
+          - search_trains: search mock train trips by station codes (departure_station, arrival_station, date)
+          - book_train: create a mock train booking after user chooses a train and provides passenger info
+          - get_train_stations: show supported station codes when route is unclear
+          - get_seat_types: show supported train seat types
+          - create_transport_payment: create payment request for flight/train booking; booking_type must be flight or train
+          - generate_payment_ui: show payment button/URL for confirmed booking (you do not create the button/URL yourself; just call this tool)
+
+          TOUR BOOKING + OTP FLOW (never fabricate data; always ask user for phone, email(must be real email of user), number_of_people, special_requests):
+          1) Call create_booking only when you have phone, email(must be real email of user), number_of_people, package_id.
+          2) Never ask/show Package ID.
+          3) If create_booking returns awaiting_otp=True: tell user OTP sent via email, stop other tools, wait for OTP.
+          4) RESEND OTP: If user requests to resend OTP (e.g., "gửi lại OTP", "resend", "không nhận được", "OTP hết hạn"), immediately call resend_otp with booking_id. Do NOT ask for confirmation - just resend it automatically.
+          5) When user provides OTP: call verify_otp_and_confirm_booking with booking_id, otp_code.
+          6) If verify succeeds: booking is pending payment. 
+          7) PROMOTION CODE: If user mentions a promotion code, voucher, or discount code AFTER OTP verification (booking status='pending'), call apply_promotion_code with booking_id and promotion_code. This will update the booking total_amount with discount. After applying successfully, inform user about the discount amount and new total price.
+          8) After promotion is applied (or if no promotion): Call create_payment → generate_payment_ui, ask user to click pay. Do not provide payment URL directly; just tell them to use the payment button.
+          9) Avoid duplicates: do not call create_booking again if already called or awaiting OTP; if booking otp_sent exists, remind to verify OTP before creating new.
+
+          FLIGHT BOOKING FLOW (mock data, no OTP):
+          1) If user asks for flights, collect departure, arrival, and date. Convert common city names to airport codes when obvious (TP.HCM/Sài Gòn=SGN, Hà Nội=HAN, Đà Nẵng=DAD); otherwise call get_airports.
+          2) Call search_flights and list numbered options. Ask which flight and seat class.
+          3) Collect passenger_name, passenger_phone, passenger_email, num_passengers.
+          4) Call book_flight with flight_id and passenger info.
+          5) If booking succeeds, call create_transport_payment with booking_type="flight" and booking_id.
+          6) Then call generate_payment_ui using the returned payment_url, booking_id, amount, and tour_name like "Vé máy bay".
+
+          TRAIN BOOKING FLOW (mock data, no OTP):
+          1) If user asks for trains, collect departure station/city, arrival station/city, and date. Convert common stations when obvious (Hà Nội=HNO, Sài Gòn=SGO, Đà Nẵng=DNA, Huế=HUE, Nha Trang=NTR); otherwise call get_train_stations.
+          2) Call search_trains and list numbered options. If user asks about seat types, call get_seat_types.
+          3) Collect passenger_name, passenger_phone, passenger_email, seat_type, num_passengers.
+          4) Call book_train with train_id and passenger info.
+          5) If booking succeeds, call create_transport_payment with booking_type="train" and booking_id.
+          6) Then call generate_payment_ui using the returned payment_url, booking_id, amount, and tour_name like "Vé tàu".
+
+          HOTEL: Hotels are not supported. If user asks for hotel booking, politely say the system currently supports tour, flight, and train bookings only.
+
+          Always respond in Vietnamese unless the user uses another language.
+        
+        response_generation: |
+          Generate a concise, friendly answer in Vietnamese.
+          
+          User message: "{user_message}
+          Context: {context}
+          
+          GUIDELINES:
+          - Do not generate the information of tours, you must use tool search_tour_packages to get the information of tours.
+          - If user mentions a destination/need, search tours immediately and show full list (1,2,3…); do not skip tours.
+          - Do NOT mention tools/tech; handle silently.
+          - After listing tours: ask which tour (number or name), then collect phone, email, number_of_people (and special requests if any).
+          - Only call create_booking when phone + email + number_of_people + package_id are all present; never ask/show package_id.
+          - If awaiting_otp=True: inform OTP sent to email, stop other tools, wait for OTP; when OTP received, call verify_otp_and_confirm_booking.
+          - RESEND OTP: If user requests to resend OTP (e.g., "gửi lại OTP", "resend", "không nhận được", "OTP hết hạn"), immediately call resend_otp with booking_id. Do NOT ask for confirmation - just resend it automatically and inform user that new OTP has been sent.
+          - If verify succeeds: booking is pending payment. 
+          - PROMOTION CODE: If user mentions a promotion code, voucher, or discount code, call apply_promotion_code with booking_id and promotion_code. This tool only works for bookings with status='pending' (after OTP verification, before payment). After applying, inform user about discount amount and new total price.
+          - After promotion is applied (or if no promotion): call create_payment → generate_payment_ui, tell user to click the payment button; stop using tools after that.
+          - Avoid duplicates: do not call create_booking again if already called or awaiting OTP; if booking otp_sent exists, ask to verify OTP first.
+          - Do NOT generate code snippets.
+          - User is the one paying; when the booking is confirmed, explicitly tell the user that the tour is booked successfully.
+          Respond in Vietnamese; be warm and helpful.
+      
+      # Graph nodes (following LangGraph agent pattern)
+      # Note: Graph is built in dual_agent_system.py using LangGraph StateGraph
+      # Flow: chat_llm → (tool_calls? → chat_tools → chat_llm) → check_recommendation → (recommendation_agent if needed)
+      nodes:
+        - name: "chat_llm"
+          description: "LLM decides whether to call tools or respond"
+          enabled: true
+        - name: "chat_tools"
+          description: "Execute tool calls"
+          enabled: true
+        - name: "check_recommendation"
+          description: "Check if recommendation agent is needed"
+          enabled: true
+      
+      # Graph edges managed by dual_agent_system.py with conditional routing
+      # chat_llm → conditional → chat_tools (if tool_calls) or check_recommendation (if no tool_calls)
+      # chat_tools → chat_llm (loop back)
+      # check_recommendation → conditional → recommendation_agent (if needed) or END
+    
+    capabilities:
+      - tool_calling
+      - conversational_ai
+      - episode_search
+      - booking_management
+      - context_awareness
+      - mcp_integration
+    
+  # Recommendation Agent - Called by Chat Agent when needed
+  - name: "recommendation_agent"
+    type: "langgraph"
+    description: "Recommends tour packages based on user requirements"
+    config:
+      entry_point: "app.v1.services.agent_services.recommendation_agent"
+      temperature: 1.0
+      
+      # Prompt Templates
+      prompts:
+        system: |
+          You are a tour recommendation expert specializing in Vietnam travel.
+          Your job is to:
+          - Analyze user requirements (destination, budget, duration, people)
+          - Search for matching tour packages using semantic search
+          - Rank results by relevance and suitability
+          - Provide clear reasoning for recommendations
+          - Consider user preferences and travel history
+          
+          Be analytical, precise, and helpful in your recommendations.
+          Focus on value for money and authentic experiences.
+        
+        reasoning_generation: |
+          Based on the user's requirements and the tour packages found, generate a clear explanation.
+          
+          User requirements:
+          {requirements}
+          
+          Found packages:
+          {packages}
+          
+          Explain in Vietnamese:
+          1. Why these packages are suitable for the user
+          2. Key highlights and unique features of recommended tours
+          3. How they match user's budget and preferences
+          4. What makes each tour special or worth considering
+          
+          Keep it concise (2-3 sentences per tour), actionable, and enthusiastic.
+          Use emojis to make it more engaging.
+      
+      nodes:
+        - name: "search_tours"
+          description: "Search tours using semantic search"
+          enabled: true
+        - name: "rank_packages"
+          description: "Rank by relevance to user needs"
+          enabled: true
+        - name: "generate_reasoning"
+          description: "Explain why these tours fit"
+          enabled: true
+      
+      edges:
+        - from: "search_tours"
+          to: "rank_packages"
+        - from: "rank_packages"
+          to: "generate_reasoning"
+    
+    capabilities:
+      - semantic_search
+      - tour_recommendation
+      - reasoning_generation
+      - episode_search
+    
+    # Function calling guidelines for recommendation agent
+    functions:
+      search_episodes:
+        description: "Search user conversation history and preferences stored in Mem0 memory system"
+        parameters:
+          query_text: "string (REQUIRED) - Search query (e.g., 'Đà Nẵng', 'budget', 'destination')"
+          user_id: "string (optional) - User ID for personalized search"
+          limit: "integer (optional) - Number of results, default 5"
+        usage_examples:
+          user_history_search: |
+            # Search user's Mem0 history with query
+            search_episodes(query_text="Đà Nẵng", user_id="user_123", limit=2)
+          general_search: |
+            # General semantic search
+            search_episodes(query_text="du lịch miền Trung", limit=2)
+        important_notes:
+          - "query_text is PRIMARY parameter - always provide"
+          - "user_id enables Mem0 personalization when available"
+          - "Mem0 automatically enhances queries with conversation history"
+
+# Workflow Configuration
+workflow:
+  type: "langgraph_agent"
+  pattern: "agent_with_tool_calling_loop"
+  max_iterations: 10
+  timeout: 300
+  
+  # Entry point - using dual_agent_system as main orchestrator
+  entry_point: "dual_agent_system"
+  
+  # Graph flow (following LangGraph agent pattern):
+  # 1. START → chat_llm (LLM decides tool or respond)
+  # 2. chat_llm → conditional:
+  #    - If tool_calls: chat_tools → chat_llm (loop back for more tool calls or final response)
+  #    - If no tool_calls: check_recommendation
+  # 3. check_recommendation → conditional:
+  #    - If needs recommendation: recommendation_agent → END
+  #    - If no recommendation: END
+  
+  # Key features:
+  # - Tool calling loop: LLM can call tools multiple times before responding
+  # - Conditional routing: System automatically routes based on context
+  # - MessagesState: Proper message handling with LangGraph
+  # - MCP integration: Tools connected to MCP server
+
+# MCP Configuration
+# NOTE: MCP server URL is now configured via .env file (MCP_SERVER_URL)
+# This allows environment-specific configuration (dev, staging, prod)
+# 
+# To configure MCP server:
+# 1. Add to .env file:
+#    MCP_SERVER_URL=http://localhost:8001
+#    MCP_TIMEOUT=30
+#
+# 2. agent.yaml values below are used as fallback/defaults only
+mcp:
+  enabled: true
+  server_url: "http://localhost:8001"  # Default, overridden by .env MCP_SERVER_URL
+  timeout: 30  # Default, overridden by .env MCP_TIMEOUT
+  retry: 2
+  fallback: "direct_query"
+  
+  # Available MCP tools (connected via MCP server)
+  tools:
+    - name: "create_booking"
+      endpoint: "/tools/create_booking"
+      method: "POST"
+      description: "Create a new tour booking"
+      parameters:
+        - user_phone: "string (required) - User phone number"
+        - package_id: "string (required) - Tour package ID"
+        - number_of_people: "integer (required) - Number of people"
+        - special_requests: "string (optional) - Special requests"
+      usage: "Called when user wants to book a tour - MUST gather all required info first!"
+
+# Memory Configuration
+memory:
+  type: "conversation_buffer"
+  max_history: 10
+  storage: "supabase"
+  table: "chat_history"
+
+# Database Configuration
+database:
+  type: "supabase"
+  tables:
+    - tour_packages
+    - bookings
+    - otp_verifications
+    - payments
+    - chat_history
+  
+# Tool Calling Guidelines (LangGraph Agent Pattern)
+tool_calling:
+  pattern: "agent_with_tool_calling_loop"
+  description: |
+    The system uses LangGraph agent pattern where LLM decides when to use tools.
+    Tool calling happens in a loop: LLM → Tools → LLM (until no more tool calls needed).
+  
+  # Tool calling behavior
+  behavior:
+    - "LLM automatically decides when to use tools based on user request"
+    - "Tools are executed automatically when LLM makes tool calls"
+    - "LLM receives tool results and can call more tools or respond to user"
+    - "Loop continues until LLM provides final response (no more tool calls)"
+  
+  # Available tools
+  available_tools:
+    create_booking:
+      when_to_use: "When user wants to book a tour"
+      required_params: ["user_phone", "package_id", "number_of_people"]
+      optional_params: ["special_requests"]
+      important: "MUST gather all required information before calling!"
+    
+    search_episodes:
+      when_to_use: "When searching user conversation history or preferences"
+      required_params: ["query_text"]
+      optional_params: ["user_id", "limit"]
+      note: "Powered by Mem0 - user_id enables personalization via conversation history"
+  
+  # Mem0 integration guidelines
+  mem0_guidelines:
+    - "ALWAYS extract user_id from context when available for personalization"
+    - "Mem0 automatically fetches and enhances queries with conversation history"
+    - "Use specific query_text to filter results by topic"
+    - "Use limit to control number of results (default: 2 for tour search)"
+
+# Capabilities
+capabilities:
+  - langgraph_agent_pattern
+  - tool_calling_loop
+  - conversational_ai
+  - tour_search
+  - tour_recommendation
+  - booking_management
+  - context_awareness
+  - multi_agent_collaboration
+  - episode_search
+  - mcp_integration
+  - conditional_routing

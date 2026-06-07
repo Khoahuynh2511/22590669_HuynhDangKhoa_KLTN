@@ -1,0 +1,117 @@
+<div class="promotions-page">
+  <!-- Hero Section -->
+  <div class="hero-section">
+    <div class="hero-bg-decoration">
+      <div class="hero-circle circle-1"></div>
+      <div class="hero-circle circle-2"></div>
+      <div class="hero-circle circle-3"></div>
+    </div>
+    <div class="container mx-auto px-6">
+      <div class="hero-content">
+        <div class="hero-badge">
+          <i class="fas fa-gift"></i>
+          <span>Ưu đãi đặc biệt</span>
+        </div>
+        <h1 class="hero-title">
+          <span class="title-highlight">Khuyến Mãi</span> Hấp Dẫn
+        </h1>
+        <p class="hero-subtitle">
+          Khám phá các chương trình ưu đãi độc quyền, giúp bạn tiết kiệm chi phí cho những chuyến du lịch tuyệt vời
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-6 py-8">
+    <div class="filters-section mb-8">
+      <div class="filter-tabs">
+        <button class="filter-tab" [class.active]="filterType === 'active'" (click)="changeFilter('active')">
+          Đang áp dụng
+        </button>
+        <button class="filter-tab" [class.active]="filterType === 'all'" (click)="changeFilter('all')">
+          Tất cả
+        </button>
+        <button class="filter-tab" [class.active]="filterType === 'expired'" (click)="changeFilter('expired')">
+          Đã hết hạn
+        </button>
+      </div>
+    </div>
+
+    @if (isLoading) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Đang tải danh sách khuyến mãi...</p>
+    </div>
+    } @else if (errorMessage) {
+    <div class="error-state">
+      <div class="error-icon">⚠</div>
+      <h3>Lỗi khi tải danh sách khuyến mãi</h3>
+      <p>{{ errorMessage }}</p>
+      <button class="btn-retry" (click)="loadPromotions()">
+        Thử lại
+      </button>
+    </div>
+    } @else if (filteredPromotions.length > 0) {
+    <div class="promotions-grid">
+      @for (promo of filteredPromotions; track promo.promotion_id) {
+      <div class="promotion-card" [class.expired]="isExpired(promo)">
+        <div class="promotion-header">
+          <div class="discount-badge">
+            {{ formatDiscount(promo) }}
+          </div>
+          @if (isExpired(promo)) {
+          <div class="expired-badge">Hết hạn</div>
+          }
+        </div>
+
+        <div class="promotion-body">
+          <h3 class="promotion-name">{{ promo.name }}</h3>
+          <p class="promotion-description">{{ promo.description }}</p>
+
+          <div class="promotion-details">
+            <div class="detail-item">
+              <span class="detail-label">Mã khuyến mãi:</span>
+              <div class="code-container">
+                <span class="promotion-code">{{ promo.code }}</span>
+                <button class="btn-copy" (click)="copyToClipboard(promo.code)" [disabled]="isExpired(promo)">
+                  Sao chép
+                </button>
+              </div>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Thời gian:</span>
+              <span class="detail-value">
+                {{ formatDate(promo.start_date) }} - {{ formatDate(promo.end_date) }}
+              </span>
+            </div>
+
+            <div class="detail-item">
+              <span class="detail-label">Số lượng còn lại:</span>
+              <span class="detail-value">
+                {{ getRemainingQuantity(promo) }} / {{ promo.quantity }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="promotion-footer">
+          <div class="usage-info">
+            Đã sử dụng: {{ promo.used_count }} lượt
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+    } @else {
+    <div class="empty-state">
+      <div class="empty-icon">🎁</div>
+      <h3>Không có khuyến mãi nào</h3>
+      <p>Hiện tại không có chương trình khuyến mãi phù hợp với bộ lọc bạn đã chọn</p>
+      <button class="btn-retry" (click)="changeFilter('all')">
+        Xem tất cả
+      </button>
+    </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,435 @@
+
+
+<!-- Tour Details Section -->
+<div *ngIf="isTourMode && tour && !isLoadingTour" class="container mx-auto px-6 pb-6 bg-white tour-details-wrapper">
+  <!-- Tour Images -->
+  <div class="tour-images-section fade-in-up" *ngIf="getImageUrls().length > 0">
+    <div class="main-image-wrapper">
+      <img [src]="getFeaturedImage()" [alt]="tour.package_name" class="main-image" (click)="openImage(getFeaturedImage())">
+      <div class="image-overlay"></div>
+    </div>
+    <div class="gallery-grid" *ngIf="getGalleryImages().length > 0">
+      <div class="gallery-item" *ngFor="let img of getGalleryImages().slice(0, 4); let i = index" [style.animation-delay]="(i + 1) * 0.1 + 's'">
+        <img [src]="img" [alt]="tour.package_name" class="gallery-image" (click)="openImage(img)">
+        <div class="gallery-overlay"></div>
+      </div>
+    </div>
+  </div>
+  <div class="empty-images fade-in" *ngIf="getImageUrls().length === 0">
+    <div class="empty-image-placeholder">
+      <p class="empty-text">Không có hình ảnh</p>
+    </div>
+  </div>
+
+  <!-- Tour Header -->
+  <div class="tour-header-section fade-in-up delay-1">
+    <div class="tour-title-section">
+      <h1 class="tour-title">{{ tour.package_name }}</h1>
+      <div class="tour-meta-info">
+        <div class="meta-item">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>{{ tour.destination }}</span>
+        </div>
+        <div class="meta-item" *ngIf="tour.rating">
+          <i class="fas fa-star"></i>
+          <span>{{ tour.rating }}</span>
+          <span class="reviews-count" *ngIf="tour.reviews">({{ tour.reviews }} reviews)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tour-price-section">
+      <div class="price-wrapper">
+        <p class="price-label">Giá bắt đầu từ</p>
+        <div class="price-display">
+          <p class="current-price">{{ formatPrice(getDiscountedPrice(tour)) }}</p>
+          <p class="original-price" *ngIf="tour.discount && tour.original_price">
+            {{ formatPrice(tour.original_price) }}
+          </p>
+        </div>
+        <p class="duration-text">cho {{ tour.duration_days }} ngày</p>
+      </div>
+      <button class="book-button" (click)="onBookTour()">
+        <span>Đặt tour ngay</span>
+        <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Tour Info Cards -->
+  <div class="info-cards-grid fade-in-up delay-2">
+    <div class="info-card" *ngFor="let card of getInfoCards(); let i = index" [style.animation-delay]="i * 0.1 + 's'">
+      <div class="info-card-content">
+        <div class="info-icon-wrapper" [ngClass]="'icon-' + card.type">
+          <i [class]="card.icon"></i>
+        </div>
+        <div class="info-text">
+          <p class="info-label">{{ card.label }}</p>
+          <p class="info-value">{{ card.value }}</p>
+        </div>
+      </div>
+      <div class="info-card-hover-effect"></div>
+    </div>
+  </div>
+
+  <!-- Tour Description -->
+  <div class="tour-description-section mb-8">
+    <div class="description-header mb-6">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="header-icon">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900">Giới thiệu tour</h2>
+      </div>
+      <div class="header-divider"></div>
+    </div>
+    
+    <div class="description-content" *ngIf="tour.description">
+      <!-- Day-by-day layout for long descriptions -->
+      <div class="day-by-day-layout" *ngIf="splitDescriptionByDays().length > 1">
+        <div class="day-section" *ngFor="let dayInfo of splitDescriptionByDays(); let i = index">
+          <div class="day-header-card">
+            <div class="day-number">{{ i + 1 }}</div>
+            <h3 class="day-title" [innerHTML]="formatDescriptionText(dayInfo.day)"></h3>
+          </div>
+          <div class="day-content" [innerHTML]="formatDescriptionText(dayInfo.content)"></div>
+        </div>
+      </div>
+
+      <!-- Compact layout for short descriptions -->
+      <div class="compact-layout" *ngIf="splitDescriptionByDays().length <= 1">
+        <div class="description-text-wrapper" [class.expanded]="isDescriptionExpanded">
+          <div class="description-text" [innerHTML]="formatDescriptionText(isDescriptionExpanded ? getFullDescription() : getShortDescription())"></div>
+        </div>
+        <button 
+          class="read-more-btn" 
+          *ngIf="shouldShowReadMore()"
+          (click)="toggleDescription()">
+          <span *ngIf="!isDescriptionExpanded">
+            <i class="fas fa-chevron-down"></i>
+            Đọc thêm
+          </span>
+          <span *ngIf="isDescriptionExpanded">
+            <i class="fas fa-chevron-up"></i>
+            Thu gọn
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <div class="description-empty" *ngIf="!tour.description">
+      <i class="fas fa-file-alt"></i>
+      <p>Chưa có mô tả cho tour này</p>
+    </div>
+  </div>
+
+  <!-- Tour Highlights -->
+  <div class="highlights-section fade-in-up delay-3" *ngIf="tour.highlights && tour.highlights.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">Điểm nổi bật</h2>
+      <ul class="highlights-list">
+        <li *ngFor="let highlight of tour.highlights; let i = index" class="highlight-item" [style.animation-delay]="i * 0.05 + 's'">
+          <div class="highlight-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <span class="highlight-text">{{ highlight }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Included Services -->
+  <div class="services-section fade-in-up delay-4" *ngIf="tour.included_services && tour.included_services.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-concierge-bell"></i>
+        Dịch vụ bao gồm
+      </h2>
+      <div class="services-grid">
+        <div *ngFor="let service of tour.included_services; let i = index" class="service-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-check"></i>
+          <span>{{ service }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tour Includes -->
+  <div class="includes-section fade-in-up delay-5" *ngIf="(tour.includes && tour.includes.length > 0) || (tour.excludes && tour.excludes.length > 0)">
+    <div class="includes-card" *ngIf="tour.includes && tour.includes.length > 0">
+      <h3 class="includes-title">
+        <i class="fas fa-check"></i>
+        Bao gồm
+      </h3>
+      <ul class="includes-list">
+        <li *ngFor="let item of tour.includes; let i = index" class="includes-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-chevron-right"></i>
+          <span>{{ item }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="excludes-card" *ngIf="tour.excludes && tour.excludes.length > 0">
+      <h3 class="excludes-title">
+        <i class="fas fa-times"></i>
+        Không bao gồm
+      </h3>
+      <ul class="excludes-list">
+        <li *ngFor="let item of tour.excludes; let i = index" class="excludes-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-chevron-right"></i>
+          <span>{{ item }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Tour Itinerary -->
+  <div class="itinerary-section fade-in-up delay-6" *ngIf="tour.itinerary">
+    <div class="itinerary-card">
+      <h2 class="itinerary-title">Lịch trình chi tiết</h2>
+    
+      <div class="itinerary-days">
+        <div *ngIf="tour.itinerary.day1" class="day-card day-1">
+          <div class="day-header">
+            <div class="day-number">1</div>
+            <h3 class="day-title">Ngày 1: {{ tour.itinerary.day1.title }}</h3>
+          </div>
+          <div class="day-info">
+            <div class="info-row" *ngIf="tour.itinerary.day1.hotel">
+              <i class="fas fa-hotel"></i>
+              <span>Khách sạn: {{ tour.itinerary.day1.hotel }}</span>
+            </div>
+            <div class="info-row" *ngIf="tour.itinerary.day1.meals">
+              <i class="fas fa-utensils"></i>
+              <span>Bữa ăn: {{ tour.itinerary.day1.meals }}</span>
+            </div>
+          </div>
+          <div class="day-schedule">
+            <div class="schedule-item" *ngIf="tour.itinerary.day1.morning">
+              <h4 class="schedule-time">Buổi sáng</h4>
+              <p class="schedule-content">{{ tour.itinerary.day1.morning }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day1.afternoon">
+              <h4 class="schedule-time">Buổi chiều</h4>
+              <p class="schedule-content">{{ tour.itinerary.day1.afternoon }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day1.evening">
+              <h4 class="schedule-time">Buổi tối</h4>
+              <p class="schedule-content">{{ tour.itinerary.day1.evening }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day1.late_afternoon">
+              <h4 class="schedule-time">Chiều muộn</h4>
+              <p class="schedule-content">{{ tour.itinerary.day1.late_afternoon }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="tour.itinerary.day2" class="day-card day-2">
+          <div class="day-header">
+            <div class="day-number">2</div>
+            <h3 class="day-title">Ngày 2: {{ tour.itinerary.day2.title }}</h3>
+          </div>
+          <div class="day-info">
+            <div class="info-row" *ngIf="tour.itinerary.day2.hotel">
+              <i class="fas fa-hotel"></i>
+              <span>Khách sạn: {{ tour.itinerary.day2.hotel }}</span>
+            </div>
+            <div class="info-row" *ngIf="tour.itinerary.day2.meals">
+              <i class="fas fa-utensils"></i>
+              <span>Bữa ăn: {{ tour.itinerary.day2.meals }}</span>
+            </div>
+          </div>
+          <div class="day-schedule">
+            <div class="schedule-item" *ngIf="tour.itinerary.day2.morning">
+              <h4 class="schedule-time">Buổi sáng</h4>
+              <p class="schedule-content">{{ tour.itinerary.day2.morning }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day2.afternoon">
+              <h4 class="schedule-time">Buổi chiều</h4>
+              <p class="schedule-content">{{ tour.itinerary.day2.afternoon }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day2.evening">
+              <h4 class="schedule-time">Buổi tối</h4>
+              <p class="schedule-content">{{ tour.itinerary.day2.evening }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day2.late_afternoon">
+              <h4 class="schedule-time">Chiều muộn</h4>
+              <p class="schedule-content">{{ tour.itinerary.day2.late_afternoon }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="tour.itinerary.day3" class="day-card day-3">
+          <div class="day-header">
+            <div class="day-number">3</div>
+            <h3 class="day-title">Ngày 3: {{ tour.itinerary.day3.title }}</h3>
+          </div>
+          <div class="day-info">
+            <div class="info-row" *ngIf="tour.itinerary.day3.hotel">
+              <i class="fas fa-hotel"></i>
+              <span>Khách sạn: {{ tour.itinerary.day3.hotel }}</span>
+            </div>
+            <div class="info-row" *ngIf="tour.itinerary.day3.meals">
+              <i class="fas fa-utensils"></i>
+              <span>Bữa ăn: {{ tour.itinerary.day3.meals }}</span>
+            </div>
+          </div>
+          <div class="day-schedule">
+            <div class="schedule-item" *ngIf="tour.itinerary.day3.morning">
+              <h4 class="schedule-time">Buổi sáng</h4>
+              <p class="schedule-content">{{ tour.itinerary.day3.morning }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day3.afternoon">
+              <h4 class="schedule-time">Buổi chiều</h4>
+              <p class="schedule-content">{{ tour.itinerary.day3.afternoon }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day3.evening">
+              <h4 class="schedule-time">Buổi tối</h4>
+              <p class="schedule-content">{{ tour.itinerary.day3.evening }}</p>
+            </div>
+            <div class="schedule-item" *ngIf="tour.itinerary.day3.late_afternoon">
+              <h4 class="schedule-time">Chiều muộn</h4>
+              <p class="schedule-content">{{ tour.itinerary.day3.late_afternoon }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="tour.itinerary.note" class="itinerary-note">
+          <h4 class="note-title">
+            <i class="fas fa-info-circle"></i>
+            Lưu ý
+          </h4>
+          <p class="note-content">{{ tour.itinerary.note }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Best Season -->
+  <div class="best-season-section fade-in-up delay-7" *ngIf="tour.itinerary && tour.itinerary.best_season && tour.itinerary.best_season.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-calendar-check"></i>
+        Thời điểm lý tưởng
+      </h2>
+      <ul class="season-list">
+        <li *ngFor="let season of tour.itinerary?.best_season; let i = index" class="season-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-sun"></i>
+          <span>{{ season }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Photo Spots -->
+  <div class="photo-spots-section fade-in-up delay-8" *ngIf="tour.itinerary && tour.itinerary.photo_spots && tour.itinerary.photo_spots.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-camera"></i>
+        Địa điểm chụp ảnh đẹp
+      </h2>
+      <ul class="spots-list">
+        <li *ngFor="let spot of tour.itinerary?.photo_spots; let i = index" class="spot-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>{{ spot }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Must Try Food -->
+  <div class="food-section fade-in-up delay-9" *ngIf="tour.itinerary && tour.itinerary.must_try_food && tour.itinerary.must_try_food.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-utensils"></i>
+        Món ăn nên thử
+      </h2>
+      <ul class="food-list">
+        <li *ngFor="let food of tour.itinerary?.must_try_food; let i = index" class="food-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-check-circle"></i>
+          <span>{{ food }}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Tour Status -->
+  <div class="bg-white rounded-lg shadow-md p-6 mb-6" *ngIf="tour.is_active === false">
+    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+      <div class="flex items-center gap-2">
+        <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+        <p class="font-semibold text-yellow-800">Tour này hiện không hoạt động</p>
+      </div>
+      <p class="text-yellow-700 mt-2 text-sm">Tour có thể đã hết hạn hoặc tạm ngừng bán. Vui lòng liên hệ để biết thêm thông tin.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Loading State -->
+<div *ngIf="isTourMode && isLoadingTour" class="container mx-auto px-6 py-20 text-center">
+  <div class="spinner mx-auto mb-4"></div>
+  <p class="text-gray-600">Đang tải thông tin tour...</p>
+</div>
+
+<!-- Error State -->
+<div *ngIf="isTourMode && !isLoadingTour && errorMessage" class="container mx-auto px-6 py-20">
+  <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center max-w-2xl mx-auto">
+    <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
+    <h2 class="text-2xl font-bold text-red-700 mb-3">Không tải được thông tin tour</h2>
+    <p class="text-gray-700 mb-6 text-lg">{{ errorMessage }}</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <button 
+        class="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-3 px-8 transition shadow-md hover:shadow-lg"
+        (click)="retryLoadTour()">
+        <i class="fas fa-redo mr-2"></i>
+        Thử lại
+      </button>
+      <button 
+        class="bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg py-3 px-8 transition shadow-md hover:shadow-lg"
+        (click)="goBackToTours()">
+        <i class="fas fa-arrow-left mr-2"></i>
+        Quay lại danh sách tour
+      </button>
+    </div>
+    <div class="mt-6 pt-6 border-t border-red-200">
+      <p class="text-sm text-gray-600">
+        <i class="fas fa-info-circle mr-2"></i>
+        Nếu vấn đề vẫn tiếp tục, vui lòng liên hệ bộ phận hỗ trợ hoặc thử lại sau.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Related Tours Section -->
+<div *ngIf="isTourMode && tour && !isLoadingTour && !errorMessage" class="related-tours-section">
+  <div class="related-tours-wrapper">
+    <div class="related-header fade-in-up">
+      <h2 class="related-title">Tour liên quan</h2>
+      <p class="related-subtitle">Khám phá thêm các tour tại {{ tour.destination }}</p>
+    </div>
+    
+    <div *ngIf="isLoadingRelatedTours" class="loading-related">
+      <div class="spinner"></div>
+      <p class="loading-text">Đang tải tour liên quan...</p>
+    </div>
+    
+    <div *ngIf="!isLoadingRelatedTours && relatedTours.length > 0" class="related-tours-grid">
+      <div *ngFor="let relatedTour of relatedTours; let i = index" class="related-tour-item" [style.animation-delay]="i * 0.1 + 's'">
+        <app-tour-card [tour]="relatedTour"></app-tour-card>
+      </div>
+    </div>
+    
+    <div *ngIf="!isLoadingRelatedTours && relatedTours.length === 0" class="empty-related">
+      <p class="empty-text">Không có tour liên quan nào</p>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+

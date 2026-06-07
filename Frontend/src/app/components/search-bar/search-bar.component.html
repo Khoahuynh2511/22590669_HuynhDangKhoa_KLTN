@@ -1,0 +1,85 @@
+<div class="search-container">
+  <div class="search-tabs">
+    <button 
+      class="tab-btn"
+      [class.active]="searchType === 'hotel'"
+      (click)="switchSearchType('hotel')">
+      <i class="fas fa-hotel"></i>
+      Khách sạn
+    </button>
+    <button 
+      class="tab-btn"
+      [class.active]="searchType === 'tour'"
+      (click)="switchSearchType('tour')">
+      <i class="fas fa-map-marked-alt"></i>
+      Tour du lịch
+    </button>
+  </div>
+
+  @if (searchType === 'hotel') {
+    <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
+      <div>
+        <input type="text" [(ngModel)]="hotelSearchObj.name" placeholder="Hồ Chí Minh" class="w-full p-2 border input-1 bg-white" />
+      </div>
+      <div>
+        <input type="text" [(ngModel)]="hotelSearchObj.date" placeholder="24 Tháng 1 - 25 Tháng 1, 1 đêm" class="w-full p-2 border input-2 bg-white" />
+      </div>
+      <div>
+        <div class="wrapper-input relative">
+          <input type="text" [(ngModel)]="hotelSearchObj.capacity" placeholder="1 Người lớn, 0 Trẻ em, 1 Phòng" class="w-full p-2 border input-3 bg-white" />
+          <button class="absolute bg-blue-500 text-white btn-search absolute right-0 h-full p-2" (click)="bindSearch()">Tìm khách sạn</button>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="tour-search-wrapper">
+      <!-- AI Promotion Badge - Redesigned -->
+      <div class="ai-promotion-section">
+        <div class="ai-badge-content">
+          <div class="ai-icon-wrapper">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="ai-text">
+            <div class="ai-title">Tìm kiếm thông minh với AI</div>
+            <div class="ai-subtitle">Trợ lý AI sẽ gợi ý tour phù hợp nhất dành cho bạn</div>
+          </div>
+          <button class="ai-cta-btn" (click)="openAIChatbot()" title="Trò chuyện với AI">
+            <span>Thử ngay</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Search Input - Redesigned -->
+      <div class="search-input-container">
+        <div class="search-input-wrapper">
+          <div class="search-icon">
+            <i class="fas fa-search"></i>
+          </div>
+          <input 
+            type="text" 
+            [(ngModel)]="queryText" 
+            placeholder="Ví dụ: Tour Đà Lạt 3 ngày 2 đêm, giá dưới 5 triệu..." 
+            class="search-input-field"
+            (keydown.enter)="bindSearch()" />
+          <button class="search-submit-btn" (click)="bindSearch()">
+            <span>Tìm tour</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Tips - Redesigned -->
+      <div class="quick-tips">
+        <div class="tip-item">
+          <i class="fas fa-lightbulb"></i>
+          <span>Mô tả chi tiết để được gợi ý chính xác hơn</span>
+        </div>
+        <div class="tip-item">
+          <i class="fas fa-magic"></i>
+          <span>Có thể hỏi về điểm đến, thời gian, ngân sách</span>
+        </div>
+      </div>
+    </div>
+  }
+</div>

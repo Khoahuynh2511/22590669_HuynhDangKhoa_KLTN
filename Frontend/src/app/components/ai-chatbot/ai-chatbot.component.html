@@ -1,0 +1,218 @@
+<div class="agent-page">
+  <aside class="agent-sidebar">
+    <div class="sidebar-header">
+      <div class="agent-brand">
+        <div class="agent-icon">
+          <i class="fas fa-compass"></i>
+        </div>
+        <div>
+          <h2>Travel Agent</h2>
+          <p>Trợ lý du lịch thông minh</p>
+        </div>
+      </div>
+      <button class="icon-button" (click)="onClose()" title="Đóng">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+    </div>
+
+      <div class="sidebar-controls">
+        <button class="primary-button" (click)="startNewConversation()" [disabled]="isStreaming">
+          <i class="fas fa-plus"></i>
+          Cuộc trò chuyện mới
+        </button>
+      </div>
+
+      <div class="sidebar-section-label">Lịch sử trò chuyện</div>
+      <div class="conversation-list" role="list">
+        @if (isLoadingConversations) {
+          <div class="conversation-empty">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>Đang tải cuộc trò chuyện...</p>
+          </div>
+        } @else {
+        @if (!conversations.length) {
+          <div class="conversation-empty">
+            <i class="fas fa-comments"></i>
+            <p>Bắt đầu trò chuyện để lưu lịch sử tại đây.</p>
+          </div>
+        } @else {
+          @for (conversation of conversations; track conversation.id) {
+            <div
+              class="conversation-item"
+              role="button"
+              tabindex="0"
+              [class.active]="conversation.id === activeConversation?.id"
+              (click)="selectConversation(conversation.id)"
+              (keydown.enter)="selectConversation(conversation.id)"
+              (keydown.space)="$event.preventDefault(); selectConversation(conversation.id)"
+            >
+              <div class="conversation-meta">
+                <div class="conversation-title">{{ conversation.title }}</div>
+              </div>
+              <div class="conversation-preview">{{ getConversationPreview(conversation) }}</div>
+              <button
+                type="button"
+                class="conversation-delete"
+                title="Xóa cuộc trò chuyện"
+                (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
+                [disabled]="isStreaming || isDeletingConversation === conversation.id"
+              >
+                @if (isDeletingConversation === conversation.id) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                } @else {
+                <i class="fas fa-trash"></i>
+                }
+              </button>
+            </div>
+          }
+          }
+        }
+      </div>
+    </aside>
+
+    <section class="agent-stage">
+      <header class="stage-header">
+        <div class="stage-heading">
+          <div class="stage-icon">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div>
+            <h1>Travel Intelligence</h1>
+            <p>Định hướng kế hoạch du lịch cá nhân hoá</p>
+          </div>
+        </div>
+        <div class="stage-actions">
+          <div class="status-chip" [class.error]="headerStatus === 'Error'">
+            <span class="status-dot"></span>
+            {{ headerStatus }}
+          </div>
+        </div>
+      </header>
+
+      <div class="stage-body">
+        <div class="messages-container" #messagesContainer (scroll)="onMessagesScroll()">
+          @if (isLoadingMessages) {
+            <div class="stage-empty">
+              <div class="empty-illustration">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+              <h2>Đang tải cuộc trò chuyện...</h2>
+            </div>
+          }
+
+          @if (!messages.length && !isTyping && !isLoadingMessages) {
+            <div class="stage-empty">
+              <div class="empty-illustration">
+                <i class="fas fa-map-marked-alt"></i>
+              </div>
+              <h2>Xin chào! Tôi có thể giúp gì cho hành trình tiếp theo của bạn?</h2>
+              <p>Đặt câu hỏi về điểm đến, ngân sách, ưu đãi hoặc bất kỳ điều gì liên quan đến tour.</p>
+            </div>
+          }
+
+          @for (message of messages; track $index) {
+            <div class="message-row" [class.user]="message.isUser" [class.assistant]="!message.isUser">
+              @if (message.isError) {
+                <div class="message-error">
+                  <i class="fas fa-exclamation-triangle"></i>
+                  <span [innerHTML]="message.content"></span>
+                </div>
+              } @else {
+                <div class="message-body">
+                  <div class="message-avatar">
+                    @if (message.isUser) {
+                      <i class="fas fa-user"></i>
+                    } @else {
+                      <i class="fas fa-robot"></i>
+                    }
+                  </div>
+                  <div class="message-bubble" [innerHTML]="message.isUser ? message.content : formatMessageContent(message.content)"></div>
+                </div>
+              }
+
+              @if (!message.isUser && message.tourSelections?.length) {
+                <div class="tour-selection-deck">
+                  @for (tourSelection of message.tourSelections; track tourSelection.index) {
+                    <div class="tour-selection-card">
+                      <div class="tour-selection-heading">
+                        <h3>{{ tourSelection.name }}</h3>
+                        <span>{{ formatPrice(tourSelection.price) }}</span>
+                      </div>
+                      <div class="tour-selection-actions">
+                        <button class="pill-button primary" (click)="selectTour(tourSelection.name, tourSelection.price.toString())">
+                          <i class="fas fa-check"></i>
+                          Chọn tour này
+                        </button>
+                        <button class="pill-button ghost" (click)="viewTourDetails(tourSelection.name)">
+                          <i class="fas fa-eye"></i>
+                          Xem chi tiết
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (!message.isUser && message.showTourCards && message.tourPackages && message.tourPackages.length > 0) {
+                <div class="mcp-ui-container">
+                  <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
+                    @for (tour of message.tourPackages; track tour.package_id) {
+                      <app-tour-card [tour]="tour" [showDetails]="true" (viewDetails)="navigateToTourDetail($event)"></app-tour-card>
+                    }
+                  </div>
+                </div>
+              }
+
+              @if (!message.isUser && (message.mcpUiResource || message.mcpUiHtml)) {
+                @if (message.mcpUiResource && message.mcpUiResource['type'] === 'payment_button') {
+                  <!-- Render payment button from mcpUiResource -->
+                  <div class="mcp-ui-container">
+                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiResource['html'] || message.mcpUiHtml || '')" (click)="handlePaymentClickFromHtml($event)"></div>
+                  </div>
+                } @else if (message.mcpUiHtml && (!message.mcpUiResource || message.mcpUiResource['type'] !== 'payment_button')) {
+                  <!-- Render other UI from mcpUiHtml (tour cards, etc.) -->
+                  <div class="mcp-ui-container">
+                    <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml)" (click)="handlePaymentClickFromHtml($event)"></div>
+                  </div>
+                }
+              }
+            </div>
+          }
+
+          @if (isTyping) {
+            <div class="message-row assistant">
+              <div class="message-body">
+                <div class="message-avatar">
+                  <i class="fas fa-robot"></i>
+                </div>
+                <div class="typing-ellipsis">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <footer class="stage-composer">
+        <div class="composer-bar">
+          <textarea
+            #messageInput
+            [(ngModel)]="userMessage"
+            (keydown)="onKeyDown($event)"
+            (input)="onTextareaInput($event)"
+            placeholder="Đặt câu hỏi về hành trình, điểm đến hay các ưu đãi du lịch..."
+            rows="1"
+          ></textarea>
+          <div class="composer-actions">
+            <button class="send-button" type="button" (click)="sendMessage()" [disabled]="isStreaming || !userMessage.trim()">
+              Gửi
+              <i class="fas fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </footer>
+    </section>
+</div>

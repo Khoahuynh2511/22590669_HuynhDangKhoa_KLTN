@@ -1,0 +1,35 @@
+<div class="news-card" (click)="openLink()">
+  <div class="news-card-header">
+    <span class="badge" [ngClass]="sourceTypeClass">
+      <i [class]="news.source_type === 'news' ? 'fas fa-newspaper' : 'fas fa-book'"></i>
+      {{ sourceTypeLabel }}
+    </span>
+    @if (news.destination) {
+      <span class="destination-badge">
+        <i class="fas fa-map-marker-alt"></i>
+        {{ news.destination }}
+      </span>
+    }
+  </div>
+
+  <div class="news-card-body">
+    <h3 class="news-title">{{ news.title }}</h3>
+    
+    @if (news.snippet) {
+      <p class="news-snippet">{{ truncateSnippet(news.snippet) }}</p>
+    }
+
+    <div class="news-footer">
+      @if (news.date) {
+        <span class="news-date">
+          <i class="fas fa-calendar-alt"></i>
+          {{ formatDate(news.date) }}
+        </span>
+      }
+      <span class="external-link">
+        <i class="fas fa-external-link-alt"></i>
+        Đọc thêm
+      </span>
+    </div>
+  </div>
+</div>

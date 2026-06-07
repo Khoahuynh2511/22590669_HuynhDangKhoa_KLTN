@@ -1,0 +1,148 @@
+<div class="tour-card" *ngIf="tour">
+  <div class="tour-image">
+    <img [src]="getFeaturedImage()" [alt]="tour.package_name" (error)="onImageError($event)">
+    <button type="button" class="favorite-btn" [class.favorited]="isFavorite" [class.loading]="isLoadingFavorite"
+      (click)="onFavoriteClick($event)" (mousedown)="$event.preventDefault()"
+      [title]="isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'" [disabled]="isLoadingFavorite"
+      [attr.aria-label]="isFavorite ? 'Xóa khỏi yêu thích' : 'Thêm vào yêu thích'">
+      @if (isLoadingFavorite) {
+      <svg class="spinner" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-dasharray="32" stroke-dashoffset="32">
+          <animate attributeName="stroke-dasharray" dur="2s" values="0 32;16 16;0 32;0 32" repeatCount="indefinite" />
+          <animate attributeName="stroke-dashoffset" dur="2s" values="0;-16;-32;-32" repeatCount="indefinite" />
+        </circle>
+      </svg>
+      } @else {
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          [attr.fill]="isFavorite ? 'currentColor' : 'none'" [attr.stroke]="isFavorite ? 'none' : 'currentColor'"
+          stroke-width="2" />
+      </svg>
+      }
+    </button>
+    <div class="tour-badge" *ngIf="tour.discount">
+      <span>-{{ tour.discount }}%</span>
+    </div>
+    <div class="tour-badge new-badge" *ngIf="isNewTour()">
+      <span>Mới</span>
+    </div>
+    <div class="tour-category" *ngIf="tour.category">
+      <span>{{ getCategoryName(tour.category) }}</span>
+    </div>
+    <div class="tour-status" *ngIf="tour.is_active === false">
+      <span class="status-inactive">Hết hạn</span>
+    </div>
+  </div>
+
+  <div class="tour-content">
+    <div class="tour-header">
+      <h3 class="tour-name">{{ tour.package_name }}</h3>
+      <div class="tour-rating" *ngIf="tour.rating">
+        <i class="fas fa-star"></i>
+        <span>{{ tour.rating }}</span>
+        <span class="reviews" *ngIf="tour.reviews">({{ tour.reviews }})</span>
+      </div>
+    </div>
+
+    <div class="tour-info">
+      <div class="info-item">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>{{ tour.destination }}</span>
+      </div>
+      <div class="info-item" *ngIf="tour.departure_location">
+        <i class="fas fa-plane-departure"></i>
+        <span>{{ tour.departure_location }}</span>
+      </div>
+      <div class="info-item">
+        <i class="fas fa-clock"></i>
+        <span>{{ tour.duration_days }} ngày</span>
+      </div>
+      <div class="info-item" *ngIf="tour.start_date || tour.end_date">
+        <i class="fas fa-calendar-alt"></i>
+        <span>
+          <span *ngIf="tour.start_date && tour.end_date">
+            {{ formatDate(tour.start_date) }} - {{ formatDate(tour.end_date) }}
+          </span>
+          <span *ngIf="tour.start_date && !tour.end_date">
+            Bắt đầu: {{ formatDate(tour.start_date) }}
+          </span>
+          <span *ngIf="!tour.start_date && tour.end_date">
+            Kết thúc: {{ formatDate(tour.end_date) }}
+          </span>
+        </span>
+      </div>
+      <div class="info-item" *ngIf="tour.available_slots !== undefined">
+        <i class="fas fa-users"></i>
+        <span>Còn {{ tour.available_slots }} chỗ</span>
+      </div>
+      <div class="info-item" *ngIf="tour.cuisine">
+        <i class="fas fa-utensils"></i>
+        <span>{{ tour.cuisine }}</span>
+      </div>
+      <div class="info-item" *ngIf="tour.suitable_for">
+        <i class="fas fa-user-check"></i>
+        <span>{{ tour.suitable_for }}</span>
+      </div>
+    </div>
+
+    <div class="tour-highlights" *ngIf="showDetails && tour.highlights && tour.highlights.length > 0">
+      <div class="highlight" *ngFor="let highlight of tour.highlights.slice(0, 3)">
+        <i class="fas fa-check"></i>
+        <span>{{ highlight }}</span>
+      </div>
+    </div>
+
+    <div class="tour-includes-preview" *ngIf="showDetails && tour.includes && tour.includes.length > 0">
+      <div class="includes-label">Bao gồm:</div>
+      <div class="includes-list">
+        <span class="include-item" *ngFor="let item of tour.includes.slice(0, 3)">
+          {{ item }}
+        </span>
+        <span class="include-more" *ngIf="tour.includes.length > 3">
+          +{{ tour.includes.length - 3 }} khác
+        </span>
+      </div>
+    </div>
+
+    <div class="tour-services-preview"
+      *ngIf="showDetails && tour.included_services && tour.included_services.length > 0">
+      <div class="services-label">Dịch vụ:</div>
+      <div class="services-list">
+        <span class="service-item" *ngFor="let service of tour.included_services.slice(0, 3)">
+          {{ service }}
+        </span>
+        <span class="service-more" *ngIf="tour.included_services.length > 3">
+          +{{ tour.included_services.length - 3 }} dịch vụ khác
+        </span>
+      </div>
+    </div>
+
+    <div class="tour-gallery" *ngIf="showDetails && getGalleryImages().length > 0">
+      <div class="gallery-grid">
+        <div class="gallery-item" *ngFor="let imageUrl of getGalleryImages()" (click)="openImage(imageUrl)">
+          <img [src]="imageUrl" [alt]="tour.package_name" loading="lazy" (error)="onImageError($event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="tour-footer">
+      <div class="tour-price">
+        <div class="price-label">Giá từ</div>
+        <div class="current-price">{{ formatPrice(getDiscountedPrice()) }}</div>
+        <div class="original-price" *ngIf="tour.discount && tour.original_price">
+          {{ formatPrice(tour.original_price) }}
+        </div>
+        <div class="price-note" *ngIf="tour.duration_days">
+          / {{ tour.duration_days }} ngày
+        </div>
+      </div>
+      <a [routerLink]="['/tour-details', tour.package_id]" class="btn-view-details"
+        (click)="onViewDetailsClick($event)">
+        Xem chi tiết
+        <i class="fas fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</div>

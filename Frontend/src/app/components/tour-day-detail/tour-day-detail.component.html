@@ -1,0 +1,78 @@
+<div class="day-detail-wrapper" *ngIf="dayData" [@fadeIn]>
+  <!-- Day Header -->
+  <div class="day-header-section">
+    <div class="day-badge" [style.background]="getDayColor()">
+      <span class="badge-number">{{ dayNumber }}</span>
+    </div>
+    <div class="day-title-section">
+      <h2 class="day-title">{{ dayData.title }}</h2>
+    </div>
+  </div>
+
+  <!-- Day Info Cards -->
+  <div class="day-info-cards" *ngIf="dayData.hotel || dayData.meals">
+    <div class="info-card" *ngIf="dayData.hotel">
+      <div class="info-icon hotel-icon">
+        <i class="fas fa-hotel"></i>
+      </div>
+      <div class="info-content">
+        <p class="info-label">Khách sạn</p>
+        <p class="info-value">{{ dayData.hotel }}</p>
+      </div>
+    </div>
+
+    <div class="info-card" *ngIf="dayData.meals">
+      <div class="info-icon meals-icon">
+        <i class="fas fa-utensils"></i>
+      </div>
+      <div class="info-content">
+        <p class="info-label">Bữa ăn</p>
+        <p class="info-value">{{ dayData.meals }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day Schedule -->
+  <div class="day-schedule-section" *ngIf="hasScheduleContent()">
+    <h3 class="schedule-title">
+      <i class="fas fa-calendar-day"></i>
+      Lịch trình chi tiết
+    </h3>
+
+    <div class="schedule-timeline">
+      <div
+        *ngFor="let section of getScheduleSections(); let i = index"
+        class="timeline-item"
+        [style.animation-delay]="i * 0.1 + 's'">
+
+        <div class="timeline-marker">
+          <div class="marker-icon">
+            <i class="fas" [ngClass]="section.icon"></i>
+          </div>
+          <div class="marker-line" *ngIf="i < getScheduleSections().length - 1"></div>
+        </div>
+
+        <div class="timeline-content">
+          <div class="content-header">
+            <h4 class="content-time">{{ section.time }}</h4>
+          </div>
+          <div class="content-body">
+            <p class="content-text">{{ section.content }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-schedule" *ngIf="!hasScheduleContent()">
+    <i class="fas fa-calendar-times"></i>
+    <p>Chưa có lịch trình chi tiết cho ngày này</p>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div class="day-detail-loading" *ngIf="!dayData">
+  <div class="loading-spinner"></div>
+  <p>Đang tải thông tin...</p>
+</div>

@@ -1,0 +1,1733 @@
+<div class="space-y-6">
+  <!-- Stats Header -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl shadow-md p-6 border border-blue-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-blue-600 text-sm font-medium">Tổng Tours</p>
+          <p class="text-3xl font-bold mt-1 text-blue-700">{{ tours.length }}</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-green-100 to-emerald-200 rounded-xl shadow-md p-6 border border-green-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-green-600 text-sm font-medium">Đang Hoạt Động</p>
+          <p class="text-3xl font-bold mt-1 text-green-700">{{ getActiveTours() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-green-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl shadow-md p-6 border border-orange-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-orange-600 text-sm font-medium">Tạm Dừng</p>
+          <p class="text-3xl font-bold mt-1 text-orange-700">{{ getInactiveTours() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-orange-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-purple-100 to-pink-200 rounded-xl shadow-md p-6 border border-purple-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-purple-600 text-sm font-medium">Trung Bình Giá</p>
+          <p class="text-2xl font-bold mt-1 text-purple-700">{{ getAveragePrice() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-purple-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Quản lý Tours</h2>
+    <div class="flex gap-3">
+      <button (click)="openBulkUploadModal()"
+        class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+        </svg>
+        Upload CSV
+      </button>
+      <button (click)="openAddModal()"
+        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Thêm tour mới
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow-lg p-6 space-y-5">
+    <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+      </svg>
+      Bộ Lọc Tours
+    </h3>
+
+    <!-- Basic filters -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Tìm kiếm tour..."
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
+        <select [(ngModel)]="statusFilter"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white">
+          <option value="">Tất cả trạng thái</option>
+          <option value="active">Hoạt động</option>
+          <option value="inactive">Tạm dừng</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Điểm đến</label>
+        <input type="text" [(ngModel)]="destinationFilter" placeholder="Lọc theo điểm đến..."
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-3 pt-3 border-t border-gray-200">
+      <button (click)="onFilterChange()"
+        class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+        </svg>
+        Áp dụng lọc
+      </button>
+      <button (click)="loadTours()"
+        class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Tải lại
+      </button>
+    </div>
+
+    <!-- Advanced Filters Toggle -->
+    <div class="border-t pt-4">
+      <button (click)="showAdvancedFilters = !showAdvancedFilters"
+        class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+          </svg>
+          <span class="text-sm font-semibold text-gray-700">Bộ lọc nâng cao</span>
+          <span *ngIf="isDateFilterActive || isPeriodFilterActive || isPriceFilterActive || isSlotFilterActive"
+            class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">
+            {{ (isDateFilterActive ? 1 : 0) + (isPeriodFilterActive ? 1 : 0) + (isPriceFilterActive ? 1 : 0) +
+            (isSlotFilterActive ? 1 : 0) }}
+          </span>
+        </div>
+        <svg class="w-5 h-5 text-gray-500 transition-transform" [class.rotate-180]="showAdvancedFilters" fill="none"
+          stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <!-- Advanced Filters Content -->
+      <div *ngIf="showAdvancedFilters" class="mt-4 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Date Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Lọc theo khoảng ngày
+            </h4>
+            <div class="space-y-2">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Từ ngày</label>
+                <input type="date" [(ngModel)]="startDateFilter"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Đến ngày</label>
+                <input type="date" [(ngModel)]="endDateFilter"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Period Filter (Month/Year) -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Lọc theo tháng/năm
+            </h4>
+            <div class="space-y-2">
+              <select [(ngModel)]="periodDateTypeFilter"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm">
+                <option value="start_date">Ngày khởi hành</option>
+                <option value="end_date">Ngày kết thúc</option>
+              </select>
+              <div class="grid grid-cols-2 gap-2">
+                <select [(ngModel)]="periodMonthFilter"
+                  class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm">
+                  <option value="">Tháng</option>
+                  <option [value]="1">Tháng 1</option>
+                  <option [value]="2">Tháng 2</option>
+                  <option [value]="3">Tháng 3</option>
+                  <option [value]="4">Tháng 4</option>
+                  <option [value]="5">Tháng 5</option>
+                  <option [value]="6">Tháng 6</option>
+                  <option [value]="7">Tháng 7</option>
+                  <option [value]="8">Tháng 8</option>
+                  <option [value]="9">Tháng 9</option>
+                  <option [value]="10">Tháng 10</option>
+                  <option [value]="11">Tháng 11</option>
+                  <option [value]="12">Tháng 12</option>
+                </select>
+                <input type="number" [(ngModel)]="periodYearFilter" min="2000" [max]="currentYear + 5" placeholder="Năm"
+                  class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Price and Slot Filters Row -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Price Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Lọc theo giá
+            </h4>
+            <div class="space-y-2">
+              <select [(ngModel)]="priceSegmentFilter" (change)="onPriceSegmentChange()"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                <option value="">Chọn phân khúc</option>
+                <option value="budget">Tiết kiệm (&lt; 5tr)</option>
+                <option value="mid">Trung bình (5-15tr)</option>
+                <option value="premium">Cao cấp (&gt; 15tr)</option>
+                <option value="custom">Tùy chỉnh khoảng giá</option>
+              </select>
+
+              <div *ngIf="priceSegmentFilter === 'custom'" class="space-y-2">
+                <input type="number" [(ngModel)]="minPriceFilter" min="0" placeholder="Giá tối thiểu (VND)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                <input type="number" [(ngModel)]="maxPriceFilter" min="0" placeholder="Giá tối đa (VND)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Slot Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Lọc theo số slot
+            </h4>
+            <div class="space-y-2">
+              <input type="number" [(ngModel)]="minSlotFilter" min="0" placeholder="Số slot tối thiểu"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+              <input type="number" [(ngModel)]="maxSlotFilter" min="0" placeholder="Số slot tối đa"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Filters Info -->
+        <div class="space-y-3">
+          <!-- Date Filter Active -->
+          <div *ngIf="isDateFilterActive"
+            class="bg-gradient-to-r from-blue-50 to-blue-100 border-2 border-blue-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm font-semibold text-blue-700">
+                  Lọc theo ngày: <span class="text-blue-900">{{ startDateFilter }} → {{ endDateFilter }}</span>
+                </span>
+              </div>
+              <button (click)="clearDateFilter()"
+                class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Xóa
+              </button>
+            </div>
+          </div>
+
+          <!-- Period Filter Active -->
+          <div *ngIf="isPeriodFilterActive"
+            class="bg-gradient-to-r from-green-50 to-green-100 border-2 border-green-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span class="text-sm font-semibold text-green-700">
+                  <ng-container *ngIf="periodMonthFilter && periodYearFilter">
+                    Lọc theo tháng: <span class="text-green-900">{{ periodMonthFilter }}/{{ periodYearFilter }}</span>
+                  </ng-container>
+                  <ng-container *ngIf="!periodMonthFilter && periodYearFilter">
+                    Lọc theo năm: <span class="text-green-900">{{ periodYearFilter }}</span>
+                  </ng-container>
+                  <span class="text-green-900">({{ periodDateTypeFilter === 'start_date' ? 'Khởi hành' : 'Kết thúc'
+                    }})</span>
+                </span>
+              </div>
+              <button (click)="clearPeriodFilter()"
+                class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Xóa
+              </button>
+            </div>
+          </div>
+
+          <!-- Price Filter Active -->
+          <div *ngIf="isPriceFilterActive"
+            class="bg-gradient-to-r from-orange-50 to-orange-100 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span class="text-sm font-semibold text-orange-700">
+                  Lọc theo giá:
+                  <span class="text-orange-900" *ngIf="priceSegmentFilter === 'budget'">Tiết kiệm (&lt; 5 triệu)</span>
+                  <span class="text-orange-900" *ngIf="priceSegmentFilter === 'mid'">Trung bình (5-15 triệu)</span>
+                  <span class="text-orange-900" *ngIf="priceSegmentFilter === 'premium'">Cao cấp (&gt; 15 triệu)</span>
+                  <span class="text-orange-900" *ngIf="priceSegmentFilter === 'custom'">
+                    {{ minPriceFilter ? (minPriceFilter | number) : '0' }} - {{ maxPriceFilter ? (maxPriceFilter |
+                    number) : '∞' }} VND
+                  </span>
+                </span>
+              </div>
+              <button (click)="clearPriceFilter()"
+                class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Xóa
+              </button>
+            </div>
+          </div>
+
+          <!-- Slot Filter Active -->
+          <div *ngIf="isSlotFilterActive"
+            class="bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span class="text-sm font-semibold text-purple-700">
+                  Lọc theo số slot:
+                  <span class="text-purple-900">
+                    {{ minSlotFilter ? minSlotFilter : '0' }} - {{ maxSlotFilter ? maxSlotFilter : '∞' }} slot
+                  </span>
+                </span>
+              </div>
+              <button (click)="clearSlotFilter()"
+                class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-md transition-colors flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Basic Filters Active Info -->
+    <div *ngIf="searchTerm || statusFilter || destinationFilter"
+      class="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 flex-wrap">
+          <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="text-sm font-semibold text-amber-700">Bộ lọc cơ bản:</span>
+          <div class="flex gap-2 flex-wrap">
+            <span *ngIf="searchTerm"
+              class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">
+              Tìm kiếm: "{{ searchTerm }}"
+            </span>
+            <span *ngIf="statusFilter"
+              class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">
+              Trạng thái: {{ statusFilter === 'active' ? 'Hoạt động' : 'Không hoạt động' }}
+            </span>
+            <span *ngIf="destinationFilter"
+              class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">
+              Điểm đến: "{{ destinationFilter }}"
+            </span>
+          </div>
+        </div>
+        <button (click)="searchTerm = ''; statusFilter = ''; destinationFilter = ''; onFilterChange()"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Xóa
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagination Info -->
+  <div class="text-sm text-gray-600">
+    Hiển thị {{ filteredTours.length > 0 ? 1 : 0 }} - {{ filteredTours.length }} trong tổng số {{ tours.length }} tour
+  </div>
+
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="text-center py-8">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <p class="mt-2 text-gray-600">Đang tải dữ liệu...</p>
+  </div>
+
+  <!-- Tours Table -->
+  <div *ngIf="!isLoading" class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tour</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm đến</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thời gian</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slots</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bookings</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <tr *ngFor="let tour of filteredTours" class="hover:bg-gray-50">
+          <td class="px-6 py-4">
+            <div class="flex items-center">
+              <img [src]="getImageUrl(tour.image_urls)" alt="{{ tour.package_name }}"
+                class="w-16 h-16 rounded-lg object-cover mr-4">
+              <div>
+                <div class="text-sm font-medium text-gray-900 truncate max-w-[260px]" [title]="tour.package_name">{{
+                  tour.package_name }}</div>
+                <div class="text-sm text-gray-500 truncate max-w-[240px]" [title]="tour.cuisine">{{ tour.cuisine }}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[220px]" [title]="tour.destination">{{
+            tour.destination }}</td>
+          <td class="px-6 py-4 text-sm font-semibold text-green-600 whitespace-nowrap">{{ formatPrice(tour.price) }}
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ tour.duration_days }} ngày</td>
+          <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ tour.available_slots }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <div class="flex items-center gap-2">
+              <span *ngIf="tour.has_bookings" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                  <path fill-rule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd"/>
+                </svg>
+                {{ tour.bookings_count || 0 }}
+              </span>
+              <span *ngIf="!tour.has_bookings" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Chưa có
+              </span>
+            </div>
+          </td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <button (click)="toggleStatus(tour)"
+              [class]="tour.is_active ? 'bg-green-100 text-green-800 hover:opacity-80' : 'bg-gray-100 text-gray-600 cursor-not-allowed opacity-60'"
+              [disabled]="!tour.is_active"
+              class="px-3 py-1 rounded-full text-xs font-semibold"
+              [title]="tour.is_active ? 'Nhấn để tạm dừng tour' : 'Tour đã tạm dừng - Không thể kích hoạt lại'">
+              {{ tour.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+            </button>
+          </td>
+          <td class="px-6 py-4 text-sm font-medium whitespace-nowrap">
+            <div class="flex space-x-2">
+              <button 
+                (click)="openDetailModal(tour)"
+                class="text-purple-600 hover:text-purple-800 p-1"
+                title="Xem chi tiết">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+              <button 
+                (click)="openEditModal(tour)"
+                class="text-blue-600 hover:text-blue-800 p-1"
+                title="Chỉnh sửa">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button 
+                *ngIf="tour.is_active"
+                (click)="confirmCancelTour(tour.package_id!)"
+                class="text-orange-600 hover:text-orange-800 p-1"
+                title="Hủy tour (hủy tất cả bookings)">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+              </button>
+              <button 
+                (click)="confirmDelete(tour.package_id!)"
+                class="text-red-600 hover:text-red-800 p-1"
+                title="Xóa">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="filteredTours.length === 0">
+          <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+            Không tìm thấy tour nào
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div *ngIf="showAddModal || showEditModal"
+    class="bg-black bg-opacity-50 flex items-center justify-center"
+    style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important; margin: 0 !important; padding: 0 !important;"
+    (click)="showAddModal ? closeAddModal() : closeEditModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden"
+      (click)="$event.stopPropagation()">
+      <!-- Header with white background -->
+      <div class="bg-white border-b border-gray-200 px-8 py-6 sticky top-0 z-10">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-gray-900">
+                {{ showAddModal ? 'Tạo tour mới' : 'Chỉnh sửa tour' }}
+              </h3>
+              <p class="text-gray-600 text-sm mt-1">
+                {{ showAddModal ? 'Điền đầy đủ thông tin để tạo tour du lịch mới' : 'Cập nhật thông tin tour của bạn' }}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <!-- Preview Toggle Button -->
+            <button (click)="togglePreview()" [class.bg-blue-600]="showPreview" [class.text-white]="showPreview"
+              [class.bg-gray-100]="!showPreview" [class.text-gray-700]="!showPreview"
+              class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 font-medium hover:shadow-md">
+              <svg class="w-5 h-5" fill="none" [class.stroke-white]="showPreview" [class.stroke-gray-700]="!showPreview" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              {{ showPreview ? 'Ẩn preview' : 'Xem preview' }}
+            </button>
+
+            <!-- Close Button -->
+            <button (click)="showAddModal ? closeAddModal() : closeEditModal()"
+              class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Progress Overlay -->
+      <div *ngIf="isUploading" class="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center" style="z-index: 10000;">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+          <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <h4 class="text-xl font-bold text-gray-900 mb-2">Đang tạo tour</h4>
+            <p class="text-gray-600 text-sm">{{ uploadStatus }}</p>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="space-y-3">
+            <div class="flex justify-between text-sm font-medium">
+              <span class="text-gray-700">Tiến trình</span>
+              <span class="text-blue-600">{{ uploadProgress }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+              <div class="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 rounded-full transition-all duration-300 ease-out animate-pulse"
+                [style.width.%]="uploadProgress">
+              </div>
+            </div>
+          </div>
+
+          <!-- Additional Info -->
+          <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+            <div class="flex items-start gap-3">
+              <svg class="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+              <p class="text-xs text-blue-800">Vui lòng không đóng cửa sổ này trong khi đang tải lên...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form Content with 2-column layout when preview is active -->
+      <div class="overflow-y-auto max-h-[calc(90vh-180px)] px-8 py-6">
+        <div [class.grid]="showPreview" [class.grid-cols-2]="showPreview" [class.gap-6]="showPreview">
+          <!-- Left Column: Form -->
+          <div [class.pr-4]="showPreview" [class.border-r]="showPreview" [class.border-gray-200]="showPreview">
+            <form>
+              <!-- Metadata Section (only show in Edit mode) -->
+              <div *ngIf="showEditModal && currentTour.package_id" class="mb-8">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Thông tin hệ thống</h4>
+                </div>
+
+                <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-semibold text-purple-600 mb-1">
+                        PACKAGE ID
+                      </label>
+                      <div class="flex items-center gap-2">
+                        <code
+                          class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200 font-mono flex-1 truncate"
+                          [title]="currentTour.package_id">
+                    {{ currentTour.package_id }}
+                  </code>
+                        <button type="button" (click)="copyToClipboard(currentTour.package_id!)"
+                          class="p-2 text-purple-600 hover:bg-white rounded-lg transition-all" title="Copy ID">
+                          <svg *ngIf="!copiedPackageId" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          <svg *ngIf="copiedPackageId" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-semibold text-purple-600 mb-1">
+                        NGÀY TẠO
+                      </label>
+                      <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200">
+                        {{ formatDateTime(currentTour.created_at!) }}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-semibold text-purple-600 mb-1">
+                        CẬP NHẬT CUỐI
+                      </label>
+                      <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200">
+                        {{ formatDateTime(currentTour.updated_at!) }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Basic Information Section -->
+              <div class="mb-8">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Thông tin cơ bản</h4>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Tên tour <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" [(ngModel)]="currentTour.package_name" name="package_name" required
+                      placeholder="VD: Tour Phú Quốc 3N2Đ - Khám Phá Đảo Ngọc"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Điểm đến <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" [(ngModel)]="currentTour.destination" name="destination" required
+                      placeholder="VD: Phú Quốc, Kiên Giang"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Thời gian <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                      <input type="number" [(ngModel)]="currentTour.duration_days" name="duration_days" required min="1" max="60"
+                        (input)="onDurationInput($event)"
+                        (blur)="onDurationBlur($event); onStartDateChange()"
+                        placeholder="3"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                      <span class="absolute right-4 top-3 text-gray-500">ngày</span>
+                    </div>
+                  </div>
+
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Mô tả <span class="text-red-500">*</span>
+                    </label>
+                    <textarea [(ngModel)]="currentTour.description" name="description" rows="4" required
+                      placeholder="Mô tả chi tiết về tour, điểm nổi bật, hoạt động chính..."
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 resize-none">
+              </textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pricing & Availability Section -->
+              <div class="mb-8">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Giá & khả dụng</h4>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Giá tour <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                      <input type="text" [value]="formattedPrice" (input)="onPriceInput($event)" name="price" required
+                        placeholder="5.000.000"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                      <span class="absolute right-4 top-3 text-gray-500 font-medium">VNĐ</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Số lượng slots <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" [(ngModel)]="currentTour.available_slots" name="available_slots" required
+                      min="0" max="200" placeholder="20"
+                      (input)="onSlotsInput($event)"
+                      (blur)="onSlotsBlur($event)"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Trạng thái
+                    </label>
+                    <select [(ngModel)]="currentTour.is_active" name="is_active"
+                      [disabled]="!originalTourStatus"
+                      [class]="originalTourStatus ? 'w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 appearance-none bg-white' : 'w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-100 cursor-not-allowed opacity-60 appearance-none'">
+                      <option [ngValue]="true">Hoạt động</option>
+                      <option [ngValue]="false">Tạm dừng</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Schedule Section -->
+              <div class="mb-8">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Lịch Trình</h4>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Ngày bắt đầu <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" [(ngModel)]="currentTour.start_date" name="start_date" required
+                      (change)="onStartDateChange()"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Ngày kết thúc <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" [(ngModel)]="currentTour.end_date" name="end_date" required
+                      [min]="currentTour.start_date"
+                      (change)="onEndDateChange()"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Additional Details Section -->
+              <div class="mb-8">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Chi tiết bổ sung</h4>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Ẩm thực
+                    </label>
+                    <input type="text" [(ngModel)]="currentTour.cuisine" name="cuisine"
+                      maxlength="1000"
+                      placeholder="VD: Hải sản tươi sống, Đặc sản địa phương"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+
+                  <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                      Phù hợp cho
+                    </label>
+                    <input type="text" [(ngModel)]="currentTour.suitable_for" name="suitable_for"
+                      maxlength="1000"
+                      placeholder="VD: Gia đình, Cặp đôi, Nhóm bạn"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Media Section -->
+              <div class="mb-6">
+                <div class="flex items-center mb-4">
+                  <div class="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-gray-800">Hình Ảnh</h4>
+                </div>
+
+                <!-- Upload Button -->
+                <div class="mb-4">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">
+                    Tải lên hình ảnh <span class="text-gray-500">(Tối đa 10 ảnh - Hiện tại: {{ imageUrls.length }}/10)</span>
+                  </label>
+                  <div class="flex items-center space-x-3">
+                    <label class="flex-1" [class.cursor-pointer]="imageUrls.length < 10" [class.cursor-not-allowed]="imageUrls.length >= 10">
+                      <div
+                        [class]="imageUrls.length >= 10 ? 'border-2 border-dashed border-gray-200 rounded-xl p-6 text-center bg-gray-100 opacity-50' : 'border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50 transition-all'">
+                        <svg class="w-12 h-12 mx-auto mb-2" [class.text-gray-300]="imageUrls.length >= 10" [class.text-gray-400]="imageUrls.length < 10" fill="none" stroke="currentColor"
+                          viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <p class="text-sm" [class.text-gray-400]="imageUrls.length >= 10" [class.text-gray-600]="imageUrls.length < 10">
+                          <span *ngIf="imageUrls.length < 10" class="text-blue-600 font-semibold">Nhấn để chọn ảnh</span>
+                          <span *ngIf="imageUrls.length >= 10" class="text-gray-500 font-semibold">Đã đủ 10 ảnh</span>
+                          <span *ngIf="imageUrls.length < 10"> hoặc kéo thả vào đây</span>
+                        </p>
+                        <p class="text-xs text-gray-500 mt-1" *ngIf="imageUrls.length < 10">JPEG, JPG, PNG, WebP (Max 10 ảnh)</p>
+                        <p class="text-xs text-gray-400 mt-1" *ngIf="imageUrls.length >= 10">Xóa ảnh cũ để tải ảnh mới</p>
+                      </div>
+                      <input type="file" (change)="onFileSelect($event)"
+                        accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="hidden" [disabled]="imageUrls.length >= 10">
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Image Gallery with Drag & Drop -->
+                <div *ngIf="imageUrls.length > 0" class="space-y-3">
+                  <div class="flex items-center justify-between">
+                    <label class="block text-sm font-semibold text-gray-700">
+                      Hình ảnh đã chọn ({{ imageUrls.length }})
+                    </label>
+                    <p class="text-xs text-gray-500">
+                      <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                      </svg>
+                      Kéo thả để sắp xếp thứ tự
+                    </p>
+                  </div>
+
+                  <div class="grid grid-cols-5 gap-4">
+                    <div *ngFor="let url of imageUrls; let i = index" draggable="true" (dragstart)="onDragStart(i)"
+                      (dragover)="onDragOver($event)" (drop)="onDrop($event, i)" (dragend)="onDragEnd()"
+                      [class.opacity-50]="draggedImageIndex === i"
+                      class="relative group border-2 border-gray-200 rounded-xl overflow-hidden hover:border-blue-500 transition-all cursor-move">
+
+                      <!-- Image Preview -->
+                      <div class="aspect-video bg-gray-100">
+                        <img [src]="url" [alt]="'Image ' + (i + 1)" class="w-full h-full object-cover">
+                      </div>
+
+                      <!-- Image Order Badge -->
+                      <div
+                        class="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                        #{{ i + 1 }}
+                      </div>
+
+                      <!-- Remove Button -->
+                      <button type="button" (click)="removeImage(i)"
+                        class="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full shadow-lg hover:bg-red-700 transition-all opacity-0 group-hover:opacity-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+
+                      <!-- Drag Handle -->
+                      <div
+                        class="absolute bottom-2 right-2 bg-gray-800 bg-opacity-75 text-white p-1 rounded opacity-0 group-hover:opacity-100 transition-all">
+                        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Empty State -->
+                <div *ngIf="imageUrls.length === 0"
+                  class="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                  <svg class="w-16 h-16 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <p class="text-gray-600 font-medium">Chưa có hình ảnh nào</p>
+                  <p class="text-gray-500 text-sm mt-1">Nhấn nút "Tải lên hình ảnh" để thêm ảnh</p>
+                </div>
+
+              </div>
+            </form>
+          </div>
+          <!-- End Left Column -->
+
+          <!-- Right Column: Preview Panel -->
+          <div *ngIf="showPreview" class="pl-4 sticky top-0 max-h-[calc(90vh-180px)] overflow-y-auto">
+            <!-- Tour Preview Panel -->
+            <div class="tour-preview-panel bg-gray-50 rounded-lg p-4 h-full">
+              <div class="preview-header mb-4">
+                <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  Preview giao diện User
+                </h4>
+                <p class="text-sm text-gray-600">Xem trước tour như người dùng nhìn thấy</p>
+              </div>
+
+              <!-- Tour Card Preview -->
+              <div class="tour-card-preview bg-white rounded-xl shadow-lg overflow-hidden">
+                <!-- Image Section -->
+                <div class="relative h-48 bg-gray-200">
+                  <img *ngIf="imageUrls && imageUrls[0]" [src]="imageUrls[0]" [alt]="currentTour.package_name || 'Tour'"
+                    class="w-full h-full object-cover">
+                  <div *ngIf="!imageUrls || imageUrls.length === 0"
+                    class="w-full h-full flex items-center justify-center text-gray-400">
+                    <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  <!-- Status Badge -->
+                  <div *ngIf="currentTour.is_active === false"
+                    class="absolute top-3 right-3 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                    Không hoạt động
+                  </div>
+                  <div *ngIf="currentTour.is_active"
+                    class="absolute top-3 right-3 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                    Đang hoạt động
+                  </div>
+                </div>
+
+                <!-- Content Section -->
+                <div class="p-4">
+                  <!-- Title -->
+                  <h3 class="text-xl font-bold text-gray-800 mb-2 line-clamp-2">
+                    {{ currentTour.package_name || 'Tên tour' }}
+                  </h3>
+
+                  <!-- Description -->
+                  <p class="text-sm text-gray-600 mb-3 line-clamp-2">
+                    {{ currentTour.description || 'Mô tả tour' }}
+                  </p>
+
+                  <!-- Tour Info Grid -->
+                  <div class="space-y-2 mb-4">
+                    <div class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span class="text-gray-700">{{ currentTour.destination || 'Điểm đến' }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span class="text-gray-700">{{ currentTour.duration_days || 0 }} ngày</span>
+                    </div>
+
+                    <div *ngIf="currentTour.start_date && currentTour.end_date" class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span class="text-gray-700 text-xs">
+                        {{ formatPreviewDate(currentTour.start_date) }} - {{ formatPreviewDate(currentTour.end_date) }}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <span class="text-gray-700">Còn {{ currentTour.available_slots || 0 }} chỗ</span>
+                    </div>
+
+                    <div *ngIf="currentTour.cuisine" class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                      <span class="text-gray-700 text-xs">{{ currentTour.cuisine }}</span>
+                    </div>
+
+                    <div *ngIf="currentTour.suitable_for" class="flex items-center gap-2 text-sm">
+                      <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span class="text-gray-700 text-xs">{{ currentTour.suitable_for }}</span>
+                    </div>
+                  </div>
+
+                  <!-- Price Section -->
+                  <div class="border-t pt-3 mt-3">
+                    <div class="flex items-end justify-between">
+                      <div>
+                        <div class="text-xs text-gray-500">Giá từ</div>
+                        <div class="text-2xl font-bold text-blue-600">
+                          {{ formatPreviewPrice(currentTour.price || 0) }}
+                        </div>
+                        <div *ngIf="currentTour.duration_days" class="text-xs text-gray-500">
+                          / {{ currentTour.duration_days }} ngày
+                        </div>
+                      </div>
+                      <button
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm cursor-default opacity-80">
+                        Xem chi tiết
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Image Gallery Preview -->
+                <div *ngIf="imageUrls && imageUrls.length > 1" class="px-4 pb-4">
+                  <div class="text-xs font-semibold text-gray-700 mb-2">Thư viện ảnh ({{ imageUrls.length }} ảnh)</div>
+                  <div class="grid grid-cols-4 gap-2">
+                    <div *ngFor="let url of imageUrls.slice(0, 4)"
+                      class="aspect-square rounded-lg overflow-hidden bg-gray-200">
+                      <img [src]="url" [alt]="currentTour.package_name" class="w-full h-full object-cover">
+                    </div>
+                    <div *ngIf="imageUrls.length > 4"
+                      class="aspect-square rounded-lg bg-gray-700 flex items-center justify-center text-white text-sm font-semibold">
+                      +{{ imageUrls.length - 4 }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- End Right Column -->
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="border-t border-gray-200 px-8 py-6 bg-gray-50 sticky bottom-0">
+        <div class="flex justify-between items-center">
+          <p class="text-sm text-gray-500">
+            <span class="text-red-500">*</span> Trường bắt buộc
+          </p>
+          <div class="flex space-x-3">
+            <button type="button" (click)="showAddModal ? closeAddModal() : closeEditModal()"
+              class="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-all">
+              Hủy bỏ
+            </button>
+            <button type="button" (click)="showAddModal ? saveTour() : updateTour()"
+              [disabled]="showEditModal && !hasChanges()"
+              [class.opacity-50]="showEditModal && !hasChanges()"
+              [class.cursor-not-allowed]="showEditModal && !hasChanges()"
+              [class.hover:from-blue-600]="showEditModal && !hasChanges()"
+              [class.hover:to-indigo-600]="showEditModal && !hasChanges()"
+              class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2">
+              <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <span class="text-white">{{ showAddModal ? 'Tạo tour' : 'Lưu thay đổi' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cancel Tour Modal -->
+  <div *ngIf="showCancelTourModal" class="bg-black bg-opacity-50 flex items-center justify-center"
+    style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 99999 !important; margin: 0 !important; padding: 0 !important;">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4" (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-orange-500 to-red-500 px-6 py-4 rounded-t-2xl">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 class="text-xl font-bold text-white">Hủy tour</h3>
+          </div>
+          <button (click)="closeCancelTourModal()" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6">
+        <div class="mb-6">
+          <div>
+            <label class="block text-sm font-semibold text-gray-800 mb-2">
+              Lý do hủy tour <span class="text-red-500">*</span>
+            </label>
+            <textarea 
+              [(ngModel)]="cancelTourReason"
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all resize-none"
+              rows="4"
+              placeholder="Ví dụ: Thiên tai, Hết chỗ, Đổi lịch trình,..."></textarea>
+          </div>
+
+          <div class="flex items-start space-x-3 mb-4"> 
+            <div>
+              <p class="text-gray-800 font-semibold mb-1">Bạn có chắc chắn muốn hủy tour này?</p>
+              <p class="text-sm text-gray-600">
+                Tất cả booking liên quan sẽ bị hủy và thông báo sẽ được gửi đến khách hàng.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+          <button type="button" (click)="closeCancelTourModal()"
+            class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-xl transition-all">
+            Không, giữ tour
+          </button>
+          <button type="button" (click)="submitCancelTour()"
+            class="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-semibold rounded-xl transition-all shadow-lg">
+            Xác nhận hủy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div *ngIf="showDeleteModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    (click)="closeDeleteModal()">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" (click)="$event.stopPropagation()">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-xl font-semibold text-red-600">Xác nhận xóa</h3>
+        <button (click)="closeDeleteModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6">
+        <div class="flex items-start space-x-4">
+          <div class="flex-shrink-0">
+            <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-gray-700 mb-2">
+              Bạn có chắc chắn muốn xóa tour này không?
+            </p>
+            <p class="text-sm text-gray-500">
+              Hành động này không thể hoàn tác.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 mt-6">
+          <button type="button" (click)="closeDeleteModal()"
+            class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            Hủy
+          </button>
+          <button type="button" (click)="deleteTour()"
+            class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+            Xóa Tour
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Upload Modal -->
+  <div *ngIf="showBulkUploadModal"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto">
+      <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <h3 class="text-xl font-bold text-gray-800">Upload tours từ file csv</h3>
+        <button (click)="closeBulkUploadModal()" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="p-6">
+        <!-- Instructions -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h4 class="font-semibold text-blue-900 mb-2">📋 Hướng dẫn:</h4>
+          <ul class="text-sm text-blue-800 space-y-1 list-disc list-inside">
+            <li>File CSV phải có các cột: <code
+                class="bg-blue-100 px-1 rounded">package_name, destination, description, duration_days, price, available_slots, start_date, end_date</code>
+            </li>
+            <li>Các cột tùy chọn: <code
+                class="bg-blue-100 px-1 rounded">image_urls (ngăn cách bằng |), cuisine, suitable_for, is_active</code>
+            </li>
+            <li>Giá: Số nguyên (ví dụ: 5000000)</li>
+            <li>is_active: true hoặc false</li>
+          </ul>
+
+          <button (click)="downloadCSVTemplate()"
+            class="mt-3 text-sm text-blue-600 hover:text-blue-800 underline flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Tải xuống file mẫu (có sẵn định dạng đúng)
+          </button>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Chọn file CSV
+          </label>
+          <div class="flex items-center gap-4">
+            <input type="file" accept=".csv" (change)="onCSVFileSelect($event)"
+              class="flex-1 text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            <button *ngIf="selectedCSVFile" (click)="uploadCSV()" [disabled]="isLoading"
+              class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white rounded-lg transition-colors flex items-center gap-2">
+              <svg *ngIf="!isLoading" class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              <svg *ngIf="isLoading" class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="white" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              {{ isLoading ? 'Đang upload...' : 'Upload' }}
+            </button>
+          </div>
+          <p *ngIf="selectedCSVFile" class="text-sm text-gray-600 mt-2">
+            📄 File đã chọn: <strong>{{ selectedCSVFile.name }}</strong> ({{ (selectedCSVFile.size / 1024).toFixed(2) }}
+            KB)
+          </p>
+        </div>
+
+        <!-- Upload Results -->
+        <div *ngIf="bulkUploadResult" class="space-y-4">
+          <!-- Summary -->
+          <div class="grid grid-cols-3 gap-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div class="text-2xl font-bold text-blue-900">{{ bulkUploadResult.total_processed }}</div>
+              <div class="text-sm text-blue-700">Tổng số dòng</div>
+            </div>
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div class="text-2xl font-bold text-green-900">{{ bulkUploadResult.successful }}</div>
+              <div class="text-sm text-green-700">Thành công</div>
+            </div>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div class="text-2xl font-bold text-red-900">{{ bulkUploadResult.failed }}</div>
+              <div class="text-sm text-red-700">Thất bại</div>
+            </div>
+          </div>
+
+          <!-- Created Packages with Preview Cards -->
+          <div *ngIf="bulkUploadResult.created_packages && bulkUploadResult.created_packages.length > 0"
+            class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 class="font-semibold text-green-900 mb-3">✓ Tours đã tạo thành công ({{
+              bulkUploadResult.created_packages.length }}):</h4>
+
+            <!-- Preview Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[500px] overflow-y-auto">
+              <div *ngFor="let pkg of bulkUploadResult.created_packages"
+                class="bg-white rounded-xl shadow-md overflow-hidden border border-green-200 hover:shadow-lg transition-shadow">
+                <!-- Tour Image -->
+                <div class="relative h-32 bg-gradient-to-br from-blue-400 to-purple-500">
+                  <img *ngIf="pkg.image_urls" [src]="pkg.image_urls.split(',')[0]" [alt]="pkg.package_name"
+                    class="w-full h-full object-cover">
+                  <div *ngIf="!pkg.image_urls" class="w-full h-full flex items-center justify-center text-white">
+                    <svg class="w-12 h-12 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+
+                  <!-- Status Badge -->
+                  <div
+                    class="absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-full flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                        clip-rule="evenodd" />
+                    </svg>
+                    Đã tạo
+                  </div>
+                </div>
+
+                <!-- Tour Info -->
+                <div class="p-3">
+                  <h5 class="font-bold text-gray-900 text-sm mb-2 line-clamp-2" [title]="pkg.package_name">
+                    {{ pkg.package_name }}
+                  </h5>
+
+                  <div class="space-y-1 mb-3">
+                    <div class="flex items-center gap-1 text-xs text-gray-600">
+                      <svg class="w-3 h-3 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span class="truncate">{{ pkg.destination }}</span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs">
+                      <div class="flex items-center gap-1 text-gray-600">
+                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{{ pkg.duration_days }} ngày</span>
+                      </div>
+
+                      <div class="flex items-center gap-1 text-gray-600">
+                        <svg class="w-3 h-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>{{ pkg.available_slots }} chỗ</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Price -->
+                  <div class="border-t pt-2 flex items-center justify-between">
+                    <div>
+                      <div class="text-lg font-bold text-blue-600">
+                        {{ formatPreviewPrice(pkg.price) }}
+                      </div>
+                      <div class="text-xs text-gray-500">/ {{ pkg.duration_days }} ngày</div>
+                    </div>
+                    <button (click)="openDetailModal(pkg)"
+                      class="text-purple-600 hover:text-purple-800 p-1.5 hover:bg-purple-50 rounded-lg transition-all"
+                      title="Xem chi tiết">
+                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <!-- Package ID -->
+                  <div class="mt-2 pt-2 border-t">
+                    <div class="flex items-center justify-between">
+                      <code class="text-xs text-gray-500 font-mono truncate flex-1" [title]="pkg.package_id">
+                      ID: {{ pkg.package_id.substring(0, 16) }}...
+                    </code>
+                      <button (click)="copyToClipboard(pkg.package_id)" class="text-gray-400 hover:text-gray-600 p-0.5"
+                        title="Copy ID">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Errors -->
+          <div *ngIf="bulkUploadResult.errors && bulkUploadResult.errors.length > 0"
+            class="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h4 class="font-semibold text-red-900 mb-3">✗ Lỗi khi tạo tours:</h4>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <div *ngFor="let err of bulkUploadResult.errors"
+                class="bg-white rounded p-3 text-sm border border-red-100">
+                <div class="font-medium text-red-900">Dòng {{ err.row }}:</div>
+                <div class="text-red-700">{{ err.error }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parsing Errors -->
+          <div *ngIf="bulkUploadResult.parsing_errors && bulkUploadResult.parsing_errors.length > 0"
+            class="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <h4 class="font-semibold text-orange-900 mb-3">⚠ Lỗi phân tích CSV:</h4>
+            <div class="space-y-1 max-h-32 overflow-y-auto">
+              <div *ngFor="let err of bulkUploadResult.parsing_errors" class="text-sm text-orange-800">• {{ err }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Detail Modal (View Only) -->
+  <div *ngIf="showDetailModal" class="bg-black bg-opacity-50 flex items-center justify-center"
+    style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important; margin: 0 !important; padding: 0 !important;">
+    <div class="bg-white rounded-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden shadow-2xl">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-6 sticky top-0 z-10">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+              <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-2xl font-bold text-white">
+                Chi tiết tour
+              </h3>
+              <p class="text-white text-opacity-90 text-sm mt-1">
+                Xem thông tin chi tiết tour du lịch
+              </p>
+            </div>
+          </div>
+          <button (click)="closeDetailModal()"
+            class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Content - Tour Details như giao diện user -->
+      <div class="overflow-y-auto max-h-[calc(95vh-180px)]" *ngIf="currentTour">
+        <div class="px-6 pb-6 bg-white">
+          
+          <!-- Metadata -->
+          <div class="bg-gray-50 rounded-xl p-6 border border-gray-200 mb-6 mt-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Thông tin hệ thống</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">PACKAGE ID</label>
+                <div class="flex items-center gap-2">
+                  <code class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-200 flex-1 truncate">
+                    {{ currentTour.package_id }}
+                  </code>
+                  <button type="button" (click)="copyToClipboard(currentTour.package_id!)"
+                    class="p-2 hover:bg-gray-200 rounded-lg transition-all">
+                    <svg *ngIf="!copiedPackageId" class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <svg *ngIf="copiedPackageId" class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">NGÀY TẠO</label>
+                <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-200">
+                  {{ formatDateTime(currentTour.created_at!) }}
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">CẬP NHẬT CUỐI</label>
+                <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-gray-200">
+                  {{ formatDateTime(currentTour.updated_at!) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tour Images -->
+          <div class="mb-6" *ngIf="imageUrls.length > 0">
+            <div class="relative rounded-xl overflow-hidden mb-4" style="height: 400px;">
+              <img [src]="imageUrls[0]" [alt]="currentTour.package_name" class="w-full h-full object-cover">
+            </div>
+            <div class="grid grid-cols-4 gap-2" *ngIf="imageUrls.length > 1">
+              <div *ngFor="let img of imageUrls.slice(1, 5)" class="aspect-square rounded-lg overflow-hidden bg-gray-200">
+                <img [src]="img" [alt]="currentTour.package_name" class="w-full h-full object-cover hover:scale-110 transition-transform cursor-pointer">
+              </div>
+              <div *ngIf="imageUrls.length > 5"
+                class="aspect-square rounded-lg bg-gray-700 flex items-center justify-center text-white text-sm font-semibold">
+                +{{ imageUrls.length - 5 }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Tour Header -->
+          <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">{{ currentTour.package_name }}</h1>
+            <div class="flex items-center gap-4 mb-4">
+              <div class="flex items-center gap-2 text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                <span>{{ currentTour.destination }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span [class]="currentTour.is_active ? 'px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-semibold' : 'px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-semibold'">
+                  {{ currentTour.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+              <p class="text-gray-600 mb-2">Giá tour</p>
+              <div class="flex items-baseline gap-3">
+                <p class="text-4xl font-bold text-purple-600">{{ formatPrice(currentTour.price!) }}</p>
+                <p class="text-gray-600">cho {{ currentTour.duration_days }} ngày</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tour Info Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white border-2 border-blue-100 rounded-xl p-4 hover:border-blue-300 transition-all">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Thời gian</p>
+                  <p class="font-semibold text-gray-900">{{ currentTour.duration_days }} ngày</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white border-2 border-green-100 rounded-xl p-4 hover:border-green-300 transition-all">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Chỗ trống</p>
+                  <p class="font-semibold text-gray-900">{{ currentTour.available_slots }} slots</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white border-2 border-orange-100 rounded-xl p-4 hover:border-orange-300 transition-all">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Ngày khởi hành</p>
+                  <p class="font-semibold text-gray-900">{{ formatDate(currentTour.start_date!) }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white border-2 border-purple-100 rounded-xl p-4 hover:border-purple-300 transition-all">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-xs text-gray-500">Ngày kết thúc</p>
+                  <p class="font-semibold text-gray-900">{{ formatDate(currentTour.end_date!) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tour Description -->
+          <div class="mb-8" *ngIf="currentTour.description">
+            <div class="flex items-center gap-3 mb-4">
+              <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <h2 class="text-2xl font-bold text-gray-900">Giới thiệu tour</h2>
+            </div>
+            <div class="prose max-w-none">
+              <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ currentTour.description }}</p>
+            </div>
+          </div>
+
+          <!-- Cuisine & Suitable For -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div *ngIf="currentTour.cuisine" class="bg-gradient-to-br from-orange-50 to-yellow-50 border-2 border-orange-200 rounded-xl p-6">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">Ẩm thực</h3>
+              </div>
+              <p class="text-gray-700">{{ currentTour.cuisine }}</p>
+            </div>
+
+            <div *ngIf="currentTour.suitable_for" class="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-6">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                  </svg>
+                </div>
+                <h3 class="text-lg font-bold text-gray-900">Phù hợp cho</h3>
+              </div>
+              <p class="text-gray-700">{{ currentTour.suitable_for }}</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="border-t border-gray-200 px-8 py-6 bg-gray-50 sticky bottom-0 flex justify-end">
+        <button type="button" (click)="closeDetailModal()"
+          class="px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl">
+          Đóng
+        </button>
+      </div>
+    </div>
+  </div>

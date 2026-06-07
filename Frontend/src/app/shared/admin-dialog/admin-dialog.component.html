@@ -1,0 +1,44 @@
+<div *ngIf="isVisible" class="dialog-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="z-index: 99999;" (click)="onBackdropClick($event)">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 transform transition-all animate-dialog-enter">
+    <!-- Icon -->
+    <div class="pt-8 pb-4 flex justify-center">
+      <div [ngClass]="getIconColor()" class="w-16 h-16 rounded-full bg-opacity-10 flex items-center justify-center" [class.bg-red-50]="dialogConfig?.type === 'confirm'" [class.bg-yellow-50]="dialogConfig?.type === 'warning'" [class.bg-blue-50]="dialogConfig?.type === 'alert'">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" [attr.d]="getIcon()"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="px-8 pb-6 text-center">
+      <h3 class="text-xl font-bold text-gray-900 mb-3">
+        {{ dialogConfig?.title }}
+      </h3>
+      <p class="text-gray-600 leading-relaxed">
+        {{ dialogConfig?.message }}
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div class="px-6 pb-6 flex gap-3">
+      <button 
+        *ngIf="dialogConfig?.cancelText"
+        (click)="onCancel()"
+        class="flex-1 px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl transition-all duration-200 transform hover:scale-105">
+        {{ dialogConfig?.cancelText }}
+      </button>
+      <button 
+        (click)="onConfirm()"
+        [class.flex-1]="dialogConfig?.cancelText"
+        [class.w-full]="!dialogConfig?.cancelText"
+        class="px-6 py-3 font-medium rounded-xl transition-all duration-200 transform hover:scale-105 shadow-lg"
+        [ngClass]="{
+          'bg-red-500 hover:bg-red-600 text-white': dialogConfig?.type === 'confirm',
+          'bg-yellow-500 hover:bg-yellow-600 text-white': dialogConfig?.type === 'warning',
+          'bg-blue-500 hover:bg-blue-600 text-white': dialogConfig?.type === 'alert'
+        }">
+        {{ dialogConfig?.confirmText }}
+      </button>
+    </div>
+  </div>
+</div>

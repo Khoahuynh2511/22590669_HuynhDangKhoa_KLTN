@@ -1,0 +1,36 @@
+<div class="review-card">
+    <!-- Quote icon -->
+    <div class="quote-icon">
+        <i class="pi pi-comment"></i>
+    </div>
+
+    <!-- Rating stars -->
+    <div class="rating-section">
+        @for (filled of getStarArray(review.rating); track $index) {
+        <i class="pi" [class.pi-star-fill]="filled" [class.pi-star]="!filled"></i>
+        }
+    </div>
+
+    <!-- Review content -->
+    <div class="review-content">
+        <p class="review-comment">"{{ truncateComment(review.comment, 120) }}"</p>
+    </div>
+
+    <!-- User info -->
+    <div class="user-section">
+        <div class="user-avatar" [style.background]="getAvatarUrl() ? 'none' : getAvatarBackground()">
+            @if (getAvatarUrl()) {
+            <img [src]="getAvatarUrl()" alt="Avatar" class="avatar-img" />
+            } @else {
+            <span class="avatar-initial">{{ getUserInitial() }}</span>
+            }
+        </div>
+        <div class="user-info">
+            <h4 class="user-name">{{ getUserName() }}</h4>
+            <p class="tour-name">
+                <i class="pi pi-map-marker"></i>
+                {{ getPackageTitle() }}
+            </p>
+        </div>
+    </div>
+</div>

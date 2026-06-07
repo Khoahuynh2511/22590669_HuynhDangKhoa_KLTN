@@ -1,0 +1,46 @@
+@if (tourPackage) {
+  <div class="bg-white rounded-lg shadow-md p-4">
+    <!-- Tour Name -->
+    <h2 class="text-xl font-bold mb-2">{{ tourPackage.package_name }}</h2>
+    <p class="text-gray-600 text-sm mb-4">{{ tourPackage.destination }}</p>
+
+    <!-- Tour Dates -->
+    <div class="flex justify-between mb-4">
+      <div>
+        <p class="text-gray-600 text-sm">Ngày khởi hành</p>
+        <p class="font-semibold">{{ formatDate(tourPackage.start_date) }}</p>
+      </div>
+      <div>
+        <p class="text-gray-600 text-sm">Ngày kết thúc</p>
+        <p class="font-semibold">{{ formatDate(tourPackage.end_date) }}</p>
+      </div>
+    </div>
+
+    <!-- Tour Details -->
+    <div class="mb-4 space-y-2">
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Thời lượng:</span> {{ tourPackage.duration_days }} ngày
+      </p>
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Số người:</span> {{ numberOfPeople }} người
+      </p>
+      <p class="text-gray-600 text-sm">
+        <span class="font-medium">Giá mỗi người:</span> {{ formatPrice(tourPackage.price) }}
+      </p>
+    </div>
+
+    <!-- Total Price -->
+    <div class="border-t border-gray-200 pt-4">
+      <div class="flex justify-between items-center">
+        <span class="text-gray-600">Tổng giá:</span>
+        <p class="text-xl font-bold text-orange-500">{{ formatPrice(tourPackage.price * numberOfPeople) }}</p>
+      </div>
+    </div>
+  </div>
+} @else {
+  <div class="bg-white rounded-lg shadow-md p-4">
+    <div class="flex justify-center items-center py-8">
+      <p class="text-gray-500">Đang tải thông tin tour...</p>
+    </div>
+  </div>
+}

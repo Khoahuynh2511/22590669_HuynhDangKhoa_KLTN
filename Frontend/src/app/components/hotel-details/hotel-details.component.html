@@ -1,0 +1,41 @@
+<div class="bg-white rounded-lg shadow-md p-4">
+  <h2 class="text-xl font-bold mb-2">Chi tiết khách sạn</h2>
+  <p class="text-gray-600 mb-4">Số đơn hàng: {{ hotelDetails.bookingNumber }}</p>
+
+  <h3 class="text-lg font-semibold">{{ hotelDetails.hotelName }}</h3>
+
+  <div class="flex justify-between mb-4">
+    <div>
+      <p class="text-gray-600">Nhận phòng</p>
+      <p class="font-semibold">{{ hotelDetails.checkIn }}</p>
+    </div>
+    <div>
+      <p class="text-gray-600">Trả phòng</p>
+      <p class="font-semibold">{{ hotelDetails.checkOut }}</p>
+    </div>
+  </div>
+
+  <p class="text-gray-600">{{ hotelDetails.roomType }}</p>
+  <p class="text-gray-600">{{ hotelDetails.guests }} Khách, {{ hotelDetails.beds }} Giường</p>
+  <p class="text-gray-600" *ngIf="!hotelDetails.breakfastIncluded">Không bao gồm bữa sáng</p>
+  <p class="text-gray-600" *ngIf="hotelDetails.breakfastIncluded">Bao gồm bữa sáng</p>
+  <p class="text-gray-600">{{ hotelDetails.amenities.join(', ') }}</p>
+
+  <h4 class="font-semibold mt-4">Yêu cầu đặc biệt (Nếu có)</h4>
+  <p class="text-gray-600">{{ hotelDetails.specialRequests }}</p>
+
+  <h4 class="font-semibold mt-4">Tên khách</h4>
+  <p class="text-gray-600">{{ hotelDetails.guestName }}</p>
+
+  <h4 class="font-semibold mt-4">Chính sách hủy</h4>
+  <ul class="list-disc pl-5">
+    <li *ngFor="let policy of hotelDetails.refundPolicy" class="text-gray-600">{{ policy }}</li>
+  </ul>
+
+  <h4 class="font-semibold mt-4">Thông tin người đặt</h4>
+  <p class="text-gray-600">{{ hotelDetails.orderName }}</p>
+  <p class="text-gray-600">{{ hotelDetails.orderPhone }}</p>
+  <p class="text-gray-600">{{ hotelDetails.orderEmail }}</p>
+
+  <p class="mt-4 text-green-500">Đây là lựa chọn hoàn hảo cho chuyến nghỉ của bạn!</p>
+</div>

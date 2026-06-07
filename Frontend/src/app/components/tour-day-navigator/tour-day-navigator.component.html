@@ -1,0 +1,54 @@
+<div class="day-navigator-wrapper">
+  <!-- Progress Bar -->
+  <div class="progress-bar-container">
+    <div class="progress-bar-track">
+      <div class="progress-bar-fill" [style.width.%]="getProgressPercentage()"></div>
+    </div>
+    <div class="progress-label">
+      <span class="current-day">Ngày {{ currentDay }}</span>
+      <span class="total-days">/ {{ totalDays }}</span>
+    </div>
+  </div>
+
+  <!-- Stepper Navigation -->
+  <div class="stepper-container">
+    <div class="stepper-steps">
+      <div
+        *ngFor="let item of getDayNavigationItems()"
+        class="stepper-step"
+        [class.active]="item.isActive"
+        [class.completed]="item.isCompleted"
+        (click)="selectDay(item.dayNumber)">
+
+        <div class="step-indicator">
+          <div class="step-circle">
+            <i *ngIf="item.isCompleted" class="fas fa-check"></i>
+            <span *ngIf="!item.isCompleted">{{ item.dayNumber }}</span>
+          </div>
+          <div class="step-connector" *ngIf="item.dayNumber < totalDays"></div>
+        </div>
+
+        <div class="step-label">{{ item.label }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Buttons -->
+  <div class="navigation-buttons">
+    <button
+      class="nav-button prev-button"
+      (click)="goToPreviousDay()"
+      [disabled]="!hasPrevious()">
+      <i class="fas fa-chevron-left"></i>
+      <span>Ngày trước</span>
+    </button>
+
+    <button
+      class="nav-button next-button"
+      (click)="goToNextDay()"
+      [disabled]="!hasNext()">
+      <span>Ngày sau</span>
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  </div>
+</div>

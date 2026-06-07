@@ -1,0 +1,61 @@
+name: Deploy Frontend to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy Frontend to Production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to AWS Lightsail via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            # Define project variables
+            PROJECT_DIR="$HOME/doan"
+            FRONTEND_DIR="$PROJECT_DIR/SE347_IE104_Frontend"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+            
+            echo "=== Starting Frontend deployment ==="
+            
+            # Ensure project root directory exists
+            mkdir -p "$PROJECT_DIR"
+            cd "$PROJECT_DIR"
+            
+            # Clone or update Frontend repository into SE347_IE104_Frontend/ subfolder
+            if [ ! -d "$FRONTEND_DIR" ]; then
+              echo "Frontend directory not found. Cloning Frontend repository..."
+              git clone "$REPO_URL" "$FRONTEND_DIR"
+            else
+              echo "Frontend directory exists. Updating code..."
+              cd "$FRONTEND_DIR"
+              git pull origin main
+              cd "$PROJECT_DIR"
+            fi
+            
+            # Copy docker-compose.yml from Frontend repo to project root (if exists)
+            if [ -f "$FRONTEND_DIR/docker-compose.yml" ]; then
+              echo "Copying docker-compose.yml to project root..."
+              cp "$FRONTEND_DIR/docker-compose.yml" "$PROJECT_DIR/docker-compose.yml"
+            fi
+            
+            echo "=== Stopping existing containers ==="
+            docker compose down
+            
+            echo "=== Building and starting containers ==="
+            docker compose up -d --build
+            
+            echo "=== Cleaning up old Docker images ==="
+            docker system prune -f
+            
+            echo "=== Checking container status ==="
+            docker compose ps
+            
+            echo "=== Frontend deployment completed successfully ==="

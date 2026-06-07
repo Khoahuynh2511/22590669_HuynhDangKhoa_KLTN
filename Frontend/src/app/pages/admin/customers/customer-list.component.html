@@ -1,0 +1,778 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Quản lý Users</h2>
+    <button
+      (click)="openCreateUserModal()"
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Tạo user mới
+    </button>
+  </div>
+
+  <!-- Success/Error Messages -->
+  <div *ngIf="successMessage" class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+    {{ successMessage }}
+  </div>
+  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Search & Filter -->
+  <div class="bg-white rounded-xl shadow-lg p-6">
+    <div class="space-y-4">
+      <!-- Search Input -->
+      <div class="flex-1">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          placeholder="Tìm kiếm theo email, tên, ID, số điện thoại..."
+          class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+      
+      <!-- Filter Row -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Filter by Booking Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Đã booking</label>
+          <select
+            [(ngModel)]="filterHasBooking"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="all">Tất cả</option>
+            <option value="has">Đã từng booking</option>
+            <option value="no">Chưa booking</option>
+          </select>
+        </div>
+        
+        <!-- Filter by Active Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
+          <select
+            [(ngModel)]="filterIsActive"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="all">Tất cả</option>
+            <option value="active">Đang hoạt động</option>
+            <option value="inactive">Vô hiệu hóa</option>
+          </select>
+        </div>
+        
+        <!-- Filter by Chat Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Đã chat</label>
+          <select
+            [(ngModel)]="filterHasChat"
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <option value="all">Tất cả</option>
+            <option value="has">Đã trò chuyện</option>
+            <option value="no">Chưa trò chuyện</option>
+          </select>
+        </div>
+        
+        <!-- Filter by Tour ID -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Tour ID</label>
+          <input
+            type="text"
+            [(ngModel)]="filterTourId"
+            placeholder="Nhập Tour ID..."
+            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="flex justify-end gap-3 pt-3 border-t border-gray-200">
+        <button
+          (click)="applyFilters()"
+          [disabled]="isLoadingUsers"
+          class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg disabled:opacity-50 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          {{ isLoadingUsers ? 'Đang lọc...' : 'Áp dụng lọc' }}
+        </button>
+        <button
+          (click)="reloadData()"
+          [disabled]="isLoadingUsers"
+          class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg disabled:opacity-50 text-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          Tải lại
+        </button>
+      </div>
+
+      <!-- Active Filters Indicator -->
+      <div *ngIf="searchTerm || filterHasBooking !== 'all' || filterIsActive !== 'all' || filterHasChat !== 'all' || filterTourId" class="mt-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-emerald-300 rounded-lg p-3 shadow-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 flex-wrap">
+            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+            </svg>
+            <span class="text-sm font-semibold text-emerald-700">Đang lọc theo:</span>
+            <div class="flex gap-2 flex-wrap">
+              <span *ngIf="searchTerm" class="px-2 py-1 bg-white border border-emerald-300 rounded-md text-xs font-medium text-emerald-800">
+                Tìm kiếm: "{{ searchTerm }}"
+              </span>
+              <span *ngIf="filterHasBooking !== 'all'" class="px-2 py-1 bg-white border border-emerald-300 rounded-md text-xs font-medium text-emerald-800">
+                Booking: {{ filterHasBooking === 'has' ? 'Có' : 'Không có' }}
+              </span>
+              <span *ngIf="filterIsActive !== 'all'" class="px-2 py-1 bg-white border border-emerald-300 rounded-md text-xs font-medium text-emerald-800">
+                Trạng thái: {{ filterIsActive === 'active' ? 'Hoạt động' : 'Không hoạt động' }}
+              </span>
+              <span *ngIf="filterHasChat !== 'all'" class="px-2 py-1 bg-white border border-emerald-300 rounded-md text-xs font-medium text-emerald-800">
+                Chat: {{ filterHasChat === 'has' ? 'Có' : 'Không có' }}
+              </span>
+              <span *ngIf="filterTourId" class="px-2 py-1 bg-white border border-emerald-300 rounded-md text-xs font-medium text-emerald-800">
+                Tour ID: "{{ filterTourId }}"
+              </span>
+            </div>
+          </div>
+          <button 
+            (click)="resetFilters()"
+            class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-1">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Xóa bộ lọc
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pagination Info -->
+  <div class="text-sm text-gray-600">
+    Hiển thị {{ filteredUsers.length > 0 ? 1 : 0 }} - {{ filteredUsers.length }} trong tổng số {{ allUsers.length }} người dùng
+  </div>
+
+  <!-- Users List -->
+  <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+    <div *ngIf="isLoadingUsers" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <p class="mt-2 text-gray-600">Đang tải dữ liệu...</p>
+    </div>
+
+    <div *ngIf="!isLoadingUsers && filteredUsers.length === 0" class="text-center py-12 text-gray-500">
+      <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+      </svg>
+      <p>Không tìm thấy user nào</p>
+    </div>
+
+    <div *ngIf="!isLoadingUsers && filteredUsers.length > 0" class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày tạo</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr *ngFor="let user of filteredUsers" class="hover:bg-gray-50 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="flex items-center">
+                <div class="flex-shrink-0 h-10 w-10">
+                  <div class="h-10 w-10 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white font-semibold">
+                    {{ user.full_name.charAt(0).toUpperCase() }}
+                  </div>
+                </div>
+                <div class="ml-4">
+                  <div class="text-sm font-medium text-gray-900">{{ user.full_name }}</div>
+                  <div class="text-sm text-gray-500 flex items-center gap-2">
+                    <span>ID: {{ user.user_id.substring(0, 8) }}...</span>
+                    <button 
+                      (click)="copyToClipboard(user.user_id)"
+                      class="text-blue-600 hover:text-blue-800 transition-colors"
+                      title="Copy User ID">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ user.email }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <div class="text-sm text-gray-900">{{ user.phone_number || '-' }}</div>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="getRoleBadgeClass(user.role)" class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                {{ user.role }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span [class]="getStatusBadgeClass(user.is_active)" class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full">
+                {{ user.is_active ? 'Hoạt động' : 'Vô hiệu hóa' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {{ formatDate(user.created_at) }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <div class="flex items-center justify-end gap-2">
+                <button
+                  (click)="viewUserDetails(user)"
+                  class="text-blue-600 hover:text-blue-900"
+                  title="Xem chi tiết">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                </button>
+                <button
+                  (click)="openEditUserModal(user)"
+                  class="text-green-600 hover:text-green-900"
+                  title="Chỉnh sửa">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                  </svg>
+                </button>
+                <button
+                  (click)="toggleUserStatus(user)"
+                  [class.text-green-600]="!user.is_active"
+                  [class.hover:text-green-900]="!user.is_active"
+                  [class.text-yellow-600]="user.is_active"
+                  [class.hover:text-yellow-900]="user.is_active"
+                  [title]="user.is_active ? 'Vô hiệu hóa' : 'Kích hoạt'">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                  </svg>
+                </button>
+                <button
+                  (click)="openDeleteConfirmModal(user)"
+                  class="text-red-600 hover:text-red-900"
+                  title="Xóa">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Create User Modal -->
+<div *ngIf="showCreateUserModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div class="flex justify-between items-center">
+        <h3 class="text-2xl font-bold text-gray-800">Tạo User Mới</h3>
+        <button (click)="closeCreateUserModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6">
+      <form [formGroup]="createUserForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input type="email" formControlName="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="user@example.com">
+          <p *ngIf="createUserForm.get('email')?.invalid && createUserForm.get('email')?.touched" class="text-red-500 text-sm mt-1">Email không hợp lệ</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
+          <input type="text" formControlName="full_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nguyễn Văn A">
+          <p *ngIf="createUserForm.get('full_name')?.invalid && createUserForm.get('full_name')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập họ tên</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
+          <input type="tel" formControlName="phone_number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0901234567">
+          <p *ngIf="createUserForm.get('phone_number')?.invalid && createUserForm.get('phone_number')?.touched" class="text-red-500 text-sm mt-1">Vui lòng nhập số điện thoại</p>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu (để trống để tự động tạo)</label>
+          <input type="password" formControlName="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
+          <input type="text" value="User" disabled class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+        </div>
+
+        <div class="flex items-center">
+          <input type="checkbox" formControlName="is_active" id="create_is_active" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+          <label for="create_is_active" class="ml-2 text-sm text-gray-700">Kích hoạt tài khoản</label>
+        </div>
+      </form>
+
+      <div *ngIf="errorMessage" class="mt-4 bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg flex items-start gap-2">
+        <svg class="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+        </svg>
+        <div>
+          <p class="font-semibold">Lỗi tạo tài khoản</p>
+          <p class="text-sm">{{ errorMessage }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+      <button (click)="closeCreateUserModal()" [disabled]="isCreating" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50">
+        Hủy
+      </button>
+      <button (click)="createUser()" [disabled]="isCreating || createUserForm.invalid" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-2">
+        <svg *ngIf="isCreating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        {{ isCreating ? 'Đang tạo...' : 'Tạo User' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div *ngIf="showEditUserModal && selectedUser" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-green-50 to-blue-50">
+      <div class="flex justify-between items-center">
+        <h3 class="text-2xl font-bold text-gray-800">Chỉnh sửa User</h3>
+        <button (click)="closeEditUserModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6">
+      <form [formGroup]="editUserForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <input type="email" formControlName="email" [disabled]="true" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
+          <input type="text" formControlName="full_name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại *</label>
+          <input type="tel" formControlName="phone_number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu mới (để trống nếu không đổi)</label>
+          <input type="password" formControlName="password" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="••••••••">
+        </div>
+
+        <div class="flex items-center">
+          <input type="checkbox" formControlName="is_active" id="edit_is_active" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+          <label for="edit_is_active" class="ml-2 text-sm text-gray-700">Kích hoạt tài khoản</label>
+        </div>
+      </form>
+
+      <div *ngIf="errorMessage" class="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        {{ errorMessage }}
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+      <button (click)="closeEditUserModal()" [disabled]="isUpdating" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50">
+        Hủy
+      </button>
+      <button (click)="updateUser()" [disabled]="isUpdating || editUserForm.invalid" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-2">
+        <svg *ngIf="isUpdating" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        {{ isUpdating ? 'Đang cập nhật...' : 'Cập nhật' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- User Detail Modal (continues in next part due to length limit) -->
+<div *ngIf="showUserDetailModal && selectedUser" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    <div class="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-2xl font-bold text-gray-800">Chi tiết User</h3>
+          <p class="text-sm text-gray-600 mt-1">{{ selectedUser.email }}</p>
+        </div>
+        <button (click)="closeUserDetailModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="border-b border-gray-200 bg-gray-50 px-6">
+      <nav class="-mb-px flex space-x-8">
+        <button (click)="switchTab('info')" [class.border-blue-500]="activeTab === 'info'" [class.text-blue-600]="activeTab === 'info'" [class.border-transparent]="activeTab !== 'info'" [class.text-gray-500]="activeTab !== 'info'" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+          Thông tin
+        </button>
+        <button (click)="switchTab('summary')" [class.border-blue-500]="activeTab === 'summary'" [class.text-blue-600]="activeTab === 'summary'" [class.border-transparent]="activeTab !== 'summary'" [class.text-gray-500]="activeTab !== 'summary'" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+          KPI & Tóm tắt
+        </button>
+        <button (click)="switchTab('bookings')" [class.border-blue-500]="activeTab === 'bookings'" [class.text-blue-600]="activeTab === 'bookings'" [class.border-transparent]="activeTab !== 'bookings'" [class.text-gray-500]="activeTab !== 'bookings'" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+          Bookings
+        </button>
+        <button (click)="switchTab('reviews')" [class.border-blue-500]="activeTab === 'reviews'" [class.text-blue-600]="activeTab === 'reviews'" [class.border-transparent]="activeTab !== 'reviews'" [class.text-gray-500]="activeTab !== 'reviews'" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+          Reviews
+        </button>
+        <button (click)="switchTab('chat')" [class.border-blue-500]="activeTab === 'chat'" [class.text-blue-600]="activeTab === 'chat'" [class.border-transparent]="activeTab !== 'chat'" [class.text-gray-500]="activeTab !== 'chat'" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+          Lịch sử Chat
+        </button>
+      </nav>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6">
+      <!-- Info Tab -->
+      <div *ngIf="activeTab === 'info'" class="space-y-6">
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">User ID</label>
+            <div class="flex items-center gap-2">
+              <p class="text-gray-900 font-mono text-sm flex-1">{{ selectedUser.user_id }}</p>
+              <button 
+                (click)="copyToClipboard(selectedUser.user_id)"
+                class="text-blue-600 hover:text-blue-800 transition-colors p-1"
+                title="Copy User ID">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <p class="text-gray-900">{{ selectedUser.email }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Họ tên</label>
+            <p class="text-gray-900">{{ selectedUser.full_name }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+            <p class="text-gray-900">{{ selectedUser.phone_number || '-' }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
+            <span [class]="getRoleBadgeClass(selectedUser.role)" class="px-3 py-1 rounded-full text-sm font-medium">{{ selectedUser.role }}</span>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+            <span [class]="getStatusBadgeClass(selectedUser.is_active)" class="px-3 py-1 rounded-full text-sm font-medium">
+              {{ selectedUser.is_active ? 'Hoạt động' : 'Vô hiệu hóa' }}
+            </span>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ngày tạo</label>
+            <p class="text-gray-900">{{ formatDate(selectedUser.created_at) }}</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Cập nhật lần cuối</label>
+            <p class="text-gray-900">{{ formatDate(selectedUser.updated_at) }}</p>
+          </div>
+          <div *ngIf="selectedUser.last_access_time">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Truy cập lần cuối</label>
+            <p class="text-gray-900">{{ formatDate(selectedUser.last_access_time) }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Tab -->
+      <div *ngIf="activeTab === 'summary'">
+        <div *ngIf="isLoadingDetails" class="flex justify-center py-12">
+          <svg class="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <div *ngIf="!isLoadingDetails && userSummary" class="space-y-6">
+          <!-- KPI Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="bg-blue-50 rounded-lg p-4">
+              <div class="text-sm text-blue-600 font-medium">Tổng bookings</div>
+              <div class="text-2xl font-bold text-blue-900 mt-1">{{ userSummary.kpi.total_bookings }}</div>
+            </div>
+            <div class="bg-yellow-50 rounded-lg p-4">
+              <div class="text-sm text-yellow-600 font-medium">Chờ xử lý</div>
+              <div class="text-2xl font-bold text-yellow-900 mt-1">{{ userSummary.kpi.pending_bookings }}</div>
+            </div>
+            <div class="bg-green-50 rounded-lg p-4">
+              <div class="text-sm text-green-600 font-medium">Đã xác nhận</div>
+              <div class="text-2xl font-bold text-green-900 mt-1">{{ userSummary.kpi.confirmed_bookings }}</div>
+            </div>
+            <div class="bg-purple-50 rounded-lg p-4">
+              <div class="text-sm text-purple-600 font-medium">Hoàn thành</div>
+              <div class="text-2xl font-bold text-purple-900 mt-1">{{ userSummary.kpi.completed_tours }}</div>
+            </div>
+            <div class="bg-red-50 rounded-lg p-4">
+              <div class="text-sm text-red-600 font-medium">Đã hủy</div>
+              <div class="text-2xl font-bold text-red-900 mt-1">{{ userSummary.kpi.cancelled_bookings }}</div>
+            </div>
+            <div class="bg-indigo-50 rounded-lg p-4">
+              <div class="text-sm text-indigo-600 font-medium">Tổng chi tiêu</div>
+              <div class="text-2xl font-bold text-indigo-900 mt-1">{{ formatCurrency(userSummary.kpi.total_paid_amount) }} ₫</div>
+            </div>
+          </div>
+
+          <!-- Recent Bookings -->
+          <div *ngIf="userSummary.recent.recent_bookings.length > 0">
+            <h4 class="text-lg font-semibold text-gray-800 mb-3">Bookings gần đây</h4>
+            <div class="space-y-2">
+              <div *ngFor="let booking of userSummary.recent.recent_bookings" class="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
+                <div>
+                  <div class="font-medium text-gray-900">{{ booking.package_name }}</div>
+                  <div class="text-sm text-gray-500">{{ formatDate(booking.created_at) }}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold text-gray-900">{{ formatCurrency(booking.total_price) }} ₫</div>
+                  <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-2 py-1 rounded-full text-xs font-medium">{{ booking.status }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent Payments -->
+          <div *ngIf="userSummary.recent.recent_payments.length > 0">
+            <h4 class="text-lg font-semibold text-gray-800 mb-3">Thanh toán gần đây</h4>
+            <div class="space-y-2">
+              <div *ngFor="let payment of userSummary.recent.recent_payments" class="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
+                <div>
+                  <div class="font-medium text-gray-900">Payment ID: {{ payment.payment_id.substring(0, 12) }}...</div>
+                  <div class="text-sm text-gray-500">{{ formatDate(payment.paid_at) }}</div>
+                </div>
+                <div class="text-right">
+                  <div class="font-semibold text-gray-900">{{ formatCurrency(payment.amount) }} ₫</div>
+                  <span class="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">{{ payment.status }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings Tab -->
+      <div *ngIf="activeTab === 'bookings'">
+        <div *ngIf="isLoadingBookings" class="flex justify-center py-12">
+          <svg class="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <div *ngIf="!isLoadingBookings && userBookings.length === 0" class="text-center py-12 text-gray-500">
+          Không có booking nào
+        </div>
+
+        <div *ngIf="!isLoadingBookings && userBookings.length > 0" class="space-y-4">
+          <div *ngFor="let booking of userBookings" class="border border-gray-200 rounded-lg p-4">
+            <div class="flex justify-between items-start mb-2">
+              <div>
+                <h4 class="font-semibold text-gray-900">{{ booking.package_name }}</h4>
+                <p class="text-sm text-gray-500">Booking ID: {{ booking.booking_id }}</p>
+              </div>
+              <span [class]="getBookingStatusBadgeClass(booking.status)" class="px-3 py-1 rounded-full text-xs font-medium">{{ booking.status }}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span class="text-gray-600">Ngày bắt đầu:</span>
+                <span class="text-gray-900 ml-2">{{ formatDate(booking.start_date) }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Ngày kết thúc:</span>
+                <span class="text-gray-900 ml-2">{{ formatDate(booking.end_date) }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Số người:</span>
+                <span class="text-gray-900 ml-2">{{ booking.number_of_people }}</span>
+              </div>
+              <div>
+                <span class="text-gray-600">Tổng giá:</span>
+                <span class="text-gray-900 ml-2 font-semibold">{{ formatCurrency(booking.total_price) }} {{ booking.currency }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination -->
+          <div *ngIf="bookingsTotalPages > 1" class="flex justify-center gap-2 mt-4">
+            <button (click)="changeBookingsPage(bookingsPage - 1)" [disabled]="bookingsPage === 1" class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+              Trước
+            </button>
+            <span class="px-3 py-1">Trang {{ bookingsPage }} / {{ bookingsTotalPages }}</span>
+            <button (click)="changeBookingsPage(bookingsPage + 1)" [disabled]="bookingsPage === bookingsTotalPages" class="px-3 py-1 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50">
+              Sau
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat Tab -->
+      <div *ngIf="activeTab === 'chat'">
+        <div *ngIf="isLoadingChat" class="flex justify-center py-12">
+          <svg class="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </div>
+
+        <div *ngIf="!isLoadingChat && userChatRooms.length === 0" class="text-center py-12 text-gray-500">
+          Không có lịch sử chat
+        </div>
+
+        <div *ngIf="!isLoadingChat && userChatRooms.length > 0" class="space-y-4">
+          <div *ngFor="let room of userChatRooms" class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div class="flex justify-between items-center">
+                <h4 class="font-semibold text-gray-900">{{ room.title }}</h4>
+                <button (click)="selectChatRoom(room)" class="text-blue-600 hover:text-blue-800 text-sm">
+                  {{ selectedChatRoom?.room_id === room.room_id ? 'Ẩn' : 'Xem chi tiết' }}
+                </button>
+              </div>
+              <div class="text-sm text-gray-500 mt-1">
+                {{ room.message_count }} tin nhắn • {{ formatDate(room.updated_at) }}
+              </div>
+            </div>
+
+            <div *ngIf="selectedChatRoom?.room_id === room.room_id" class="p-4 max-h-96 overflow-y-auto space-y-3">
+              <div *ngFor="let message of room.messages" class="flex gap-3" [class.flex-row-reverse]="message.role === 'user'">
+                <div class="flex-shrink-0">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold"
+                       [class.bg-blue-500]="message.role === 'user'"
+                       [class.bg-green-500]="message.role === 'assistant'">
+                    {{ message.role === 'user' ? 'U' : 'A' }}
+                  </div>
+                </div>
+                <div class="flex-1 max-w-md">
+                  <div class="rounded-lg p-3"
+                       [class.bg-blue-100]="message.role === 'user'"
+                       [class.bg-gray-100]="message.role === 'assistant'">
+                    <p class="text-sm text-gray-900">{{ message.content }}</p>
+                    <p class="text-xs text-gray-500 mt-1">{{ formatDate(message.created_at) }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reviews Tab -->
+    <div *ngIf="activeTab === 'reviews'">
+      <div *ngIf="isLoadingDetails" class="flex justify-center py-8">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+
+      <div *ngIf="!isLoadingDetails && userReviews.length === 0" class="text-center py-8 text-gray-500">
+        <svg class="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+        </svg>
+        <p>Người dùng chưa có review nào</p>
+      </div>
+
+      <div *ngIf="!isLoadingDetails && userReviews.length > 0" class="space-y-4">
+        <div *ngFor="let review of userReviews" class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex items-center gap-2">
+              <div class="flex">
+                <svg *ngFor="let i of [1,2,3,4,5]" 
+                     class="w-5 h-5"
+                     [class.text-yellow-400]="i <= review.rating"
+                     [class.text-gray-300]="i > review.rating"
+                     fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              </div>
+              <span class="text-sm font-semibold text-gray-700">{{ review.rating }}/5</span>
+            </div>
+            <span class="px-2 py-1 rounded-full text-xs font-medium"
+                  [class.bg-green-100]="review.is_approved"
+                  [class.text-green-800]="review.is_approved"
+                  [class.bg-yellow-100]="!review.is_approved"
+                  [class.text-yellow-800]="!review.is_approved">
+              {{ review.is_approved ? 'Đã duyệt' : 'Chờ duyệt' }}
+            </span>
+          </div>
+
+          <p class="text-gray-800 mb-3">{{ review.comment }}</p>
+
+          <div class="flex flex-wrap gap-3 text-sm text-gray-500">
+            <span class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+              </svg>
+              Tour: {{ review.package_id.substring(0, 8) }}...
+            </span>
+            <span class="flex items-center gap-1">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              {{ formatDate(review.created_at) }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end">
+      <button (click)="closeUserDetailModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div *ngIf="showDeleteConfirmModal && selectedUser" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+    <div class="text-center">
+      <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+        <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">Xác nhận xóa</h3>
+      <p class="text-sm text-gray-500 mb-6">
+        Bạn có chắc chắn muốn xóa user <strong>{{ selectedUser.email }}</strong>?
+        <br>Chỉ có thể xóa nếu user không có dữ liệu liên quan (bookings, payments, reviews, chat_rooms).
+      </p>
+
+      <div *ngIf="errorMessage" class="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm">
+        {{ errorMessage }}
+      </div>
+
+      <div class="flex gap-3">
+        <button (click)="closeDeleteConfirmModal()" [disabled]="isDeleting" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 disabled:opacity-50">
+          Hủy
+        </button>
+        <button (click)="deleteUser()" [disabled]="isDeleting" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg disabled:opacity-50 flex items-center justify-center gap-2">
+          <svg *ngIf="isDeleting" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          {{ isDeleting ? 'Đang xóa...' : 'Xóa' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

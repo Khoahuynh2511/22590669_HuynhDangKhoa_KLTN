@@ -1,0 +1,246 @@
+<div class="reviews-container">
+  <div class="reviews-header">
+    <h1>Đánh giá của tôi</h1>
+    <p>Chia sẻ trải nghiệm của bạn về các tour đã tham gia</p>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="tab-navigation">
+    <button class="tab-btn" [class.active]="activeTab === 'create'" (click)="onTabChange('create')">
+      <i class="fas fa-plus-circle"></i>
+      Tạo đánh giá
+    </button>
+    <button class="tab-btn" [class.active]="activeTab === 'my-reviews'" (click)="onTabChange('my-reviews')">
+      <i class="fas fa-list"></i>
+      Đánh giá của tôi
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div class="alert alert-success" *ngIf="successMessage">
+    <i class="fas fa-check-circle"></i>
+    {{ successMessage }}
+  </div>
+
+  <div class="alert alert-error" *ngIf="error">
+    <i class="fas fa-exclamation-circle"></i>
+    {{ error }}
+  </div>
+
+  <!-- Create Review Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'create'">
+    <div class="create-review-section">
+      <h2>Chọn booking để đánh giá</h2>
+
+      <div class="loading" *ngIf="loading.bookings">
+        <i class="fas fa-spinner fa-spin"></i> Đang tải...
+      </div>
+
+      <div class="no-data" *ngIf="!loading.bookings && availableBookings.length === 0">
+        <i class="fas fa-inbox"></i>
+        <p>Bạn chưa có booking nào có thể đánh giá</p>
+        <button class="btn-primary" (click)="router.navigate(['/tours'])">
+          Khám phá tour
+        </button>
+      </div>
+
+      <div class="bookings-grid" *ngIf="!loading.bookings && availableBookings.length > 0">
+        <div class="booking-card" *ngFor="let booking of availableBookings"
+          [class.selected]="selectedBooking?.booking_id === booking.booking_id" [class.reviewed]="booking.has_review"
+          (click)="selectBooking(booking)">
+
+          <div class="booking-info">
+            <h3>{{ booking.package_name }}</h3>
+            <div class="booking-meta">
+              <span class="date">
+                <i class="fas fa-calendar"></i>
+                {{ formatDate(booking.departure_date) }}
+              </span>
+              <span class="price">
+                <i class="fas fa-money-bill"></i>
+                {{ booking.total_price.toLocaleString('vi-VN') }}đ
+              </span>
+            </div>
+            <div class="booking-status" [class]="booking.status">
+              {{ booking.status === 'confirmed' ? 'Đã xác nhận' : 'Đã hoàn thành' }}
+            </div>
+          </div>
+
+          <div class="review-badge" *ngIf="booking.has_review">
+            <i class="fas fa-check"></i> Đã đánh giá
+          </div>
+        </div>
+      </div>
+
+      <!-- Review Form -->
+      <div class="review-form" *ngIf="selectedBooking && !selectedBooking.has_review">
+        <h3>Đánh giá cho: {{ selectedBooking.package_name }}</h3>
+
+        <div class="form-group">
+          <label>Đánh giá của bạn</label>
+          <div class="rating-input">
+            <span *ngFor="let star of [1,2,3,4,5]" class="star" [class.filled]="star <= newReview.rating"
+              (click)="setRating(star)">
+              ★
+            </span>
+            <span class="rating-text">{{ newReview.rating }}/5</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Nội dung đánh giá *</label>
+          <textarea [(ngModel)]="newReview.comment" placeholder="Chia sẻ trải nghiệm của bạn về tour này..." rows="6"
+            [disabled]="loading.submitting"></textarea>
+          <small>Tối thiểu 10 ký tự</small>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-secondary" (click)="selectedBooking = null" [disabled]="loading.submitting">
+            Hủy
+          </button>
+          <button class="btn-primary" (click)="submitReview()"
+            [disabled]="loading.submitting || newReview.comment.length < 10">
+            <i class="fas fa-paper-plane" *ngIf="!loading.submitting"></i>
+            <i class="fas fa-spinner fa-spin" *ngIf="loading.submitting"></i>
+            {{ loading.submitting ? 'Đang gửi...' : 'Gửi đánh giá' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Reviews Tab -->
+  <div class="tab-content" *ngIf="activeTab === 'my-reviews'">
+    <div class="my-reviews-section">
+      <h2>Danh sách đánh giá</h2>
+
+      <div class="loading" *ngIf="loading.reviews">
+        <i class="fas fa-spinner fa-spin"></i> Đang tải...
+      </div>
+
+      <div class="no-data" *ngIf="!loading.reviews && myReviews.length === 0">
+        <i class="fas fa-star-half-alt"></i>
+        <p>Bạn chưa có đánh giá nào</p>
+        <button class="btn-primary" (click)="activeTab = 'create'">
+          Tạo đánh giá đầu tiên
+        </button>
+      </div>
+
+      <div class="reviews-list" *ngIf="!loading.reviews && myReviews.length > 0">
+        <div class="review-item" *ngFor="let review of myReviews">
+          <div class="review-header">
+            <div class="review-tour">
+              <h3>{{ review.package_name }}</h3>
+              <div class="review-rating">
+                <span *ngFor="let star of getStars(review.rating)" class="star" [class.filled]="star === 1">
+                  ★
+                </span>
+                <span class="rating-number">{{ review.rating }}/5</span>
+              </div>
+            </div>
+            <div class="review-actions-header">
+              <div class="review-status" [class]="getReviewStatusClass(review.is_approved)">
+                {{ getReviewStatusText(review.is_approved) }}
+              </div>
+              <div class="action-buttons">
+                <button class="btn-edit" (click)="editReview(review)" title="Sửa đánh giá">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-delete" (click)="confirmDelete(review.review_id!)" title="Xóa đánh giá">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="review-body">
+            <p class="review-comment">{{ review.comment }}</p>
+            <div class="review-meta">
+              <span class="review-date">
+                <i class="fas fa-clock"></i>
+                {{ formatDate(review.created_at!) }}
+              </span>
+            </div>
+          </div>
+
+          <div class="review-images" *ngIf="review.images && review.images.length > 0">
+            <img *ngFor="let image of review.images" [src]="image" [alt]="review.package_name" class="review-image">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Review Modal -->
+  <div class="modal-overlay" *ngIf="editingReview" (click)="cancelEdit()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Chỉnh sửa đánh giá</h3>
+        <button class="modal-close" (click)="cancelEdit()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="edit-tour-name">{{ editingReview.package_name }}</p>
+
+        <div class="form-group">
+          <label>Đánh giá của bạn</label>
+          <div class="rating-input">
+            <span *ngFor="let star of [1,2,3,4,5]" class="star" [class.filled]="star <= editForm.rating"
+              (click)="setEditRating(star)">
+              ★
+            </span>
+            <span class="rating-text">{{ editForm.rating }}/5</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Nội dung đánh giá *</label>
+          <textarea [(ngModel)]="editForm.comment" placeholder="Chia sẻ trải nghiệm của bạn về tour này..." rows="6"
+            [disabled]="loading.editing"></textarea>
+          <small>Tối thiểu 10 ký tự</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cancelEdit()" [disabled]="loading.editing">
+          Hủy
+        </button>
+        <button class="btn-primary" (click)="saveEditReview()"
+          [disabled]="loading.editing || editForm.comment.length < 10">
+          <i class="fas fa-save" *ngIf="!loading.editing"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="loading.editing"></i>
+          {{ loading.editing ? 'Đang lưu...' : 'Lưu thay đổi' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" *ngIf="deletingReviewId" (click)="cancelDelete()">
+    <div class="modal-content delete-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Xác nhận xóa</h3>
+        <button class="modal-close" (click)="cancelDelete()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="delete-warning">
+          <i class="fas fa-exclamation-triangle"></i>
+          <p>Bạn có chắc chắn muốn xóa đánh giá này?</p>
+          <small>Hành động này không thể hoàn tác.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cancelDelete()" [disabled]="loading.deleting">
+          Hủy
+        </button>
+        <button class="btn-danger" (click)="deleteReview()" [disabled]="loading.deleting">
+          <i class="fas fa-trash" *ngIf="!loading.deleting"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="loading.deleting"></i>
+          {{ loading.deleting ? 'Đang xóa...' : 'Xóa đánh giá' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,243 @@
+<div class="max-w-4xl mx-auto p-6 space-y-6">
+  <!-- Header -->
+  <div class="flex justify-between items-center">
+    <h2 class="text-3xl font-bold text-blue-400">Thông tin tài khoản</h2>
+    <button 
+      (click)="logout()"
+      class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+      </svg>
+      Đăng xuất
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="isLoading && !profile" class="flex justify-center py-12">
+    <svg class="animate-spin h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="errorMessage" class="bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-lg shadow-sm">
+    {{ errorMessage }}
+  </div>
+  <div *ngIf="successMessage" class="bg-green-50 border-2 border-green-300 text-green-700 px-4 py-3 rounded-lg shadow-sm">
+    {{ successMessage }}
+  </div>
+
+  <!-- Profile Card -->
+  <div *ngIf="profile" class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-100">
+    <!-- Avatar Section -->
+    <div class="bg-blue-300 px-6 py-8">
+      <div class="flex items-center gap-6">
+        <div class="relative">
+          <img 
+            [src]="previewAvatarUrl || profile.profile_picture || 'https://via.placeholder.com/150'" 
+            alt="Avatar"
+            class="w-24 h-24 rounded-full border-4 border-white object-cover">
+          <label 
+            for="avatar-upload"
+            class="absolute bottom-0 right-0 bg-white rounded-full p-2 cursor-pointer hover:bg-gray-100 transition-colors shadow-lg">
+            <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </label>
+          <input 
+            type="file" 
+            id="avatar-upload" 
+            accept="image/*"
+            (change)="onAvatarFileSelected($event)"
+            class="hidden">
+        </div>
+        <div class="flex-1 text-white">
+          <h3 class="text-2xl font-bold drop-shadow-md">{{ profile.full_name }}</h3>
+          <p class="text-blue-50">{{ profile.email }}</p>
+          <span class="inline-block mt-2 px-3 py-1 bg-white/30 backdrop-blur-sm rounded-full text-sm font-medium shadow-md">
+            {{ getRoleDisplayName(profile.role) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Upload Avatar Button -->
+      <div *ngIf="selectedAvatarFile" class="mt-4 flex gap-2">
+        <button 
+          (click)="uploadAvatar()"
+          [disabled]="isLoading"
+          class="px-4 py-2 bg-white text-blue-600 font-medium rounded-lg hover:bg-blue-50 transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50">
+          Tải ảnh lên
+        </button>
+        <button 
+          (click)="selectedAvatarFile = null; previewAvatarUrl = null"
+          class="px-4 py-2 bg-white/30 backdrop-blur-sm text-white rounded-lg hover:bg-white/40 transition-all duration-300 shadow-md">
+          Hủy
+        </button>
+      </div>
+    </div>
+
+    <!-- Profile Details -->
+    <div class="p-6 space-y-6">
+      <!-- View Mode -->
+      <div *ngIf="!isEditing">
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <label class="text-sm font-medium text-blue-400">Họ tên</label>
+            <p class="mt-1 text-lg font-semibold text-gray-800">{{ profile.full_name }}</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-blue-400">Email</label>
+            <p class="mt-1 text-lg font-semibold text-gray-800">{{ profile.email }}</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-blue-400">Số điện thoại</label>
+            <p class="mt-1 text-lg font-semibold text-gray-800">{{ profile.phone_number || 'Chưa cập nhật' }}</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-blue-400">Trạng thái</label>
+            <p class="mt-1">
+              <span [class]="profile.is_active ? 'bg-green-100 text-green-700 border-green-300' : 'bg-red-100 text-red-700 border-red-300'" 
+                    class="px-3 py-1 rounded-full text-sm font-semibold border">
+                {{ profile.is_active ? 'Hoạt động' : 'Không hoạt động' }}
+              </span>
+            </p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-blue-400">Ngày tạo</label>
+            <p class="mt-1 text-gray-800 font-medium">{{ formatDate(profile.created_at) }}</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium text-blue-400">Cập nhật lần cuối</label>
+            <p class="mt-1 text-gray-800 font-medium">{{ formatDate(profile.updated_at) }}</p>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+          <button 
+            (click)="startEdit()"
+            class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+            </svg>
+            Chỉnh sửa
+          </button>
+          <button 
+            (click)="openPasswordModal()"
+            class="px-4 py-2 bg-indigo-400 hover:bg-indigo-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+            </svg>
+            Đổi mật khẩu
+          </button>
+        </div>
+      </div>
+
+      <!-- Edit Mode -->
+      <div *ngIf="isEditing">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-blue-400 mb-2">Họ tên *</label>
+            <input 
+              type="text" 
+              [(ngModel)]="editForm.full_name"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+              placeholder="Nhập họ tên">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-blue-400 mb-2">Số điện thoại</label>
+            <input 
+              type="tel" 
+              [(ngModel)]="editForm.phone_number"
+              class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+              placeholder="Nhập số điện thoại">
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 mt-6 pt-6 border-t border-gray-200">
+          <button 
+            (click)="saveProfile()"
+            [disabled]="isLoading"
+            class="px-4 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50">
+            {{ isLoading ? 'Đang lưu...' : 'Lưu thay đổi' }}
+          </button>
+          <button 
+            (click)="cancelEdit()"
+            [disabled]="isLoading"
+            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-all duration-300 shadow-md disabled:opacity-50">
+            Hủy
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div *ngIf="showPasswordModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 border-2 border-blue-100">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-blue-400">Đổi mật khẩu</h3>
+      <button 
+        (click)="closePasswordModal()"
+        class="text-gray-400 hover:text-blue-500 transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <div *ngIf="errorMessage" class="mb-4 bg-red-50 border-2 border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm shadow-sm">
+      {{ errorMessage }}
+    </div>
+
+    <div *ngIf="successMessage" class="mb-4 bg-green-50 border-2 border-green-300 text-green-700 px-4 py-3 rounded-lg text-sm shadow-sm">
+      {{ successMessage }}
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-blue-400 mb-2">Mật khẩu hiện tại *</label>
+        <input 
+          type="password" 
+          [(ngModel)]="passwordForm.current_password"
+          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+          placeholder="Nhập mật khẩu hiện tại">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-blue-400 mb-2">Mật khẩu mới *</label>
+        <input 
+          type="password" 
+          [(ngModel)]="passwordForm.new_password"
+          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+          placeholder="Nhập mật khẩu mới (ít nhất 6 ký tự)">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-blue-400 mb-2">Xác nhận mật khẩu mới *</label>
+        <input 
+          type="password" 
+          [(ngModel)]="confirmPassword"
+          class="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all"
+          placeholder="Nhập lại mật khẩu mới">
+      </div>
+    </div>
+
+    <div class="flex gap-3 mt-6">
+      <button 
+        (click)="changePassword()"
+        [disabled]="isLoading"
+        class="flex-1 px-4 py-2 bg-blue-400 hover:bg-blue-500 text-white rounded-lg transition-all duration-300 shadow-md hover:shadow-lg disabled:opacity-50">
+        {{ isLoading ? 'Đang xử lý...' : 'Đổi mật khẩu' }}
+      </button>
+      <button 
+        (click)="closePasswordModal()"
+        [disabled]="isLoading"
+        class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-all duration-300 shadow-md disabled:opacity-50">
+        Hủy
+      </button>
+    </div>
+  </div>
+</div>

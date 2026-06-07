@@ -1,0 +1,452 @@
+.search-container {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.search-tabs {
+  display: flex;
+  border-bottom: 2px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  i {
+    font-size: 16px;
+  }
+
+  &:hover {
+    background: #f3f4f6;
+    color: #374151;
+  }
+
+  &.active {
+    background: white;
+    color: #3b82f6;
+    border-bottom: 2px solid #3b82f6;
+    margin-bottom: -2px;
+  }
+}
+
+.wrapper-form {
+  padding: 16px;
+}
+
+.wrapper-input {
+  position: relative;
+}
+
+input {
+  outline: none;
+  
+  &:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.btn-search {
+  border-radius: 0 4px 4px 0;
+  font-weight: 600;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: #2563eb;
+  }
+}
+
+.tour-search-wrapper {
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+// ========== AI Promotion Section - Redesigned ==========
+.ai-promotion-section {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    animation: rotate 20s linear infinite;
+  }
+}
+
+.ai-badge-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.ai-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  animation: float 3s ease-in-out infinite;
+
+  i {
+    font-size: 28px;
+    color: white;
+    animation: pulse 2s ease-in-out infinite;
+  }
+}
+
+.ai-text {
+  flex: 1;
+  color: white;
+}
+
+.ai-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ai-subtitle {
+  font-size: 13px;
+  opacity: 0.95;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.ai-cta-btn {
+  background: white;
+  color: #667eea;
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+
+  i {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+    
+    i {
+      transform: translateX(4px);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// ========== Search Input - Redesigned ==========
+.search-input-container {
+  background: white;
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 16px;
+    padding: 2px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none; // FIX: Không chặn input
+    z-index: 0; // FIX: Đặt dưới input
+  }
+
+  &:focus-within::before {
+    opacity: 1;
+  }
+}
+
+.search-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  border-radius: 12px;
+  padding: 4px;
+  position: relative; // FIX: Tạo stacking context
+  z-index: 1; // FIX: Đặt trên ::before
+}
+
+.search-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e5edff 100%);
+  border-radius: 10px;
+  flex-shrink: 0;
+
+  i {
+    font-size: 18px;
+    color: #667eea;
+  }
+}
+
+.search-input-field {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 15px;
+  color: #1e293b;
+  padding: 8px 0;
+  background: transparent;
+
+  &::placeholder {
+    color: #94a3b8;
+    font-weight: 400;
+  }
+
+  &:focus::placeholder {
+    opacity: 0.6;
+  }
+}
+
+.search-submit-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 12px 28px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  i {
+    font-size: 14px;
+    transition: transform 0.3s ease;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5);
+    
+    i {
+      transform: translateX(4px);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// ========== Quick Tips - Redesigned ==========
+.quick-tips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tip-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: white;
+  border-radius: 10px;
+  font-size: 13px;
+  color: #475569;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
+
+  i {
+    color: #667eea;
+    font-size: 14px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-color: #cbd5e1;
+  }
+}
+
+// ========== Responsive Mobile ==========
+@media (max-width: 768px) {
+  .search-tabs {
+    flex-direction: column;
+  }
+
+  .tab-btn {
+    border-bottom: 1px solid #e5e7eb;
+
+    &.active {
+      border-bottom: 2px solid #3b82f6;
+      margin-bottom: 0;
+    }
+  }
+
+  .tour-search-wrapper {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .ai-promotion-section {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .ai-badge-content {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .ai-icon-wrapper {
+    width: 48px;
+    height: 48px;
+
+    i {
+      font-size: 24px;
+    }
+  }
+
+  .ai-title {
+    font-size: 16px;
+  }
+
+  .ai-subtitle {
+    font-size: 12px;
+  }
+
+  .ai-cta-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  .search-input-container {
+    padding: 4px;
+    border-radius: 14px;
+  }
+
+  .search-input-wrapper {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .search-icon {
+    width: 100%;
+    height: 40px;
+  }
+
+  .search-input-field {
+    width: 100%;
+    padding: 12px;
+    text-align: center;
+    font-size: 14px;
+  }
+
+  .search-submit-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+    font-size: 14px;
+  }
+
+  .quick-tips {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tip-item {
+    width: 100%;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+}
+

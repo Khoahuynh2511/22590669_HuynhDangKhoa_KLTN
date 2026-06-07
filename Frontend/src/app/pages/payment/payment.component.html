@@ -1,0 +1,106 @@
+<div class="w-full payment-pages">
+  <div class="container mx-auto flex gap-4 p-6">
+    <div class="flex flex-col gap-4 flex-auto">
+      <app-payment-method></app-payment-method>
+
+
+      <div class="flex flex-col gap-4">
+
+        <div class="other-options bg-white rounded-lg shadow-md p-4 mb-4">
+
+          <div *ngFor="let option of paymentOptions" class="flex items-center mb-2">
+            <input type="radio" id="{{ option.name }}" name="paymentMethod" class="mr-2">
+            <label for="{{ option.name }}" class="flex-1">
+              <span class="font-semibold">{{ option.name }}</span>
+              @if (option?.isNew) {
+                <span  class="text-green-500 text-sm">(Mới)</span>
+              }
+
+              @if (option?.description) {
+                <span  class="text-gray-500 text-sm"> - {{ option.description }}</span>
+              }
+
+            </label>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-4 ">
+          <h3 class="font-semibold mb-2">Sử dụng mã giảm giá</h3>
+          
+          <div *ngIf="appliedPromotion" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-semibold text-green-800">{{ appliedPromotion.name }}</p>
+                <p class="text-sm text-green-600">{{ appliedPromotion.description }}</p>
+                <p class="text-xs text-gray-500 mt-1">
+                  Giảm: {{ appliedPromotion.discount_type === 'PERCENTAGE' ? appliedPromotion.discount_value + '%' : formatPrice(appliedPromotion.discount_value) }}
+                </p>
+              </div>
+              <button (click)="removeCoupon()" class="text-red-600 hover:text-red-800">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="errorMessage" class="mb-3 p-3 bg-red-50 border border-red-200 rounded-md">
+            <p class="text-sm text-red-700">{{ errorMessage }}</p>
+          </div>
+
+          <div *ngIf="successMessage && !appliedPromotion" class="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p class="text-sm text-green-700">{{ successMessage }}</p>
+          </div>
+
+          <div class="flex gap-2">
+            <input 
+              type="text" 
+              [(ngModel)]="couponCode" 
+              [disabled]="!!appliedPromotion || isLoadingPromotion"
+              placeholder="Nhập mã giảm giá" 
+              class="flex-1 border border-gray-300 rounded-md p-2 disabled:bg-gray-100 disabled:cursor-not-allowed">
+            <button 
+              (click)="applyCoupon()" 
+              [disabled]="isLoadingPromotion || !!appliedPromotion"
+              class="bg-blue-500 text-white rounded-md py-2 px-4 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">
+              <span *ngIf="!isLoadingPromotion">Áp dụng</span>
+              <span *ngIf="isLoadingPromotion">Đang kiểm tra...</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-4 flex flex-col gap-4">
+          <div class="w-full">
+            <h3 class="font-semibold">Chi tiết giá</h3>
+            <div class="mt-2 space-y-2">
+              <div class="flex justify-between text-gray-600">
+                <span>Giá gốc:</span>
+                <span>{{ formatPrice(originalPrice) }}</span>
+              </div>
+              <div *ngIf="appliedPromotion && discountAmount > 0" class="flex justify-between text-green-600">
+                <span>Giảm giá:</span>
+                <span>-{{ formatPrice(discountAmount) }}</span>
+              </div>
+              <div class="border-t border-gray-300 pt-2 mt-2">
+                <div class="flex justify-between">
+                  <span class="font-semibold">Tổng giá:</span>
+                  <span class="text-xl font-bold text-blue-600">{{ formatPrice(totalPrice) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="w-full">
+            <button (click)="proceedToPayment()" class="bg-orange-500 text-white rounded-md py-2 px-4 w-full mt-4">Thanh toán bằng thẻ tín dụng/Ghi nợ</button>
+            <p class="text-sm mt-2">Bằng cách tiếp tục thanh toán, bạn đồng ý với Điều khoản & Điều kiện và Chính sách Bảo mật của UITravel.</p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+    <div class="min-31 max-31 flex-1 sticky top-0 w-hotel-details">
+      <app-hotel-details ></app-hotel-details>
+    </div>
+  </div>
+</div>

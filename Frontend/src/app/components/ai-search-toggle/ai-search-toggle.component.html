@@ -1,0 +1,12 @@
+<div class="ai-search-toggle">
+  <button
+    type="button"
+    class="toggle-btn"
+    [class.active]="isAIMode"
+    [class.disabled]="!isAuthenticated"
+    (click)="onToggleClick()"
+    [title]="!isAuthenticated ? 'Đăng nhập để sử dụng tính năng AI' : (isAIMode ? 'Chuyển sang tìm kiếm thường' : 'Tìm kiếm với AI')">
+    <i class="fas" [class.fa-search]="!isAIMode" [class.fa-robot]="isAIMode"></i>
+    <span>{{ isAIMode ? 'Tìm với AI' : 'Tìm kiếm thường' }}</span>
+  </button>
+</div>

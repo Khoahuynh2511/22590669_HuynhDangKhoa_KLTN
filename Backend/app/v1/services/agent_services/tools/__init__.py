@@ -1,0 +1,63 @@
+
+"""
+Agent Tools Module
+Tools for agents to use
+"""
+from typing import List
+from langchain_core.tools import StructuredTool
+from .mcp_tools import (
+    create_booking_tool,
+    get_user_bookings_tool,
+    update_booking_tool,
+    delete_booking_tool,
+    verify_otp_and_confirm_booking_tool,
+    create_payment_tool,
+    apply_promotion_code_tool,
+    request_recommendation_tool,
+    search_flights_tool,
+    book_flight_tool,
+    request_flight_search_tool,
+    search_trains_tool,
+    book_train_tool,
+    request_train_search_tool,
+    get_current_temperature_tool,
+    get_weather_forecast_tool,
+    search_mem0_episodes_tool,
+    generate_tour_ui_tool,
+    generate_payment_ui_tool,
+    search_latest_tour_info_tool
+)
+
+__all__ = ["get_chat_tools"]
+
+
+def get_chat_tools() -> List[StructuredTool]:
+    """
+    Get all tools available to Chat Agent
+
+    Returns:
+        List of StructuredTool instances
+    """
+    return [
+        create_booking_tool(),
+        get_user_bookings_tool(),
+        update_booking_tool(),
+        delete_booking_tool(),
+        verify_otp_and_confirm_booking_tool(),
+        create_payment_tool(),
+        apply_promotion_code_tool(),
+        generate_payment_ui_tool(),
+        request_recommendation_tool(),
+        search_flights_tool(),
+        book_flight_tool(),
+        request_flight_search_tool(),
+        search_trains_tool(),
+        book_train_tool(),
+        request_train_search_tool(),
+        get_current_temperature_tool(),
+        get_weather_forecast_tool(),
+        search_mem0_episodes_tool(),
+        generate_tour_ui_tool(),
+        search_latest_tour_info_tool()
+    ]
+

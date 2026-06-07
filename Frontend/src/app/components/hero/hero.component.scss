@@ -1,0 +1,105 @@
+.hero {
+  background-image: url(../../../../public/img/bg.webp);
+  background-repeat: no-repeat;
+  background-size: cover;
+  min-height: 600px;
+
+  .hero-title {
+    font-size: 42px; // Tăng kích thước chút cho ấn tượng
+    line-height: 1.4;
+    font-weight: 800;
+    text-align: center;
+    
+    // Gradient text effect
+    background: linear-gradient(
+      110deg,
+      #ffffff 0%,
+      #8fd3f4 25%,
+      #ffffff 50%,
+      #8fd3f4 75%,
+      #ffffff 100%
+    );
+    
+    background-size: 200% auto;
+    color: #fff; // Fallback
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    
+    animation: shine 4s linear infinite;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    
+    @media (max-width: 768px) {
+      font-size: 28px;
+    }
+  }
+
+  @keyframes shine {
+    to {
+      background-position: 200% center;
+    }
+  }
+
+  .icon {
+    height: 30px;
+    width: 30px;
+    display: block;
+    // margin: auto;
+
+    img {
+      height: 100%;
+      width: 100%;
+    }
+  }
+
+  .right-form {
+    width: 400px;
+    .w-rp {
+      flex: 1 1 auto;
+
+      select {
+        color: white;
+        width: 100%;
+        background-color: rgba(255, 255, 255, 0.25);
+      }
+    }
+  }
+
+  .btn-search {
+    top: 0;
+    right: 0;
+    width: 45px;
+    height: 100%;
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+  }
+
+  .wrapper-form {
+
+    input {
+      outline: none;
+      color: black;
+    }
+
+    .input-1 {
+      border: 2px solid gray;
+      border-top-left-radius: 10px;
+      border-bottom-left-radius: 10px;
+    }
+    .input-2 {
+      border-top: 2px solid gray;
+      border-bottom: 2px solid gray;
+    }
+    .input-3 {
+      border: 2px solid gray;
+      border-top-right-radius: 10px;
+      border-bottom-right-radius: 10px;
+      overflow: hidden;
+
+    }
+  }
+
+  .mh-80 {
+    min-height: 80px;
+  }
+}

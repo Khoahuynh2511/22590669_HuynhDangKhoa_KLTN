@@ -1,0 +1,188 @@
+<div class="travel-news-page">
+  <div class="page-container">
+    <!-- Header Section -->
+    <div class="page-header">
+      <h1 class="page-title">Tin tức & Cẩm nang du lịch</h1>
+      <p class="page-subtitle">Khám phá những thông tin mới nhất và cẩm nang hữu ích về du lịch</p>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-section">
+      <div class="search-bar-wrapper">
+        <div class="search-input-container">
+          <i class="fas fa-search search-icon"></i>
+          <input
+            type="text"
+            [(ngModel)]="searchKeywords"
+            (keydown.enter)="onSearch()"
+            placeholder="Tìm kiếm tin tức, cẩm nang du lịch..."
+            class="search-input"
+            [disabled]="isSearching" />
+          @if (searchKeywords) {
+            <button class="clear-btn" (click)="clearSearch()" title="Xóa">
+              <i class="fas fa-times"></i>
+            </button>
+          }
+          <button
+            class="search-btn"
+            (click)="onSearch()"
+            [disabled]="isSearching || !searchKeywords.trim()">
+            <i class="fas fa-search"></i>
+            <span>Tìm kiếm</span>
+          </button>
+          <button
+            class="ai-chat-btn"
+            (click)="toggleAIChat()"
+            title="Chat với AI">
+            <i class="fas fa-robot"></i>
+            <span>Chat AI</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="filter-tabs">
+        <button
+          class="filter-tab"
+          [class.active]="selectedSourceType === 'all'"
+          (click)="onSourceTypeChange('all')">
+          Tất cả
+        </button>
+        <button
+          class="filter-tab"
+          [class.active]="selectedSourceType === 'news'"
+          (click)="onSourceTypeChange('news')">
+          <i class="fas fa-newspaper"></i>
+          Tin tức
+        </button>
+        <button
+          class="filter-tab"
+          [class.active]="selectedSourceType === 'guide'"
+          (click)="onSourceTypeChange('guide')">
+          <i class="fas fa-book"></i>
+          Cẩm nang
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-section">
+        @if (isSearching) {
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Đang tìm kiếm...</p>
+          </div>
+        } @else if (errorMessage) {
+          <div class="error-state">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>{{ errorMessage }}</p>
+            <button class="btn-retry" (click)="searchKeywords.trim() ? loadSearchResults() : loadInitialData()">
+              Thử lại
+            </button>
+          </div>
+        } @else if (hasSearched && searchResults.length === 0) {
+          <div class="empty-state">
+            <i class="fas fa-search"></i>
+            <h3>Không tìm thấy kết quả</h3>
+            <p>Không có tin tức hoặc cẩm nang nào phù hợp với từ khóa "{{ searchKeywords }}"</p>
+            <button class="btn-clear" (click)="clearSearch()">
+              Xóa bộ lọc
+            </button>
+          </div>
+        } @else if (searchResults.length > 0) {
+          <!-- Results Header -->
+          <div class="results-header">
+            <p class="results-count">
+              @if (hasSearched) {
+                Tìm thấy <strong>{{ totalResults }}</strong> kết quả
+              } @else {
+                Hiển thị <strong>{{ totalResults }}</strong> tin tức & cẩm nang
+              }
+              @if (selectedSourceType !== 'all') {
+                <span class="filter-indicator">
+                  ({{ selectedSourceType === 'news' ? 'Tin tức' : 'Cẩm nang' }})
+                </span>
+              }
+            </p>
+          </div>
+
+          <!-- Results Grid -->
+          <div class="results-grid">
+            @for (news of searchResults; track news.news_id) {
+              <app-travel-news-card [news]="news"></app-travel-news-card>
+            }
+          </div>
+
+          <!-- Pagination -->
+          @if (totalPages > 1) {
+            <div class="pagination">
+              <button
+                class="pagination-btn"
+                [class.disabled]="currentPage === 1"
+                (click)="onPageChange(currentPage - 1)"
+                [disabled]="currentPage === 1">
+                <i class="fas fa-chevron-left"></i>
+                Trước
+              </button>
+
+              <div class="page-numbers">
+                @for (page of getPageNumbers(); track page) {
+                  @if (page === -1) {
+                    <span class="ellipsis">...</span>
+                  } @else {
+                    <button
+                      class="page-number"
+                      [class.active]="page === currentPage"
+                      (click)="onPageChange(page)">
+                      {{ page }}
+                    </button>
+                  }
+                }
+              </div>
+
+              <button
+                class="pagination-btn"
+                [class.disabled]="currentPage === totalPages"
+                (click)="onPageChange(currentPage + 1)"
+                [disabled]="currentPage === totalPages">
+                Sau
+                <i class="fas fa-chevron-right"></i>
+              </button>
+            </div>
+          }
+        } @else if (!hasSearched && searchResults.length === 0 && !isSearching) {
+          <!-- Initial State - Only show if no data loaded -->
+          <div class="initial-state">
+            <i class="fas fa-newspaper"></i>
+            <h3>Không có dữ liệu</h3>
+            <p>Hiện tại chưa có tin tức hoặc cẩm nang nào trong hệ thống</p>
+          </div>
+        }
+      </div>
+
+    <!-- AI Chat Panel - Floating on the right -->
+    @if (isAIChatOpen) {
+      <div class="ai-chat-overlay" (click)="closeAIChat()"></div>
+      <div class="ai-chat-container" [@slideIn]>
+        <div class="ai-chat-header">
+          <div class="header-left">
+            <i class="fas fa-robot"></i>
+            <h3>Chat với AI</h3>
+          </div>
+          <button class="close-btn" (click)="closeAIChat()" title="Đóng">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <app-ai-chat-panel></app-ai-chat-panel>
+      </div>
+    }
+  </div>
+
+  <!-- Floating Chat Button - Fixed at bottom right -->
+  @if (!isAIChatOpen) {
+    <button class="floating-chat-btn" (click)="toggleAIChat()" title="Chat với AI">
+      <i class="fas fa-comments"></i>
+      <span class="pulse-ring"></span>
+    </button>
+  }
+</div>

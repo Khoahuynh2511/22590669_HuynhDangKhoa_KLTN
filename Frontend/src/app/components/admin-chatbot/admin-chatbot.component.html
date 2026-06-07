@@ -1,0 +1,186 @@
+<div class="agent-page">
+  <aside class="agent-sidebar">
+    <div class="sidebar-header">
+      <div class="agent-brand">
+        <div class="agent-icon">
+          <i class="fas fa-robot"></i>
+        </div>
+        <div>
+          <h2>Admin Assistant</h2>
+          <p>Trợ lý quản trị thông minh</p>
+        </div>
+      </div>
+      <button class="icon-button" (click)="onClose()" title="Đóng">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="sidebar-controls">
+      <button class="primary-button" (click)="startNewConversation()" [disabled]="isStreaming">
+        <i class="fas fa-plus"></i>
+        Cuộc trò chuyện mới
+      </button>
+    </div>
+
+    <div class="sidebar-section-label">Lịch sử trò chuyện</div>
+    <div class="conversation-list" role="list">
+      @if (isLoadingConversations) {
+        <div class="conversation-empty">
+          <i class="fas fa-spinner fa-spin"></i>
+          <p>Đang tải cuộc trò chuyện...</p>
+        </div>
+      } @else {
+        @if (!conversations.length) {
+          <div class="conversation-empty">
+            <i class="fas fa-comments"></i>
+            <p>Bắt đầu trò chuyện để lưu lịch sử tại đây.</p>
+          </div>
+        } @else {
+          @for (conversation of conversations; track conversation.id) {
+            <div
+              class="conversation-item"
+              role="button"
+              tabindex="0"
+              [class.active]="conversation.id === activeConversation?.id"
+              (click)="selectConversation(conversation.id)"
+              (keydown.enter)="selectConversation(conversation.id)"
+            >
+              <div class="conversation-meta">
+                <div class="conversation-title">{{ conversation.title }}</div>
+                <div class="conversation-time">{{ conversation.updatedAt | date:'short' }}</div>
+              </div>
+              <div class="conversation-preview">{{ getConversationPreview(conversation) }}</div>
+              <button
+                type="button"
+                class="conversation-delete"
+                title="Xóa cuộc trò chuyện"
+                (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
+                [disabled]="isStreaming || isDeletingConversation === conversation.id"
+              >
+                @if (isDeletingConversation === conversation.id) {
+                  <i class="fas fa-spinner fa-spin"></i>
+                } @else {
+                  <i class="fas fa-trash"></i>
+                }
+              </button>
+            </div>
+          }
+        }
+      }
+    </div>
+  </aside>
+
+  <section class="agent-stage">
+    <header class="stage-header">
+      <div class="stage-heading">
+        <div class="stage-icon">
+          <i class="fas fa-user-shield"></i>
+        </div>
+        <div>
+          <h1>Admin Intelligence</h1>
+          <p>Hỗ trợ quản lý và phân tích dữ liệu</p>
+        </div>
+      </div>
+      <div class="stage-actions">
+        <div class="status-chip" [class.error]="headerStatus === 'Error'">
+          <span class="status-dot"></span>
+          {{ headerStatus }}
+        </div>
+      </div>
+    </header>
+
+    <div class="stage-body">
+      <div class="messages-container" #messagesContainer>
+        @if (isLoadingMessages) {
+          <div class="stage-empty">
+            <div class="empty-illustration">
+              <i class="fas fa-spinner fa-spin"></i>
+            </div>
+            <h2>Đang tải cuộc trò chuyện...</h2>
+          </div>
+        }
+
+        @if (!messages.length && !isTyping && !isLoadingMessages) {
+          <div class="stage-empty">
+            <div class="empty-illustration">
+              <i class="fas fa-comments"></i>
+            </div>
+            <h2>Xin chào Admin! Tôi có thể giúp gì cho bạn?</h2>
+            <p>Hỏi về thống kê, báo cáo, quản lý tour, khách hàng hoặc bất kỳ điều gì liên quan đến hệ thống.</p>
+          </div>
+        }
+
+        @for (message of messages; track $index) {
+          <div class="message-row" [class.user]="message.isUser" [class.assistant]="!message.isUser">
+            @if (message.isError) {
+              <div class="message-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                <span>{{ message.content }}</span>
+              </div>
+            } @else {
+              <div class="message-body">
+                <div class="message-avatar">
+                  @if (message.isUser) {
+                    <i class="fas fa-user-shield"></i>
+                  } @else {
+                    <i class="fas fa-robot"></i>
+                  }
+                </div>
+                <div class="message-content">
+                  <div class="message-bubble" [innerHTML]="formatMessageContent(message.content)"></div>
+                  <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
+        @if (isTyping) {
+          <div class="message-row assistant">
+            <div class="message-body">
+              <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+              </div>
+              <div class="typing-ellipsis">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <footer class="stage-composer">
+      <div class="composer-bar">
+        <textarea
+          #messageInput
+          [(ngModel)]="userMessage"
+          placeholder="Nhập tin nhắn..."
+          rows="1"
+          [disabled]="isStreaming"
+          (keypress)="onKeyPress($event)"
+          class="composer-input"
+        ></textarea>
+        <button
+          type="button"
+          class="composer-send"
+          [disabled]="!userMessage.trim() || isStreaming"
+          (click)="sendMessage()"
+          title="Gửi tin nhắn"
+        >
+          @if (isStreaming) {
+            <i class="fas fa-spinner fa-spin"></i>
+          } @else {
+            <i class="fas fa-paper-plane"></i>
+          }
+        </button>
+      </div>
+      <div class="composer-hint">
+        <i class="fas fa-info-circle"></i>
+        Nhấn Enter để gửi, Shift+Enter để xuống dòng
+      </div>
+    </footer>
+  </section>
+</div>

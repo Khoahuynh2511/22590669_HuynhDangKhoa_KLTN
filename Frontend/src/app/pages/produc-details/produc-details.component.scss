@@ -1,0 +1,1548 @@
+@use "sass:color";
+
+// Theme Variables - Tinh tế và nhẹ nhàng
+$primary-blue: #60a5fa;
+$primary-purple: #a78bfa;
+$primary-pink: #f472b6;
+$text-dark: #1f2937;
+$text-gray: #6b7280;
+$text-light: #9ca3af;
+$bg-light: #fafafa;
+$bg-white: #ffffff;
+
+// Gradient Mixins - Nhẹ nhàng hơn
+@mixin gradient-text {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.9) 0%, rgba(167, 139, 250, 0.9) 50%, rgba(244, 114, 182, 0.9) 100%);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 8s ease infinite;
+}
+
+@mixin gradient-bg {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.95) 0%, rgba(167, 139, 250, 0.95) 100%);
+}
+
+@mixin gradient-bg-full {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.9) 0%, rgba(167, 139, 250, 0.9) 50%, rgba(244, 114, 182, 0.9) 100%);
+}
+
+@mixin card-shadow {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+@mixin card-shadow-hover {
+  box-shadow: 0 8px 24px rgba(96, 165, 250, 0.12), 0 4px 12px rgba(167, 139, 250, 0.08);
+}
+
+@mixin glass-effect {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(167, 139, 250, 0.08);
+}
+
+// Animations
+@keyframes gradientShift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+
+  50%,
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Utility Classes
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+.fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+@for $i from 1 through 10 {
+  .delay-#{$i} {
+    animation-delay: #{$i * 0.1}s;
+  }
+}
+
+// Spinner
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba($primary-blue, 0.1);
+  border-top-color: $primary-blue;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    border: 3px solid rgba($primary-purple, 0.2);
+    border-top-color: $primary-purple;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite reverse;
+  }
+}
+
+// Main Wrapper
+.tour-details-wrapper {
+  animation: fadeIn 0.5s ease-out;
+  background: linear-gradient(180deg, $bg-light 0%, $bg-white 100%);
+  position: relative;
+  overflow: hidden;
+  padding-top: 150px; // Account for fixed header height
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 600px;
+    background: linear-gradient(135deg, rgba($primary-blue, 0.03) 0%, rgba($primary-purple, 0.05) 50%, rgba($primary-pink, 0.03) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  >* {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+// Tour Images Section
+.tour-images-section {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  flex-wrap: wrap;
+
+  .main-image-wrapper {
+    flex: 1;
+    min-width: 300px;
+    position: relative;
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    @include card-shadow;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba($primary-blue, 0.1) 0%, rgba($primary-purple, 0.1) 100%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      z-index: 1;
+    }
+
+    &:hover {
+      transform: translateY(-8px) scale(1.01);
+      @include card-shadow-hover;
+
+      &::before {
+        opacity: 1;
+      }
+
+      .image-overlay {
+        opacity: 1;
+      }
+
+      .main-image {
+        transform: scale(1.08);
+      }
+    }
+
+    .main-image {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      display: block;
+    }
+
+    .image-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to top, rgba($text-dark, 0.4), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+      z-index: 2;
+    }
+  }
+
+  .gallery-grid {
+    flex: 1;
+    min-width: 300px;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+
+    .gallery-item {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      opacity: 0;
+      animation: fadeInUp 0.5s ease-out forwards;
+
+      &:hover {
+        transform: translateY(-6px) scale(1.02);
+        box-shadow: 0 12px 28px rgba($primary-blue, 0.15);
+
+        .gallery-overlay {
+          opacity: 1;
+        }
+
+        .gallery-image {
+          transform: scale(1.12);
+        }
+      }
+
+      .gallery-image {
+        width: 100%;
+        height: 195px;
+        object-fit: cover;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        display: block;
+      }
+
+      .gallery-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba($primary-blue, 0.3) 0%, rgba($primary-purple, 0.3) 100%);
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
+.empty-images {
+  margin-bottom: 2rem;
+
+  .empty-image-placeholder {
+    width: 100%;
+    height: 420px;
+    background: linear-gradient(135deg, rgba($primary-blue, 0.05) 0%, rgba($primary-purple, 0.08) 100%);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed rgba($primary-purple, 0.2);
+
+    .empty-text {
+      color: $text-light;
+      font-size: 1.1rem;
+      font-weight: 500;
+    }
+  }
+}
+
+// Tour Header Section
+.tour-header-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  margin-bottom: 2.5rem;
+  padding: 2.5rem;
+  @include glass-effect;
+  border-radius: 24px;
+  @include card-shadow;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    @include gradient-bg-full;
+  }
+
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .tour-title-section {
+    .tour-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      line-height: 1.2;
+      @include gradient-text;
+    }
+
+    .tour-meta-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      align-items: center;
+
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: $text-gray;
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+        background: rgba($primary-blue, 0.05);
+        border-radius: 30px;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba($primary-blue, 0.1);
+          transform: translateY(-2px);
+        }
+
+        i {
+          color: $primary-purple;
+          font-size: 1rem;
+        }
+
+        .reviews-count {
+          font-size: 0.85rem;
+          color: $text-light;
+        }
+      }
+    }
+  }
+
+  .tour-price-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 1.5rem;
+
+    .price-wrapper {
+      text-align: right;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.03) 0%, rgba(167, 139, 250, 0.05) 100%);
+      border-radius: 16px;
+      border: 1px solid rgba($primary-purple, 0.1);
+
+      .price-label {
+        font-size: 0.85rem;
+        color: $text-gray;
+        margin-bottom: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+      }
+
+      .price-display {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-bottom: 0.5rem;
+
+        .current-price {
+          font-size: 2.5rem;
+          font-weight: 800;
+          @include gradient-text;
+          line-height: 1;
+        }
+
+        .original-price {
+          font-size: 1.1rem;
+          color: $text-light;
+          text-decoration: line-through;
+        }
+      }
+
+      .duration-text {
+        font-size: 0.9rem;
+        color: $text-gray;
+      }
+    }
+
+    .book-button {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 2.5rem;
+      @include gradient-bg;
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 6px 20px rgba(96, 165, 250, 0.25);
+      position: relative;
+      overflow: hidden;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        animation: shimmer 3s ease-in-out infinite;
+      }
+
+      &:hover {
+        transform: translateY(-4px) scale(1.02);
+        box-shadow: 0 10px 28px rgba(96, 165, 250, 0.3);
+      }
+
+      &:active {
+        transform: translateY(-2px) scale(1.01);
+      }
+
+      i {
+        transition: transform 0.3s ease;
+      }
+
+      &:hover i {
+        transform: translateX(6px);
+      }
+    }
+  }
+}
+
+// Info Cards Grid
+.info-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+
+  .info-card {
+    position: relative;
+    background: $bg-white;
+    border-radius: 20px;
+    padding: 1.5rem;
+    @include card-shadow;
+    border: 1px solid rgba($primary-purple, 0.08);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+
+    &:hover {
+      @include card-shadow-hover;
+      border-color: rgba($primary-purple, 0.15);
+    }
+
+    .info-card-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+
+      .info-icon-wrapper {
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+        min-height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        flex-shrink: 0;
+        @include gradient-bg;
+        color: white;
+        box-shadow: 0 6px 16px rgba(96, 165, 250, 0.18);
+
+        &.icon-duration,
+        &.icon-departure,
+        &.icon-date,
+        &.icon-slots,
+        &.icon-discount,
+        &.icon-cuisine,
+        &.icon-suitable {
+          @include gradient-bg;
+        }
+
+        &.icon-discount {
+          background: linear-gradient(135deg, $primary-pink 0%, $primary-purple 100%);
+          box-shadow: 0 8px 20px rgba($primary-pink, 0.25);
+        }
+      }
+
+      .info-text {
+        flex: 1;
+        min-width: 0;
+
+        .info-label {
+          font-size: 0.8rem;
+          color: $text-light;
+          margin-bottom: 0.35rem;
+          text-transform: uppercase;
+          letter-spacing: 0.8px;
+          font-weight: 600;
+        }
+
+        .info-value {
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: $text-dark;
+          word-break: break-word;
+        }
+      }
+    }
+
+    .info-card-hover-effect {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba($primary-blue, 0.02) 0%, rgba($primary-purple, 0.02) 100%);
+      opacity: 0;
+      transition: opacity 0.4s ease;
+      pointer-events: none;
+    }
+  }
+}
+
+// Tour Description Section
+.tour-description-section {
+  background: $bg-white;
+  border-radius: 24px;
+  padding: 2.5rem;
+  @include card-shadow;
+  margin-bottom: 2rem;
+  border: 1px solid rgba($primary-purple, 0.08);
+
+  .description-header {
+    margin-bottom: 1.5rem;
+
+    .header-icon {
+      width: 56px;
+      height: 56px;
+      @include gradient-bg;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.5rem;
+      box-shadow: 0 8px 24px rgba($primary-blue, 0.3);
+    }
+
+    h2 {
+      color: $text-dark;
+      font-weight: 800;
+      @include gradient-text;
+    }
+
+    .header-divider {
+      height: 4px;
+      @include gradient-bg-full;
+      border-radius: 2px;
+      margin-top: 0.75rem;
+      width: 80px;
+    }
+  }
+
+  .description-content {
+    margin-top: 2rem;
+
+    .day-by-day-layout {
+      .day-section {
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.015) 0%, rgba(167, 139, 250, 0.03) 100%);
+        border-radius: 16px;
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+        border-left: 4px solid $primary-purple;
+        transition: all 0.4s ease;
+
+        &:hover {
+          box-shadow: 0 8px 24px rgba($primary-purple, 0.12);
+          transform: translateX(8px);
+          border-left-color: $primary-blue;
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        .day-header-card {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          padding-bottom: 1rem;
+          border-bottom: 2px solid rgba($primary-purple, 0.1);
+
+          .day-number {
+            width: 52px;
+            height: 52px;
+            @include gradient-bg;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+            box-shadow: 0 6px 16px rgba(96, 165, 250, 0.2);
+          }
+
+          .day-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: $text-dark;
+            margin: 0;
+            flex: 1;
+          }
+        }
+
+        .day-content {
+          font-size: 1rem;
+          line-height: 1.9;
+          color: $text-gray;
+          text-align: justify;
+
+          ::ng-deep {
+            p {
+              margin-bottom: 1rem;
+
+              &:last-child {
+                margin-bottom: 0;
+              }
+            }
+
+            .day-header {
+              color: $primary-purple;
+              font-weight: 700;
+              margin-right: 0.5rem;
+              display: inline-block;
+            }
+
+            .highlight-text {
+              color: $primary-blue;
+              font-weight: 600;
+            }
+
+            .location-text {
+              color: $primary-pink;
+              font-weight: 600;
+            }
+
+            .note-box {
+              background: linear-gradient(135deg, rgba(96, 165, 250, 0.03) 0%, rgba(167, 139, 250, 0.05) 100%);
+              border-left: 4px solid $primary-purple;
+              padding: 1rem 1.25rem;
+              margin: 1rem 0;
+              border-radius: 8px;
+              font-weight: 500;
+              color: $text-dark;
+            }
+          }
+        }
+      }
+    }
+
+    .compact-layout {
+      .description-text-wrapper {
+        position: relative;
+        max-height: 400px;
+        overflow: hidden;
+        transition: max-height 0.6s ease;
+
+        &.expanded {
+          max-height: none;
+        }
+
+        .description-text {
+          font-size: 1.05rem;
+          line-height: 1.9;
+          color: $text-gray;
+          text-align: justify;
+
+          ::ng-deep {
+            p {
+              margin-bottom: 1rem;
+
+              &:last-child {
+                margin-bottom: 0;
+              }
+            }
+
+            .day-header {
+              color: $primary-purple;
+              font-weight: 700;
+              margin-right: 0.5rem;
+              display: inline-block;
+            }
+
+            .highlight-text {
+              color: $primary-blue;
+              font-weight: 600;
+            }
+
+            .location-text {
+              color: $primary-pink;
+              font-weight: 600;
+            }
+
+            .note-box {
+              background: linear-gradient(135deg, rgba(96, 165, 250, 0.03) 0%, rgba(167, 139, 250, 0.05) 100%);
+              border-left: 4px solid $primary-purple;
+              padding: 1rem 1.25rem;
+              margin: 1rem 0;
+              border-radius: 8px;
+            }
+          }
+        }
+      }
+
+      .read-more-btn {
+        margin-top: 1.5rem;
+        padding: 0.85rem 2rem;
+        @include gradient-bg;
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.4s ease;
+        box-shadow: 0 8px 24px rgba($primary-blue, 0.3);
+
+        &:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 12px 32px rgba($primary-blue, 0.4);
+        }
+      }
+    }
+
+    .description-empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: $text-light;
+
+      i {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.4;
+        @include gradient-text;
+      }
+
+      p {
+        font-size: 1.1rem;
+      }
+    }
+  }
+}
+
+// Highlights & Services Sections
+.highlights-section,
+.services-section {
+  margin-bottom: 2rem;
+
+  .section-card {
+    background: $bg-white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    @include card-shadow;
+    transition: all 0.4s ease;
+    border: 1px solid rgba($primary-purple, 0.08);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(167, 139, 250, 0.1);
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: $text-dark;
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      @include gradient-text;
+
+      i {
+        @include gradient-text;
+        font-size: 1.5rem;
+      }
+    }
+  }
+
+  .highlights-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    .highlight-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.02) 0%, rgba(167, 139, 250, 0.03) 100%);
+      border-radius: 14px;
+      transition: all 0.4s ease;
+      opacity: 0;
+      animation: slideInRight 0.5s ease-out forwards;
+
+      &:hover {
+        transform: translateX(10px);
+        box-shadow: 0 4px 16px rgba(167, 139, 250, 0.1);
+      }
+
+      .highlight-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        @include gradient-bg;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+        font-size: 0.9rem;
+        box-shadow: 0 3px 10px rgba(96, 165, 250, 0.18);
+      }
+
+      .highlight-text {
+        color: $text-gray;
+        font-size: 1rem;
+        line-height: 1.7;
+        flex: 1;
+      }
+    }
+  }
+
+  .services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+
+    .service-item {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      padding: 1.15rem;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.02) 0%, rgba(167, 139, 250, 0.03) 100%);
+      border-radius: 12px;
+      transition: all 0.4s ease;
+      opacity: 0;
+      animation: slideInRight 0.5s ease-out forwards;
+
+      &:hover {
+        transform: translateX(8px);
+        box-shadow: 0 4px 12px rgba(167, 139, 250, 0.08);
+      }
+
+      i {
+        color: $primary-purple;
+        font-size: 1rem;
+        flex-shrink: 0;
+      }
+
+      span {
+        color: $text-gray;
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+// Includes Section
+.includes-section {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .includes-card,
+  .excludes-card {
+    background: $bg-white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    @include card-shadow;
+    transition: all 0.4s ease;
+    border: 1px solid rgba($primary-purple, 0.08);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(167, 139, 250, 0.1);
+      transform: translateY(-6px);
+    }
+
+    .includes-title,
+    .excludes-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+
+      i {
+        font-size: 1.25rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+      }
+    }
+
+    .includes-title {
+      color: $text-dark;
+
+      i {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(34, 197, 94, 0.2) 100%);
+        color: #22c55e;
+      }
+    }
+
+    .excludes-title {
+      color: $text-dark;
+
+      i {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.2) 100%);
+        color: #ef4444;
+      }
+    }
+
+    .includes-list,
+    .excludes-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+
+      .includes-item,
+      .excludes-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        padding: 0.85rem;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+        opacity: 0;
+        animation: slideInRight 0.5s ease-out forwards;
+
+        &:hover {
+          background: rgba($primary-purple, 0.04);
+          transform: translateX(8px);
+        }
+
+        i {
+          margin-top: 0.25rem;
+          font-size: 0.75rem;
+          flex-shrink: 0;
+        }
+
+        span {
+          color: $text-gray;
+          font-size: 0.95rem;
+          line-height: 1.6;
+        }
+      }
+
+      .includes-item i {
+        color: #22c55e;
+      }
+
+      .excludes-item i {
+        color: #ef4444;
+      }
+    }
+  }
+}
+
+// Itinerary Section
+.itinerary-section {
+  margin-bottom: 2rem;
+
+  .itinerary-card {
+    background: $bg-white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    @include card-shadow;
+    transition: all 0.4s ease;
+    border: 1px solid rgba($primary-purple, 0.08);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(167, 139, 250, 0.1);
+    }
+
+    .itinerary-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 4px solid transparent;
+      border-image: linear-gradient(135deg, $primary-blue, $primary-purple, $primary-pink) 1;
+      @include gradient-text;
+    }
+
+    .itinerary-days {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+
+      .day-card {
+        position: relative;
+        padding: 2rem;
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.015) 0%, rgba(167, 139, 250, 0.03) 100%);
+        border-left: 5px solid;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity: 0;
+        animation: fadeInUp 0.6s ease-out forwards;
+
+        &:hover {
+          transform: translateX(12px);
+          box-shadow: 0 8px 24px rgba(167, 139, 250, 0.1);
+        }
+
+        &.day-1 {
+          border-left-color: $primary-blue;
+          animation-delay: 0.1s;
+        }
+
+        &.day-2 {
+          border-left-color: $primary-purple;
+          animation-delay: 0.2s;
+        }
+
+        &.day-3 {
+          border-left-color: $primary-pink;
+          animation-delay: 0.3s;
+        }
+
+        .day-header {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
+          border-bottom: 2px solid rgba($primary-purple, 0.1);
+
+          .day-number {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: white;
+            flex-shrink: 0;
+            box-shadow: 0 6px 16px rgba(96, 165, 250, 0.2);
+          }
+
+          .day-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: $text-dark;
+            margin: 0;
+            flex: 1;
+          }
+        }
+
+        .day-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          margin-bottom: 1.5rem;
+          padding: 1.25rem;
+          background: rgba($bg-white, 0.8);
+          border-radius: 12px;
+
+          .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: $text-gray;
+            font-size: 0.95rem;
+
+            i {
+              color: $primary-purple;
+              width: 20px;
+              text-align: center;
+            }
+          }
+        }
+
+        .day-schedule {
+          display: flex;
+          flex-direction: column;
+          gap: 1.5rem;
+
+          .schedule-item {
+            padding: 1.5rem;
+            background: rgba($bg-white, 0.8);
+            border-radius: 14px;
+            border-left: 3px solid rgba($primary-purple, 0.2);
+            transition: all 0.4s ease;
+
+            &:hover {
+              border-left-color: $primary-purple;
+              box-shadow: 0 4px 14px rgba(167, 139, 250, 0.08);
+              transform: translateX(6px);
+            }
+
+            .schedule-time {
+              font-size: 1rem;
+              font-weight: 700;
+              color: $primary-purple;
+              margin-bottom: 0.5rem;
+            }
+
+            .schedule-content {
+              color: $text-gray;
+              line-height: 1.8;
+              margin: 0;
+            }
+          }
+        }
+      }
+
+      .day-1 .day-header .day-number {
+        background: linear-gradient(135deg, $primary-blue 0%, color.scale($primary-blue, $lightness: -10%) 100%);
+      }
+
+      .day-2 .day-header .day-number {
+        background: linear-gradient(135deg, $primary-purple 0%, color.scale($primary-purple, $lightness: -10%) 100%);
+      }
+
+      .day-3 .day-header .day-number {
+        background: linear-gradient(135deg, $primary-pink 0%, color.scale($primary-pink, $lightness: -10%) 100%);
+      }
+
+      .itinerary-note {
+        padding: 1.75rem;
+        background: linear-gradient(135deg, rgba(96, 165, 250, 0.02) 0%, rgba(167, 139, 250, 0.04) 100%);
+        border-left: 5px solid $primary-purple;
+        border-radius: 14px;
+        margin-top: 1rem;
+
+        .note-title {
+          font-size: 1.1rem;
+          font-weight: 700;
+          color: $primary-purple;
+          margin-bottom: 0.75rem;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+
+          i {
+            color: $primary-blue;
+          }
+        }
+
+        .note-content {
+          color: $text-gray;
+          line-height: 1.8;
+          margin: 0;
+        }
+      }
+    }
+  }
+}
+
+// Best Season, Photo Spots, Food Sections
+.best-season-section,
+.photo-spots-section,
+.food-section {
+  margin-bottom: 2rem;
+
+  .section-card {
+    background: $bg-white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    @include card-shadow;
+    transition: all 0.4s ease;
+    border: 1px solid rgba($primary-purple, 0.08);
+
+    &:hover {
+      box-shadow: 0 8px 24px rgba(167, 139, 250, 0.1);
+    }
+
+    .section-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 1.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      @include gradient-text;
+
+      i {
+        font-size: 1.5rem;
+        @include gradient-text;
+      }
+    }
+  }
+
+  .season-list,
+  .spots-list,
+  .food-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    .season-item,
+    .spot-item,
+    .food-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+      padding: 1.25rem;
+      background: linear-gradient(135deg, rgba(96, 165, 250, 0.02) 0%, rgba(167, 139, 250, 0.03) 100%);
+      border-radius: 14px;
+      transition: all 0.4s ease;
+      opacity: 0;
+      animation: slideInRight 0.5s ease-out forwards;
+
+      &:hover {
+        transform: translateX(10px);
+        box-shadow: 0 4px 16px rgba(167, 139, 250, 0.1);
+      }
+
+      i {
+        margin-top: 0.25rem;
+        flex-shrink: 0;
+        font-size: 1rem;
+        @include gradient-text;
+      }
+
+      span {
+        color: $text-gray;
+        font-size: 1rem;
+        line-height: 1.7;
+        flex: 1;
+      }
+    }
+  }
+}
+
+.best-season-section .section-title i {
+  color: #f59e0b;
+}
+
+.photo-spots-section .section-title i {
+  color: $primary-pink;
+}
+
+.food-section .section-title i {
+  color: #22c55e;
+}
+
+// Related Tours Section
+.related-tours-section {
+  background: linear-gradient(135deg, $bg-light 0%, rgba(167, 139, 250, 0.015) 50%, $bg-light 100%);
+  padding: 5rem 1.5rem;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    @include gradient-bg-full;
+  }
+
+  .related-tours-wrapper {
+    max-width: 1400px;
+    margin: 0 auto;
+
+    .related-header {
+      text-align: center;
+      margin-bottom: 3.5rem;
+      opacity: 0;
+      animation: fadeInUp 0.6s ease-out forwards;
+
+      .related-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        @include gradient-text;
+      }
+
+      .related-subtitle {
+        font-size: 1.1rem;
+        color: $text-gray;
+        font-weight: 500;
+      }
+    }
+
+    .loading-related {
+      text-align: center;
+      padding: 5rem 2rem;
+
+      .spinner {
+        margin: 0 auto 1.5rem;
+      }
+
+      .loading-text {
+        color: $text-gray;
+        font-size: 1.1rem;
+      }
+    }
+
+    .related-tours-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+
+      .related-tour-item {
+        opacity: 0;
+        animation: fadeInUp 0.6s ease-out forwards;
+
+        ::ng-deep app-tour-card {
+          transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+          &:hover {
+            transform: translateY(-12px);
+          }
+        }
+      }
+    }
+
+    .empty-related {
+      text-align: center;
+      padding: 5rem 2rem;
+
+      .empty-text {
+        color: $text-light;
+        font-size: 1.1rem;
+      }
+    }
+  }
+}
+
+// Responsive Styles
+@media (max-width: 768px) {
+  .tour-images-section {
+    flex-direction: column;
+
+    .main-image-wrapper {
+      min-width: 100%;
+
+      .main-image {
+        height: 280px;
+      }
+    }
+
+    .gallery-grid {
+      min-width: 100%;
+      grid-template-columns: repeat(2, 1fr);
+
+      .gallery-item .gallery-image {
+        height: 140px;
+      }
+    }
+  }
+
+  .tour-header-section {
+    padding: 1.75rem;
+
+    .tour-title-section .tour-title {
+      font-size: 1.75rem;
+    }
+
+    .tour-price-section {
+      align-items: flex-start;
+
+      .price-wrapper {
+        text-align: left;
+        width: 100%;
+
+        .price-display .current-price {
+          font-size: 2rem;
+        }
+      }
+
+      .book-button {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  }
+
+
+  .tour-description-section {
+    padding: 1.75rem;
+
+    .description-header h2 {
+      font-size: 1.5rem;
+    }
+  }
+
+  .itinerary-section .itinerary-card {
+    padding: 1.75rem;
+
+    .itinerary-title {
+      font-size: 1.5rem;
+    }
+
+    .itinerary-days .day-card {
+      padding: 1.5rem;
+
+      .day-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+    }
+  }
+
+  .includes-section {
+    grid-template-columns: 1fr;
+  }
+
+  .related-tours-section {
+    padding: 3rem 1rem;
+
+    .related-tours-wrapper .related-header .related-title {
+      font-size: 1.75rem;
+    }
+
+    .related-tours-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+// Wrapper content (legacy)
+.warpper-content {
+  @media only screen and (max-width: 600px) {
+    flex-wrap: wrap;
+
+    .m-img {
+      width: 100%;
+    }
+  }
+}

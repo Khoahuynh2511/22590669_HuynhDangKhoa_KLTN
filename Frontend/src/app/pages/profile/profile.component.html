@@ -1,0 +1,205 @@
+<p-toast />
+
+<div class="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8 pt-24">
+  <div class="max-w-4xl mx-auto">
+    <p-card>
+      <ng-template pTemplate="header">
+        <div class="p-6 border-b">
+          <h1 class="text-3xl font-bold text-gray-900">Thông tin tài khoản</h1>
+        </div>
+      </ng-template>
+
+      <!-- Loading Skeleton -->
+      <div *ngIf="isLoading" class="space-y-6">
+        <div class="flex flex-col md:flex-row gap-6">
+          <div class="flex flex-col items-center md:w-1/3">
+            <p-skeleton shape="circle" size="8rem" styleClass="mb-4"></p-skeleton>
+            <p-skeleton width="10rem" height="2rem"></p-skeleton>
+          </div>
+          <div class="flex-1 space-y-4">
+            <p-skeleton width="100%" height="3rem"></p-skeleton>
+            <p-skeleton width="100%" height="3rem"></p-skeleton>
+            <p-skeleton width="100%" height="3rem"></p-skeleton>
+          </div>
+        </div>
+      </div>
+
+      <!-- Profile Content -->
+      <div *ngIf="!isLoading && userProfile" class="profile-layout">
+        <!-- Sidebar -->
+        <div class="profile-sidebar">
+          <div class="avatar-container">
+            <input type="file" accept="image/*" #avatarInput hidden (change)="onAvatarSelected($event)" />
+
+            <div class="avatar-wrapper" (click)="avatarInput.click()" [class.uploading]="isUploading">
+              <p-avatar *ngIf="userProfile.profile_picture" [image]="userProfile.profile_picture" size="xlarge"
+                shape="circle"></p-avatar>
+              <p-avatar *ngIf="!userProfile.profile_picture"
+                [label]="(userProfile.full_name || userProfile.email || 'U')[0].toUpperCase()" size="xlarge"
+                shape="circle" styleClass="bg-blue-500 text-white"></p-avatar>
+
+              <div class="avatar-overlay" *ngIf="!isUploading">
+                <i class="pi pi-camera"></i>
+                <span>Đổi ảnh</span>
+              </div>
+
+              <div class="avatar-overlay" *ngIf="isUploading">
+                <i class="pi pi-spin pi-spinner"></i>
+              </div>
+            </div>
+
+            <button *ngIf="userProfile.profile_picture && !isUploading" class="remove-avatar-btn"
+              (click)="clearAvatar()" [disabled]="isSubmitting" type="button">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <p-tag [value]="userProfile.is_active ? 'Đang hoạt động' : 'Bị khóa'"
+            [severity]="userProfile.is_active ? 'success' : 'danger'" styleClass="mt-3"></p-tag>
+        </div>
+
+        <!-- Form Section -->
+        <div class="profile-form">
+          <div class="actions-row">
+            <p-button type="button" [label]="isEditMode ? 'Lưu' : 'Thay đổi'"
+              [icon]="isEditMode ? 'pi pi-check' : 'pi pi-pencil'"
+              [disabled]="isEditMode && (profileForm.invalid || profileForm.pristine || isSubmitting)"
+              [loading]="isSubmitting && isEditMode" (onClick)="toggleEdit()"></p-button>
+          </div>
+          <form [formGroup]="profileForm" class="space-y-4">
+            <div class="field">
+              <label for="email">Email</label>
+              <input pInputText id="email" [value]="userProfile.email" readonly class="w-full bg-gray-50" />
+            </div>
+
+            <div class="field">
+              <label for="full_name">
+                Họ và tên <span class="text-red-500">*</span>
+              </label>
+              <input pInputText id="full_name" formControlName="full_name" placeholder="Nhập họ và tên" class="w-full"
+                [readonly]="!isEditMode" [class.bg-gray-50]="!isEditMode"
+                [class.ng-invalid]="profileForm.get('full_name')?.invalid && profileForm.get('full_name')?.touched" />
+              <small *ngIf="profileForm.get('full_name')?.hasError('required') && profileForm.get('full_name')?.touched"
+                class="text-red-500">
+                Họ tên là bắt buộc
+              </small>
+              <small *ngIf="profileForm.get('full_name')?.hasError('minlength')" class="text-red-500">
+                Họ tên phải có ít nhất 2 ký tự
+              </small>
+            </div>
+
+            <div class="field">
+              <label for="phone_number">Số điện thoại</label>
+              <input pInputText id="phone_number" formControlName="phone_number" placeholder="Nhập số điện thoại"
+                class="w-full" [readonly]="!isEditMode" [class.bg-gray-50]="!isEditMode"
+                [class.ng-invalid]="profileForm.get('phone_number')?.invalid && profileForm.get('phone_number')?.touched" />
+              <small *ngIf="profileForm.get('phone_number')?.hasError('pattern')" class="text-red-500">
+                Số điện thoại không hợp lệ
+              </small>
+            </div>
+
+            <div class="actions-row">
+              <p-button type="button" label="Đăng xuất" icon="pi pi-sign-out" severity="danger" [outlined]="true"
+                (onClick)="onLogout()"></p-button>
+            </div>
+          </form>
+
+          <!-- Password Change Section -->
+          <div class="password-section mt-6 pt-6 border-t">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-semibold text-gray-900">Bảo mật</h3>
+              <p-button type="button" [label]="showPasswordForm ? 'Hủy' : 'Đổi mật khẩu'"
+                [icon]="showPasswordForm ? 'pi pi-times' : 'pi pi-lock'" [outlined]="true" severity="secondary"
+                (onClick)="togglePasswordForm()"></p-button>
+            </div>
+
+            <div *ngIf="showPasswordForm" class="password-form-container">
+              <form [formGroup]="passwordForm" class="space-y-4">
+                <div class="field">
+                  <label for="current_password">
+                    Mật khẩu hiện tại <span class="text-red-500">*</span>
+                  </label>
+                  <p-password id="current_password" formControlName="current_password"
+                    placeholder="Nhập mật khẩu hiện tại" [toggleMask]="true" [feedback]="false" styleClass="w-full"
+                    inputStyleClass="w-full"></p-password>
+                  <small
+                    *ngIf="passwordForm.get('current_password')?.hasError('required') && passwordForm.get('current_password')?.touched"
+                    class="text-red-500">
+                    Mật khẩu hiện tại là bắt buộc
+                  </small>
+                </div>
+
+                <div class="field">
+                  <label for="new_password">
+                    Mật khẩu mới <span class="text-red-500">*</span>
+                  </label>
+                  <p-password id="new_password" formControlName="new_password" placeholder="Nhập mật khẩu mới"
+                    [toggleMask]="true" [feedback]="false" styleClass="w-full" inputStyleClass="w-full"
+                    [ngClass]="{'ng-invalid ng-dirty': passwordForm.get('new_password')?.invalid && passwordForm.get('new_password')?.touched}"></p-password>
+
+                  <!-- Password Requirements Feedback -->
+                  <div class="mt-2 space-y-1 bg-gray-50 p-3 rounded-md border border-gray-100">
+                    <p class="text-xs font-medium text-gray-600 mb-1">Yêu cầu mật khẩu chuẩn:</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                      <div class="flex items-center text-xs" [class.text-green-600]="checkPasswordReq('length')"
+                        [class.text-gray-400]="!checkPasswordReq('length')">
+                        <i class="pi pi-check-circle mr-1 text-[10px]"></i> Ít nhất 8 ký tự
+                      </div>
+                      <div class="flex items-center text-xs" [class.text-green-600]="checkPasswordReq('upper')"
+                        [class.text-gray-400]="!checkPasswordReq('upper')">
+                        <i class="pi pi-check-circle mr-1 text-[10px]"></i> Chữ hoa (A-Z)
+                      </div>
+                      <div class="flex items-center text-xs" [class.text-green-600]="checkPasswordReq('lower')"
+                        [class.text-gray-400]="!checkPasswordReq('lower')">
+                        <i class="pi pi-check-circle mr-1 text-[10px]"></i> Chữ thường (a-z)
+                      </div>
+                      <div class="flex items-center text-xs" [class.text-green-600]="checkPasswordReq('number')"
+                        [class.text-gray-400]="!checkPasswordReq('number')">
+                        <i class="pi pi-check-circle mr-1 text-[10px]"></i> Chữ số (0-9)
+                      </div>
+                      <div class="flex items-center text-xs" [class.text-green-600]="checkPasswordReq('special')"
+                        [class.text-gray-400]="!checkPasswordReq('special')">
+                        <i class="pi pi-check-circle mr-1 text-[10px]"></i> Ký tự đặc biệt
+                      </div>
+                    </div>
+                  </div>
+
+                  <small
+                    *ngIf="passwordForm.get('new_password')?.hasError('required') && passwordForm.get('new_password')?.touched"
+                    class="text-red-500">
+                    Mật khẩu mới là bắt buộc
+                  </small>
+                  <small
+                    *ngIf="passwordForm.get('new_password')?.invalid && passwordForm.get('new_password')?.dirty && !passwordForm.get('new_password')?.hasError('required')"
+                    class="text-red-500 block mt-1">
+                    Mật khẩu chưa đạt chuẩn bảo mật (phải có chữ hoa, chữ thường, số và ký tự đặc biệt)
+                  </small>
+                </div>
+
+                <div class="field">
+                  <label for="confirm_password">
+                    Xác nhận mật khẩu mới <span class="text-red-500">*</span>
+                  </label>
+                  <p-password id="confirm_password" formControlName="confirm_password"
+                    placeholder="Nhập lại mật khẩu mới" [toggleMask]="true" [feedback]="false" styleClass="w-full"
+                    inputStyleClass="w-full"></p-password>
+                  <small
+                    *ngIf="passwordForm.get('confirm_password')?.hasError('required') && passwordForm.get('confirm_password')?.touched"
+                    class="text-red-500">
+                    Xác nhận mật khẩu là bắt buộc
+                  </small>
+                </div>
+
+                <div class="actions-row">
+                  <p-button type="button" label="Cập nhật mật khẩu" icon="pi pi-check"
+                    [disabled]="passwordForm.invalid || isChangingPassword" [loading]="isChangingPassword"
+                    (onClick)="onChangePassword()"></p-button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </p-card>
+  </div>
+</div>

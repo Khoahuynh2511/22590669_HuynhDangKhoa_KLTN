@@ -1,0 +1,96 @@
+<header [class.header-transparent]="!isScrolled && isHomePage" [class.header-scrolled]="isScrolled && isHomePage"
+  [class.header-solid]="!isHomePage" class="fixed top-0 left-0 w-full z-50">
+  <div class="header-wrapper">
+    <div class="container mx-auto flex flex-col px-8">
+      <div class="flex items-center justify-between header-top">
+
+        <div class="logo">
+          <a routerLink="/home" class="logo-link">
+            <h2 [class.text-white]="!isScrolled && isHomePage" [class.text-gradient-blue]="isScrolled || !isHomePage"
+              class="logo-text">
+              UITravel
+            </h2>
+          </a>
+        </div>
+
+        <div class="flex items-center gap-10">
+          <nav [class.nav-white]="!isScrolled && isHomePage" [class.nav-dark]="isScrolled || !isHomePage"
+            class="hidden lg:flex items-center" aria-label="Main navigation">
+            @for (item of topMenu; track $index) {
+            <a [routerLink]="item.url" class="menu-item">
+              {{ item.label }}
+            </a>
+            }
+          </nav>
+
+          <div class="flex items-center gap-3">
+            <ng-container *ngIf="isAuthenticated">
+              <app-notification-bell [isWhiteMode]="!isScrolled && isHomePage">
+              </app-notification-bell>
+              <button (click)="openChatbot()" [class.btn-outline-white]="!isScrolled && isHomePage"
+                [class.btn-outline-dark]="isScrolled || !isHomePage" class="action-btn">
+                AI Agent
+              </button>
+            </ng-container>
+
+            <ng-container *ngIf="!isAuthenticated">
+              <a routerLink="/login" [class.btn-outline-white]="!isScrolled && isHomePage"
+                [class.btn-outline-blue]="isScrolled || !isHomePage" class="action-btn">
+                Đăng nhập
+              </a>
+              <a routerLink="/register" class="action-btn btn-primary">
+                Đăng ký
+              </a>
+            </ng-container>
+
+            <ng-container *ngIf="isAuthenticated && currentUser">
+              <div class="user-dropdown" (clickOutside)="closeDropdown()">
+                <button (click)="toggleDropdown()" [class.btn-outline-white]="!isScrolled && isHomePage"
+                  [class.btn-outline-dark]="isScrolled || !isHomePage" class="action-btn user-dropdown-toggle">
+                  {{ currentUser.full_name }}
+                  <svg class="dropdown-arrow" [class.rotated]="showDropdown" width="12" height="12" viewBox="0 0 12 12"
+                    fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                      stroke-linejoin="round" />
+                  </svg>
+                </button>
+                <div class="dropdown-menu" *ngIf="showDropdown">
+                  <div class="dropdown-header">
+                    <div class="user-info">
+                      <div class="user-name">{{ currentUser.full_name }}</div>
+                      <div class="user-email" *ngIf="currentUser.email">{{ currentUser.email }}</div>
+                      <div class="user-phone" *ngIf="currentUser.phone">{{ currentUser.phone }}</div>
+                    </div>
+                  </div>
+                  <div class="dropdown-divider"></div>
+                  <a routerLink="/profile" class="dropdown-item" (click)="closeDropdown()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M8 8C10.2091 8 12 6.20914 12 4C12 1.79086 10.2091 0 8 0C5.79086 0 4 1.79086 4 4C4 6.20914 5.79086 8 8 8Z"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M0 14C0 11.2386 2.23858 9 5 9H11C13.7614 9 16 11.2386 16 14V16H0V14Z"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    Thông tin tài khoản
+                  </a>
+                  <button class="dropdown-item logout-item" (click)="onLogout()">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M6 14H3C2.46957 14 1.96086 13.7893 1.58579 13.4142C1.21071 13.0391 1 12.5304 1 12V4C1 3.46957 1.21071 2.96086 1.58579 2.58579C1.96086 2.21071 2.46957 2 3 2H6"
+                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M11 11L15 8L11 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                      <path d="M15 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                    Đăng xuất
+                  </button>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>

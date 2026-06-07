@@ -1,0 +1,424 @@
+@use "sass:color";
+
+// Theme Variables
+$primary-blue: #60a5fa;
+$primary-purple: #a78bfa;
+$primary-pink: #f472b6;
+$text-dark: #1f2937;
+$text-gray: #6b7280;
+$text-light: #9ca3af;
+$bg-white: #ffffff;
+$bg-light: #fafafa;
+
+@mixin gradient-bg {
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.95) 0%, rgba(167, 139, 250, 0.95) 100%);
+}
+
+@mixin card-shadow {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04), 0 1px 4px rgba(0, 0, 0, 0.02);
+}
+
+// Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// Main Wrapper
+.day-detail-wrapper {
+  background: $bg-white;
+  border-radius: 24px;
+  padding: 2.5rem;
+  @include card-shadow;
+  border: 1px solid rgba($primary-purple, 0.08);
+  animation: fadeIn 0.5s ease-out;
+  min-height: 400px;
+}
+
+// Day Header
+.day-header-section {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 3px solid rgba($primary-purple, 0.1);
+
+  .day-badge {
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    min-height: 72px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    @include gradient-bg;
+    box-shadow: 0 8px 24px rgba($primary-blue, 0.3);
+    flex-shrink: 0;
+
+    .badge-number {
+      font-size: 2rem;
+      font-weight: 800;
+      color: white;
+    }
+  }
+
+  .day-title-section {
+    flex: 1;
+
+    .day-title {
+      font-size: 2rem;
+      font-weight: 800;
+      color: $text-dark;
+      margin: 0;
+      line-height: 1.3;
+      background: linear-gradient(135deg, $primary-blue 0%, $primary-purple 50%, $primary-pink 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  }
+}
+
+// Day Info Cards
+.day-info-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+
+  .info-card {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, rgba(96, 165, 250, 0.02) 0%, rgba(167, 139, 250, 0.04) 100%);
+    border-radius: 16px;
+    border: 1px solid rgba($primary-purple, 0.1);
+    transition: all 0.4s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 20px rgba($primary-purple, 0.12);
+      border-color: rgba($primary-purple, 0.2);
+    }
+
+    .info-icon {
+      width: 56px;
+      height: 56px;
+      min-width: 56px;
+      min-height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      color: white;
+      flex-shrink: 0;
+
+      &.hotel-icon {
+        background: linear-gradient(135deg, $primary-blue 0%, color.scale($primary-blue, $lightness: -10%) 100%);
+        box-shadow: 0 6px 16px rgba($primary-blue, 0.25);
+      }
+
+      &.meals-icon {
+        background: linear-gradient(135deg, #22c55e 0%, color.scale(#22c55e, $lightness: -10%) 100%);
+        box-shadow: 0 6px 16px rgba(#22c55e, 0.25);
+      }
+    }
+
+    .info-content {
+      flex: 1;
+
+      .info-label {
+        font-size: 0.85rem;
+        color: $text-light;
+        margin-bottom: 0.35rem;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+      }
+
+      .info-value {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// Day Schedule Section
+.day-schedule-section {
+  .schedule-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: $text-dark;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    i {
+      color: $primary-purple;
+      font-size: 1.25rem;
+    }
+  }
+
+  .schedule-timeline {
+    position: relative;
+
+    .timeline-item {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      opacity: 0;
+      animation: slideInLeft 0.5s ease-out forwards;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .timeline-marker {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+
+        .marker-icon {
+          width: 52px;
+          height: 52px;
+          min-width: 52px;
+          min-height: 52px;
+          border-radius: 50%;
+          @include gradient-bg;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 1.25rem;
+          box-shadow: 0 6px 16px rgba($primary-blue, 0.25);
+          position: relative;
+          z-index: 2;
+        }
+
+        .marker-line {
+          width: 3px;
+          flex: 1;
+          background: linear-gradient(180deg, rgba($primary-purple, 0.3) 0%, rgba($primary-purple, 0.1) 100%);
+          position: absolute;
+          top: 52px;
+          bottom: -2rem;
+        }
+      }
+
+      .timeline-content {
+        flex: 1;
+        padding-bottom: 0.5rem;
+
+        .content-header {
+          margin-bottom: 1rem;
+
+          .content-time {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: $primary-purple;
+            margin: 0;
+          }
+        }
+
+        .content-body {
+          background: linear-gradient(135deg, rgba(96, 165, 250, 0.015) 0%, rgba(167, 139, 250, 0.03) 100%);
+          padding: 1.5rem;
+          border-radius: 16px;
+          border-left: 4px solid $primary-purple;
+          transition: all 0.4s ease;
+
+          &:hover {
+            box-shadow: 0 6px 18px rgba($primary-purple, 0.1);
+            transform: translateX(8px);
+            border-left-color: $primary-blue;
+          }
+
+          .content-text {
+            color: $text-gray;
+            line-height: 1.8;
+            font-size: 1rem;
+            margin: 0;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Empty State
+.empty-schedule {
+  text-align: center;
+  padding: 5rem 2rem;
+  color: $text-light;
+
+  i {
+    font-size: 5rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.3;
+    background: linear-gradient(135deg, $primary-blue 0%, $primary-purple 50%, $primary-pink 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  p {
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+}
+
+// Loading State
+.day-detail-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 5rem 2rem;
+  min-height: 400px;
+
+  .loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 5px solid rgba($primary-blue, 0.1);
+    border-top-color: $primary-blue;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 1.5rem;
+  }
+
+  p {
+    color: $text-gray;
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .day-detail-wrapper {
+    padding: 1.75rem;
+  }
+
+  .day-header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+
+    .day-badge {
+      width: 60px;
+      height: 60px;
+      min-width: 60px;
+      min-height: 60px;
+
+      .badge-number {
+        font-size: 1.75rem;
+      }
+    }
+
+    .day-title-section .day-title {
+      font-size: 1.5rem;
+    }
+  }
+
+  .day-info-cards {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    .info-card {
+      padding: 1.25rem;
+
+      .info-icon {
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        min-height: 48px;
+        font-size: 1.25rem;
+      }
+    }
+  }
+
+  .day-schedule-section {
+    .schedule-title {
+      font-size: 1.25rem;
+    }
+
+    .schedule-timeline .timeline-item {
+      gap: 1rem;
+
+      .timeline-marker {
+        .marker-icon {
+          width: 44px;
+          height: 44px;
+          min-width: 44px;
+          min-height: 44px;
+          font-size: 1.1rem;
+        }
+
+        .marker-line {
+          top: 44px;
+        }
+      }
+
+      .timeline-content {
+        .content-header .content-time {
+          font-size: 1.1rem;
+        }
+
+        .content-body {
+          padding: 1.25rem;
+
+          .content-text {
+            font-size: 0.95rem;
+          }
+        }
+      }
+    }
+  }
+
+  .empty-schedule {
+    padding: 3rem 1.5rem;
+
+    i {
+      font-size: 3.5rem;
+    }
+
+    p {
+      font-size: 1rem;
+    }
+  }
+}
