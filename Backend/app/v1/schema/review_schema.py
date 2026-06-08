@@ -40,7 +40,7 @@ class ReviewUpdate(BaseModel):
             }
         }
     )
-    
+
     rating: Optional[int] = Field(None, ge=1, le=5, description="Đánh giá từ 1-5 sao")
     comment: Optional[str] = Field(None, max_length=2000, description="Bình luận đánh giá")
     is_approved: Optional[bool] = Field(None, description="Trạng thái phê duyệt (admin only)")
@@ -57,7 +57,7 @@ class ReviewResponse(BaseModel):
     is_approved: bool
     created_at: datetime
     updated_at: Optional[datetime]
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

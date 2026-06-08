@@ -3,6 +3,7 @@
   background-repeat: no-repeat;
   background-size: cover;
   min-height: 600px;
+  padding-top: 126px !important;
 
   .hero-title {
     font-size: 42px; // Tăng kích thước chút cho ấn tượng
@@ -32,6 +33,10 @@
     @media (max-width: 768px) {
       font-size: 28px;
     }
+  }
+
+  @media (max-width: 768px) {
+    padding-top: 114px !important;
   }
 
   @keyframes shine {

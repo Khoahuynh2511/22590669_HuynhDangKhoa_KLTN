@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class OTPService:
     """Service for managing OTP operations"""
-    
+
     def __init__(self):
         """Initialize OTP Service with Redis and SendGrid clients"""
         try:
@@ -33,13 +33,18 @@ class OTPService:
             self.redis_client.ping()
             logger.info("Redis connection established for OTP service")
         except redis.ConnectionError as e:
-            logger.warning(f"Redis not available at {settings.REDIS_HOST}:{settings.REDIS_PORT}. OTP features will be limited. Error: {str(e)}")
-            logger.warning("To enable Redis: Install and start Redis server, or use Docker: docker run -d -p 6379:6379 redis:alpine")
+            logger.warning(
+                f"Redis not available at {
+                    settings.REDIS_HOST}:{
+                    settings.REDIS_PORT}. OTP features will be limited. Error: {
+                    str(e)}")
+            logger.warning(
+                "To enable Redis: Install and start Redis server, or use Docker: docker run -d -p 6379:6379 redis:alpine")
             self.redis_client = None
         except Exception as e:
             logger.error(f"Failed to connect to Redis: {str(e)}")
             self.redis_client = None
-        
+
         try:
             if settings.SENDGRID_API_KEY:
                 self.sendgrid_client = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
@@ -50,34 +55,34 @@ class OTPService:
         except Exception as e:
             logger.error(f"Failed to initialize SendGrid client: {str(e)}")
             self.sendgrid_client = None
-    
+
     def generate_otp(self, length: int = 6) -> str:
         """
         Generate a random OTP code
-        
+
         Args:
             length: Length of OTP (default: 6)
-            
+
         Returns:
             OTP code as string
         """
         return ''.join([str(random.randint(0, 9)) for _ in range(length)])
-    
+
     def store_otp(self, email: str, otp: str) -> bool:
         """
         Store OTP in Redis with expiration
-        
+
         Args:
             email: User email address
             otp: OTP code to store
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not self.redis_client:
             logger.error("Redis client not available")
             return False
-        
+
         try:
             key = f"otp:{email.lower().strip()}"
             expire_seconds = settings.OTP_EXPIRE_MINUTES * 60
@@ -87,34 +92,34 @@ class OTPService:
         except Exception as e:
             logger.error(f"Failed to store OTP: {str(e)}")
             return False
-    
+
     def verify_otp(self, email: str, otp: str) -> bool:
         """
         Verify OTP code
-        
+
         Args:
             email: User email address
             otp: OTP code to verify
-            
+
         Returns:
             True if OTP is valid, False otherwise
         """
         if not self.redis_client:
             logger.error("Redis client not available")
             return False
-        
+
         try:
             key = f"otp:{email.lower().strip()}"
             stored_otp = self.redis_client.get(key)
-            
+
             if stored_otp is None:
                 logger.warning(f"No OTP found for {email}")
                 return False
-            
+
             if stored_otp != otp:
                 logger.warning(f"OTP mismatch for {email}")
                 return False
-            
+
             # Delete OTP after successful verification
             self.redis_client.delete(key)
             logger.info(f"OTP verified and deleted for {email}")
@@ -122,28 +127,28 @@ class OTPService:
         except Exception as e:
             logger.error(f"Failed to verify OTP: {str(e)}")
             return False
-    
+
     def send_otp_email(self, email: str, otp: str, tour_name: str) -> bool:
         """
         Send OTP via SendGrid email
-        
+
         Args:
             email: Recipient email address
             otp: OTP code to send
             tour_name: Name of the tour for context
-            
+
         Returns:
             True if email sent successfully, False otherwise
         """
         if not self.sendgrid_client:
             logger.error("SendGrid client not available")
             return False
-        
+
         try:
             from_email = Email(settings.SENDGRID_FROM_EMAIL)
             to_email = To(email)
             subject = "Mã xác thực đặt tour"
-            
+
             # Email content in Vietnamese
             html_content = f"""
             <html>
@@ -164,8 +169,8 @@ class OTPService:
             </body>
             </html>
             """
-            
-            plain_content = f"""
+
+            _plain_content = f"""  # noqa: F841
 Mã xác thực đặt tour
 
 Xin chào,
@@ -177,20 +182,20 @@ Mã này có hiệu lực trong {settings.OTP_EXPIRE_MINUTES} phút.
 
 Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
             """
-            
+
             content = Content("text/html", html_content)
             mail = Mail(from_email, to_email, subject, content)
-            
+
             logger.info(f"Attempting to send OTP email to {email} from {settings.SENDGRID_FROM_EMAIL}")
             response = self.sendgrid_client.send(mail)
-            
+
             # Log response details
             logger.info(f"SendGrid response status code: {response.status_code}")
             if hasattr(response, 'headers'):
                 logger.info(f"SendGrid response headers: {dict(response.headers)}")
             if hasattr(response, 'body'):
                 logger.info(f"SendGrid response body: {response.body}")
-            
+
             if response.status_code in [200, 202]:
                 logger.info(f"OTP email sent successfully to {email}")
                 return True
@@ -200,13 +205,17 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
                 if hasattr(response, 'body'):
                     error_body = str(response.body)
                 logger.error(f"Failed to send OTP email. Status: {response.status_code}, Body: {error_body}")
-                logger.error(f"SendGrid API Key configured: {bool(settings.SENDGRID_API_KEY)}, From Email: {settings.SENDGRID_FROM_EMAIL}")
+                logger.error(
+                    f"SendGrid API Key configured: {
+                        bool(
+                            settings.SENDGRID_API_KEY)}, From Email: {
+                        settings.SENDGRID_FROM_EMAIL}")
                 # Also print to console for test visibility
-                print(f"\n❌ SendGrid Error:")
+                print("\n❌ SendGrid Error:")
                 print(f"   Status Code: {response.status_code}")
                 print(f"   Response Body: {error_body}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error sending OTP email: {str(e)}")
             logger.error(f"Exception type: {type(e).__name__}")
@@ -214,20 +223,20 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
             if hasattr(e, 'status_code'):
                 logger.error(f"HTTP Status: {e.status_code}")
                 # Print to console for test visibility
-                print(f"\n❌ SendGrid HTTP Error:")
+                print("\n❌ SendGrid HTTP Error:")
                 print(f"   Status Code: {e.status_code}")
-                
+
                 if e.status_code == 403:
-                    print(f"\n⚠️  IMPORTANT: SendGrid 403 Forbidden Error")
-                    print(f"   This usually means the FROM email address is not verified.")
+                    print("\n⚠️  IMPORTANT: SendGrid 403 Forbidden Error")
+                    print("   This usually means the FROM email address is not verified.")
                     print(f"   FROM Email: {settings.SENDGRID_FROM_EMAIL}")
-                    print(f"\n   To fix this:")
-                    print(f"   1. Go to SendGrid Dashboard: https://app.sendgrid.com/")
-                    print(f"   2. Navigate to: Settings > Sender Authentication")
+                    print("\n   To fix this:")
+                    print("   1. Go to SendGrid Dashboard: https://app.sendgrid.com/")
+                    print("   2. Navigate to: Settings > Sender Authentication")
                     print(f"   3. Verify Single Sender or Domain for: {settings.SENDGRID_FROM_EMAIL}")
-                    print(f"   4. Complete the verification process (check email inbox)")
-                    print(f"   5. Wait a few minutes for verification to complete")
-                    
+                    print("   4. Complete the verification process (check email inbox)")
+                    print("   5. Wait a few minutes for verification to complete")
+
             if hasattr(e, 'body'):
                 error_body = e.body
                 logger.error(f"Error Body: {error_body}")
@@ -241,25 +250,25 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
                         for err in error_json['errors']:
                             print(f"\n   Error Message: {err.get('message', 'Unknown error')}")
                             print(f"   Field: {err.get('field', 'Unknown')}")
-                except:
+                except BaseException:
                     print(f"   Error Body: {error_body}")
             return False
-    
+
     def store_pending_booking(self, email: str, booking_data: Dict[str, Any]) -> bool:
         """
         Store pending booking data in Redis
-        
+
         Args:
             email: User email address
             booking_data: Dictionary containing booking information
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not self.redis_client:
             logger.error("Redis client not available")
             return False
-        
+
         try:
             key = f"pending_booking:{email.lower().strip()}"
             expire_seconds = settings.OTP_EXPIRE_MINUTES * 60
@@ -270,47 +279,47 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
         except Exception as e:
             logger.error(f"Failed to store pending booking: {str(e)}")
             return False
-    
+
     def get_pending_booking(self, email: str) -> Optional[Dict[str, Any]]:
         """
         Get pending booking data from Redis
-        
+
         Args:
             email: User email address
-            
+
         Returns:
             Booking data dictionary or None if not found
         """
         if not self.redis_client:
             logger.error("Redis client not available")
             return None
-        
+
         try:
             key = f"pending_booking:{email.lower().strip()}"
             booking_json = self.redis_client.get(key)
-            
+
             if booking_json is None:
                 return None
-            
+
             booking_data = json.loads(booking_json)
             return booking_data
         except Exception as e:
             logger.error(f"Failed to get pending booking: {str(e)}")
             return None
-    
+
     def delete_pending_booking(self, email: str) -> bool:
         """
         Delete pending booking data from Redis
-        
+
         Args:
             email: User email address
-            
+
         Returns:
             True if successful, False otherwise
         """
         if not self.redis_client:
             return False
-        
+
         try:
             key = f"pending_booking:{email.lower().strip()}"
             self.redis_client.delete(key)
@@ -323,6 +332,7 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
 
 # Singleton instance
 _otp_service = None
+
 
 def get_otp_service() -> OTPService:
     """Get singleton OTP service instance"""

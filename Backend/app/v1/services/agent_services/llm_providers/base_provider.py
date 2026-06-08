@@ -18,5 +18,3 @@ class BaseLLMProvider(ABC):
             **kwargs: Provider-specific keyword arguments (model, api_key, etc.)
         """
         raise NotImplementedError
-
-

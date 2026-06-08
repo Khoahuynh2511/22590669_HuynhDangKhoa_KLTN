@@ -13,5 +13,3 @@ class OpenAIProvider(BaseLLMProvider):
 
     def get_llm(self, **kwargs: Any):
         return ChatOpenAI(**kwargs)
-
-

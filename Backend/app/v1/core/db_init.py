@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_packages_search_vector ON tour_packages USING GIN
 -- Function to update search_vector automatically
 CREATE OR REPLACE FUNCTION update_tour_packages_search_vector() RETURNS TRIGGER AS $$
 BEGIN
-    NEW.search_vector := 
+    NEW.search_vector :=
         setweight(to_tsvector('simple', COALESCE(NEW.package_name, '')), 'A') ||
         setweight(to_tsvector('simple', COALESCE(NEW.destination, '')), 'B') ||
         setweight(to_tsvector('simple', COALESCE(NEW.description, '')), 'C');
@@ -64,7 +64,7 @@ CREATE TRIGGER trigger_update_tour_packages_search_vector
     EXECUTE FUNCTION update_tour_packages_search_vector();
 
 -- Update existing rows
-UPDATE tour_packages SET search_vector = 
+UPDATE tour_packages SET search_vector =
     setweight(to_tsvector('simple', COALESCE(package_name, '')), 'A') ||
     setweight(to_tsvector('simple', COALESCE(destination, '')), 'B') ||
     setweight(to_tsvector('simple', COALESCE(description, '')), 'C')
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS package_embeddings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_embeddings_cosine ON package_embeddings 
+CREATE INDEX IF NOT EXISTS idx_embeddings_cosine ON package_embeddings
     USING ivfflat (embedding vector_cosine_ops);
 
 -- OTP Verifications Table
@@ -173,13 +173,13 @@ CREATE OR REPLACE FUNCTION search_tour_packages(
     start_after_date DATE DEFAULT CURRENT_DATE
 )
 RETURNS TABLE (
-    package_id UUID, package_name VARCHAR, destination VARCHAR, 
+    package_id UUID, package_name VARCHAR, destination VARCHAR,
     price DECIMAL, duration_days INTEGER, available_slots INTEGER,
     start_date DATE, image_urls TEXT, cuisine TEXT, suitable_for TEXT
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT 
+    SELECT
         tp.package_id, tp.package_name, tp.destination, tp.price,
         tp.duration_days, tp.available_slots, tp.start_date, tp.image_urls, tp.cuisine, tp.suitable_for
     FROM tour_packages tp
@@ -188,7 +188,7 @@ BEGIN
         AND tp.price BETWEEN min_budget AND max_budget
         AND tp.start_date >= start_after_date
         AND (LOWER(tp.destination) LIKE LOWER('%' || search_destination || '%') OR search_destination = '')
-    ORDER BY 
+    ORDER BY
         CASE WHEN LOWER(tp.destination) LIKE LOWER(search_destination || '%') THEN 0 ELSE 1 END,
         tp.price ASC;
 END;
@@ -212,28 +212,28 @@ BEGIN
     IF NOT FOUND THEN
         INSERT INTO users (phone_number, full_name) VALUES (user_phone, user_name) RETURNING user_id INTO user_id_val;
     END IF;
-    
+
     -- Check package
     SELECT price INTO pkg_price FROM tour_packages WHERE package_id = package_id_param AND is_active = TRUE AND available_slots >= num_people;
     IF NOT FOUND THEN RAISE EXCEPTION 'Package not available'; END IF;
-    
+
     calc_amount := pkg_price * num_people;
-    
+
     -- Create booking
     INSERT INTO bookings (user_id, package_id, number_of_people, total_amount, contact_name, contact_phone, special_requests, status)
     VALUES (user_id_val, package_id_param, num_people, calc_amount, user_name, contact_phone, special_requests, 'otp_sent')
     RETURNING bookings.booking_id INTO new_booking_id;
-    
+
     -- Generate OTP
     otp_generated := LPAD((RANDOM() * 999999)::INTEGER::TEXT, 6, '0');
-    
+
     -- Create OTP
-    INSERT INTO otp_verifications (booking_id, user_id, otp_code, phone_number) 
+    INSERT INTO otp_verifications (booking_id, user_id, otp_code, phone_number)
     VALUES (new_booking_id, user_id_val, otp_generated, user_phone);
-    
+
     -- Update slots
     UPDATE tour_packages SET available_slots = available_slots - num_people WHERE package_id = package_id_param;
-    
+
     RETURN QUERY SELECT new_booking_id, calc_amount, otp_generated;
 END;
 $$ LANGUAGE plpgsql;
@@ -244,15 +244,15 @@ RETURNS BOOLEAN AS $$
 DECLARE
     otp_rec RECORD;
 BEGIN
-    SELECT * INTO otp_rec FROM otp_verifications 
-    WHERE booking_id = booking_id_param AND otp_code = otp_input 
+    SELECT * INTO otp_rec FROM otp_verifications
+    WHERE booking_id = booking_id_param AND otp_code = otp_input
         AND expires_at > CURRENT_TIMESTAMP AND is_verified = FALSE AND attempts < 3;
-    
+
     IF NOT FOUND THEN
         UPDATE otp_verifications SET attempts = attempts + 1 WHERE booking_id = booking_id_param;
         RETURN FALSE;
     END IF;
-    
+
     UPDATE otp_verifications SET is_verified = TRUE, verified_at = CURRENT_TIMESTAMP WHERE booking_id = booking_id_param;
     UPDATE bookings SET status = 'confirmed' WHERE booking_id = booking_id_param;
     RETURN TRUE;
@@ -264,10 +264,10 @@ $$ LANGUAGE plpgsql;
 async def init_database_schema(supabase: Client) -> Dict[str, Any]:
     """
     Initialize database schema by creating tables, indexes, and functions if they don't exist
-    
+
     Args:
         supabase: Supabase client instance
-        
+
     Returns:
         Dict containing initialization results
     """
@@ -277,61 +277,61 @@ async def init_database_schema(supabase: Client) -> Dict[str, Any]:
         "functions_created": False,
         "errors": []
     }
-    
+
     try:
         logger.info("Starting database schema initialization...")
-        
+
         # Execute schema creation
         logger.info("Creating tables and indexes...")
         try:
             # Supabase client doesn't directly support raw SQL execution
             # We need to use RPC or the PostgREST API
             # For now, we'll use the rpc method to execute SQL
-            schema_result = supabase.rpc('exec_sql', {'sql': SCHEMA_SQL}).execute()
+            _schema_result = supabase.rpc('exec_sql', {'sql': SCHEMA_SQL}).execute()  # noqa: F841
             results["schema_created"] = True
             logger.info("Schema tables and indexes created successfully")
         except Exception as e:
             error_msg = f"Error creating schema: {str(e)}"
             logger.error(error_msg)
             results["errors"].append(error_msg)
-        
+
         # Execute functions creation
         logger.info("Creating database functions...")
         try:
-            functions_result = supabase.rpc('exec_sql', {'sql': FUNCTIONS_SQL}).execute()
+            _functions_result = supabase.rpc('exec_sql', {'sql': FUNCTIONS_SQL}).execute()  # noqa: F841
             results["functions_created"] = True
             logger.info("Database functions created successfully")
         except Exception as e:
             error_msg = f"Error creating functions: {str(e)}"
             logger.error(error_msg)
             results["errors"].append(error_msg)
-        
+
         if results["schema_created"] and results["functions_created"]:
             results["success"] = True
             logger.info("Database initialization completed successfully")
-        
+
     except Exception as e:
         error_msg = f"Unexpected error during database initialization: {str(e)}"
         logger.error(error_msg)
         results["errors"].append(error_msg)
-    
+
     return results
 
 
 def check_table_exists(supabase: Client, table_name: str) -> bool:
     """
     Check if a table exists in the database
-    
+
     Args:
         supabase: Supabase client instance
         table_name: Name of the table to check
-        
+
     Returns:
         bool: True if table exists, False otherwise
     """
     try:
         # Try to query the table with a limit of 0
-        result = supabase.table(table_name).select("*").limit(0).execute()
+        _result = supabase.table(table_name).select("*").limit(0).execute()  # noqa: F841
         return True
     except Exception as e:
         logger.debug(f"Table {table_name} does not exist or is not accessible: {str(e)}")
@@ -341,23 +341,22 @@ def check_table_exists(supabase: Client, table_name: str) -> bool:
 async def ensure_schema_exists(supabase: Client) -> None:
     """
     Ensure that the database schema exists, initialize if not
-    
+
     Args:
         supabase: Supabase client instance
     """
     # Check if key tables exist
     tables_to_check = ['tour_packages', 'package_embeddings', 'otp_verifications', 'payments', 'chat_history']
-    
+
     all_exist = all(check_table_exists(supabase, table) for table in tables_to_check)
-    
+
     if not all_exist:
         logger.info("Some tables are missing, initializing database schema...")
         result = await init_database_schema(supabase)
-        
+
         if not result["success"]:
             logger.warning(f"Database initialization completed with warnings: {result['errors']}")
         else:
             logger.info("Database schema is ready")
     else:
         logger.info("Database schema already exists")
-

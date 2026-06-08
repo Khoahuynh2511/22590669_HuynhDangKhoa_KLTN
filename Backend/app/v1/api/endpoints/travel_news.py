@@ -33,12 +33,12 @@ async def get_paginated_travel_news_list(
     """
     Lấy danh sách paginated tin tức/cẩm nang du lịch (không cần keywords).
     Dùng để hiển thị danh sách ban đầu khi user chưa search.
-    
+
     Args:
         source_type: Lọc theo loại ('news' hoặc 'guide')
         page: Page number (bắt đầu từ 1)
         limit: Số items per page
-        
+
     Returns:
         Dict với paginated results
     """
@@ -49,13 +49,13 @@ async def get_paginated_travel_news_list(
             limit=limit,
             source_type=source_type
         )
-        
+
         if not result.get("success"):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to fetch travel news list")
             )
-        
+
         return {
             "EC": 0,
             "EM": "Success",
@@ -108,10 +108,10 @@ async def run_agent():
 async def search_travel_news(request: TravelNewsSearchRequest):
     """
     Search travel news theo keywords trong title với pagination và filters.
-    
+
     Args:
         request: TravelNewsSearchRequest với keywords, source_type, page, limit
-        
+
     Returns:
         Dict với search results và pagination info
     """
@@ -123,13 +123,13 @@ async def search_travel_news(request: TravelNewsSearchRequest):
             page=request.page,
             limit=request.limit
         )
-        
+
         if not result.get("success"):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to search travel news")
             )
-        
+
         return {
             "EC": 0,
             "EM": "Success",
@@ -155,12 +155,12 @@ async def get_travel_news(
     """
     Lấy k cái URL tin tức/cẩm nang du lịch của ngày hôm nay, mới nhất trước
     Nếu không có tin tức nào, tự động trigger agent search để lấy tin tức mới
-    
+
     Args:
         k: Số lượng items cần lấy của ngày hôm nay
         source_type: Lọc theo loại ('news' hoặc 'guide')
         destination: Lọc theo địa điểm (tìm kiếm partial)
-        
+
     Returns:
         Dict với k items của ngày hôm nay
     """
@@ -171,33 +171,33 @@ async def get_travel_news(
             source_type=source_type,
             destination=destination
         )
-        
+
         if not result.get("success"):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to fetch travel news")
             )
-        
+
         data = result.get("data", [])
-        
+
         # Nếu không có tin tức nào, tự động trigger agent search
         if not data or len(data) == 0:
             logger.info("No travel news found, triggering agent search...")
             try:
                 # Trigger agent search với detailed prompt để lấy tin tức trending
                 agent_result = await service.search_and_save_travel_news(use_detailed_prompt=True)
-                
+
                 if agent_result.get("success"):
                     saved_count = agent_result.get("saved", 0)
                     logger.info(f"Agent search completed, saved {saved_count} news items")
-                    
+
                     # Query lại để lấy data mới sau khi agent search
                     result = service.get_today_travel_news(
                         limit=k,
                         source_type=source_type,
                         destination=destination
                     )
-                    
+
                     if result.get("success"):
                         data = result.get("data", [])
                         logger.info(f"Retrieved {len(data)} news items after agent search")
@@ -206,7 +206,7 @@ async def get_travel_news(
             except Exception as agent_error:
                 logger.error(f"Error triggering agent search: {str(agent_error)}", exc_info=True)
                 # Continue với empty data nếu agent search fail
-        
+
         return {
             "EC": 0,
             "EM": "Success",

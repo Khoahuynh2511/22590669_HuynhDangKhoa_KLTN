@@ -38,9 +38,9 @@ async def create_promotion(
 ):
     """
     Tạo mới một mã khuyến mãi
-    
+
     Mã khuyến mãi (code) sẽ được tự động tạo gồm 8 ký tự ngẫu nhiên (chữ hoa và số)
-    
+
     Example:
         POST /api/v1/promotions
         Body:
@@ -54,18 +54,18 @@ async def create_promotion(
             "quantity": 100,
             "is_active": true
         }
-        
+
         Response sẽ có thêm trường "code" (VD: "ABC12345")
     """
     try:
         promotion_data = promotion.model_dump()
         result = await service.create_promotion(promotion_data)
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return PromotionCreateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -82,7 +82,7 @@ async def get_promotions(
 ):
     """
     Lấy danh sách tất cả mã khuyến mãi
-    
+
     Example:
         GET /api/v1/promotions?is_active=true&limit=10
     """
@@ -93,7 +93,7 @@ async def get_promotions(
             offset=offset
         )
         return PromotionListResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in get_promotions endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -114,7 +114,8 @@ async def filter_promotions_by_discount(
     """
     try:
         if min_discount_value is None and max_discount_value is None:
-            raise HTTPException(status_code=400, detail="Cần ít nhất một trong min_discount_value hoặc max_discount_value")
+            raise HTTPException(status_code=400,
+                                detail="Cần ít nhất một trong min_discount_value hoặc max_discount_value")
 
         result = await service.filter_promotions_by_discount(
             min_discount_value=min_discount_value,
@@ -241,14 +242,14 @@ async def get_available_promotions(
     Lấy danh sách tất cả mã khuyến mãi có thể dùng
     Áp dụng cho TẤT CẢ tour
     Chỉ hiện mã còn hạn và còn số lượng (used_count < quantity)
-    
+
     Example:
         GET /api/v1/promotions/available
     """
     try:
         result = await service.get_available_promotions()
         return TourPromotionsResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in get_available_promotions endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -261,18 +262,18 @@ async def get_promotion(
 ):
     """
     Lấy thông tin chi tiết một mã khuyến mãi
-    
+
     Example:
         GET /api/v1/promotions/123e4567-e89b-12d3-a456-426614174000
     """
     try:
         result = await service.get_promotion_by_id(str(promotion_id))
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
-        
+
         return PromotionDetailResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -287,18 +288,18 @@ async def get_promotion_by_code(
 ):
     """
     Lấy thông tin chi tiết một mã khuyến mãi bằng code
-    
+
     Example:
         GET /api/v1/promotions/code/ABC12345
     """
     try:
         result = await service.get_promotion_by_code(code)
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
-        
+
         return PromotionDetailResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -314,7 +315,7 @@ async def update_promotion(
 ):
     """
     Cập nhật thông tin mã khuyến mãi
-    
+
     Example:
         PUT /api/v1/promotions/123e4567-e89b-12d3-a456-426614174000
         Body:
@@ -326,14 +327,14 @@ async def update_promotion(
     try:
         update_data = promotion.model_dump(exclude_unset=True)
         result = await service.update_promotion(str(promotion_id), update_data)
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return PromotionUpdateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -348,20 +349,20 @@ async def delete_promotion(
 ):
     """
     Xóa một mã khuyến mãi
-    
+
     Example:
         DELETE /api/v1/promotions/123e4567-e89b-12d3-a456-426614174000
     """
     try:
         result = await service.delete_promotion(str(promotion_id))
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return PromotionDeleteResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:

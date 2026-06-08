@@ -10,7 +10,6 @@ import io
 from datetime import date, datetime
 
 from ...schema.tour_package_schema import (
-    TourPackageCreate,
     TourPackageUpdate,
     TourPackageListResponse,
     TourPackageDetailResponse,
@@ -24,10 +23,8 @@ from ...schema.tour_package_schema import (
 )
 from ...services.tour_package_service import TourPackageService
 from ...core.supabase import get_supabase_client
-from ...core.dependencies import get_current_user, get_optional_current_user
-from fastapi import Security
+from ...core.dependencies import get_optional_current_user
 from typing import Optional as Opt
-from ...core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +44,19 @@ async def recommend_tour_packages(
 ):
     """
     Recommend tour packages dựa trên tour gần hết hạn và đặc điểm user từ Mem0
-    
+
     Logic:
     1. Tìm 10 tour gần hết hạn nhất (dựa vào end_date)
     2. Lấy đặc điểm user từ Mem0 (preferences, lịch sử tìm kiếm)
     3. Dùng hybrid search để tìm k tour phù hợp nhất từ 10 tour gần hết hạn
-    
+
     Args:
         request: TourPackageRecommendRequest với user_id và k
         service: Tour package service instance
-        
+
     Returns:
         TourPackageSearchResponse với danh sách k tour được recommend
-        
+
     Example:
         POST /api/v1/tour-packages/recommend
         Body:
@@ -74,7 +71,7 @@ async def recommend_tour_packages(
             k=request.k
         )
         return TourPackageSearchResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in recommend_tour_packages endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -88,20 +85,20 @@ async def search_tour_packages(
 ):
     """
     Tìm kiếm tour packages sử dụng hybrid search (semantic + keyword + filters)
-    
+
     Sử dụng:
     - Semantic search: Supabase native pgvector search (text-embedding-3-small)
     - Keyword search: PostgreSQL full-text search trên package_name, destination, description
     - Filters: Database-level filters cho price, duration, destination
     - Scoring: Weighted combination (0.7 semantic + 0.3 keyword)
-    
+
     Args:
         request: TourPackageSearchRequest với query và filters
         service: Tour package service instance
-        
+
     Returns:
         TourPackageSearchResponse với danh sách tour packages và scores
-        
+
     Example:
         POST /api/v1/tour-packages/search
         Body:
@@ -122,7 +119,7 @@ async def search_tour_packages(
             user_id=user_id
         )
         return TourPackageSearchResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in search_tour_packages endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -139,17 +136,17 @@ async def get_tour_packages(
 ):
     """
     Lấy danh sách tất cả tour packages
-    
+
     Args:
         is_active: Lọc theo trạng thái hoạt động (True/False)
         destination: Lọc theo điểm đến (tìm kiếm gần đúng)
         limit: Giới hạn số lượng kết quả trả về
         offset: Bỏ qua số lượng bản ghi
         service: Tour package service instance
-        
+
     Returns:
         TourPackageListResponse với danh sách tour packages
-        
+
     Example:
         GET /api/v1/tour-packages?is_active=true&limit=10
         GET /api/v1/tour-packages?destination=Đà Lạt
@@ -164,7 +161,7 @@ async def get_tour_packages(
             user_id=user_id
         )
         return TourPackageListResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in get_tour_packages endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -183,7 +180,7 @@ async def filter_tours_by_month(
 ):
     """
     Lọc tour packages theo tháng
-    
+
     Args:
         month: Tháng cần lọc (1-12)
         year: Năm cần lọc
@@ -192,10 +189,10 @@ async def filter_tours_by_month(
         limit: Giới hạn số lượng kết quả trả về
         offset: Bỏ qua số lượng bản ghi
         service: Tour package service instance
-        
+
     Returns:
         TourPackageListResponse với danh sách tour packages
-        
+
     Example:
         GET /api/v1/tour-packages/filter/by-month?month=12&year=2024
         GET /api/v1/tour-packages/filter/by-month?month=1&year=2025&date_type=end_date
@@ -203,7 +200,7 @@ async def filter_tours_by_month(
     try:
         if date_type not in ['start_date', 'end_date']:
             raise HTTPException(status_code=400, detail="date_type phải là 'start_date' hoặc 'end_date'")
-        
+
         user_id = current_user.get("user_id") if current_user else None
         result = await service.filter_packages_by_month(
             month=month,
@@ -215,7 +212,7 @@ async def filter_tours_by_month(
             user_id=user_id
         )
         return TourPackageListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -235,7 +232,7 @@ async def filter_tours_by_year(
 ):
     """
     Lọc tour packages theo năm
-    
+
     Args:
         year: Năm cần lọc
         date_type: Loại ngày để lọc ('start_date' hoặc 'end_date', mặc định: 'start_date')
@@ -243,10 +240,10 @@ async def filter_tours_by_year(
         limit: Giới hạn số lượng kết quả trả về
         offset: Bỏ qua số lượng bản ghi
         service: Tour package service instance
-        
+
     Returns:
         TourPackageListResponse với danh sách tour packages
-        
+
     Example:
         GET /api/v1/tour-packages/filter/by-year?year=2024
         GET /api/v1/tour-packages/filter/by-year?year=2025&date_type=end_date
@@ -254,7 +251,7 @@ async def filter_tours_by_year(
     try:
         if date_type not in ['start_date', 'end_date']:
             raise HTTPException(status_code=400, detail="date_type phải là 'start_date' hoặc 'end_date'")
-        
+
         user_id = current_user.get("user_id") if current_user else None
         result = await service.filter_packages_by_year(
             year=year,
@@ -265,7 +262,7 @@ async def filter_tours_by_year(
             user_id=user_id
         )
         return TourPackageListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -285,7 +282,7 @@ async def filter_tours_by_date(
 ):
     """
     Lọc tour packages theo khoảng ngày (start_date -> end_date)
-    
+
     Args:
         start_date: Ngày bắt đầu khoảng lọc (YYYY-MM-DD)
         end_date: Ngày kết thúc khoảng lọc (YYYY-MM-DD)
@@ -293,17 +290,17 @@ async def filter_tours_by_date(
         limit: Giới hạn số lượng kết quả trả về
         offset: Bỏ qua số lượng bản ghi
         service: Tour package service instance
-        
+
     Returns:
         TourPackageListResponse với danh sách tour packages
-        
+
     Example:
         GET /api/v1/tour-packages/filter/by-date?start_date=2024-12-20&end_date=2024-12-31
     """
     try:
         if start_date > end_date:
             raise HTTPException(status_code=400, detail="start_date phải nhỏ hơn hoặc bằng end_date")
-        
+
         user_id = current_user.get("user_id") if current_user else None
         result = await service.filter_packages_by_date(
             start_date=start_date,
@@ -314,7 +311,7 @@ async def filter_tours_by_date(
             user_id=user_id
         )
         return TourPackageListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -326,7 +323,8 @@ async def filter_tours_by_date(
 async def filter_tours_by_price_range(
     min_price: Optional[float] = Query(None, ge=0, description="Giá tối thiểu (VND)"),
     max_price: Optional[float] = Query(None, ge=0, description="Giá tối đa (VND)"),
-    price_segment: Optional[str] = Query(None, description="Phân khúc giá: 'budget' (<5M), 'mid' (5M-15M), 'premium' (>15M)"),
+    price_segment: Optional[str] = Query(
+        None, description="Phân khúc giá: 'budget' (<5M), 'mid' (5M-15M), 'premium' (>15M)"),
     is_active: Optional[bool] = Query(None, description="Lọc theo trạng thái kích hoạt"),
     limit: Optional[int] = Query(None, ge=1, le=100, description="Số lượng kết quả"),
     offset: Optional[int] = Query(None, ge=0, description="Bỏ qua số lượng"),
@@ -335,7 +333,7 @@ async def filter_tours_by_price_range(
 ):
     """
     Lọc tour packages theo phân khúc giá hoặc khoảng giá
-    
+
     Args:
         min_price: Giá tối thiểu (VND)
         max_price: Giá tối đa (VND)
@@ -347,10 +345,10 @@ async def filter_tours_by_price_range(
         limit: Giới hạn số lượng kết quả trả về
         offset: Bỏ qua số lượng bản ghi
         service: Tour package service instance
-        
+
     Returns:
         TourPackageListResponse với danh sách tour packages
-        
+
     Example:
         GET /api/v1/tour-packages/filter/by-price-range?price_segment=budget
         GET /api/v1/tour-packages/filter/by-price-range?min_price=5000000&max_price=15000000
@@ -364,7 +362,7 @@ async def filter_tours_by_price_range(
                 status_code=400,
                 detail=f"price_segment phải là một trong: {', '.join(valid_segments)}"
             )
-        
+
         # If price_segment is provided, set min_price and max_price accordingly
         if price_segment:
             if price_segment == 'budget':
@@ -376,21 +374,21 @@ async def filter_tours_by_price_range(
             elif price_segment == 'premium':
                 min_price = 15000000
                 max_price = None
-        
+
         # Validate that at least one filter is provided
         if min_price is None and max_price is None:
             raise HTTPException(
                 status_code=400,
                 detail="Phải cung cấp ít nhất một trong: min_price, max_price, hoặc price_segment"
             )
-        
+
         # Validate min_price <= max_price if both are provided
         if min_price is not None and max_price is not None and min_price > max_price:
             raise HTTPException(
                 status_code=400,
                 detail="min_price phải nhỏ hơn hoặc bằng max_price"
             )
-        
+
         user_id = current_user.get("user_id") if current_user else None
         result = await service.filter_packages_by_price_range(
             min_price=min_price,
@@ -401,7 +399,7 @@ async def filter_tours_by_price_range(
             user_id=user_id
         )
         return TourPackageListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -417,26 +415,26 @@ async def get_tour_package(
 ):
     """
     Lấy thông tin chi tiết một tour package
-    
+
     Args:
         package_id: UUID của tour package
         service: Tour package service instance
-        
+
     Returns:
         TourPackageDetailResponse với thông tin chi tiết tour package
-        
+
     Example:
         GET /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000
     """
     try:
         user_id = current_user.get("user_id") if current_user else None
         result = await service.get_package_by_id(str(package_id), user_id=user_id)
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
-        
+
         return TourPackageDetailResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -462,12 +460,12 @@ async def create_tour_package(
 ):
     """
     Tạo mới tour package với upload ảnh trực tiếp lên Cloudinary
-    
+
     Endpoint này tự động:
     - Upload ảnh lên Cloudinary
     - Tạo tour package với URLs từ Cloudinary
     - Rollback nếu có lỗi
-    
+
     Args:
         package_name: Tên gói tour
         destination: Điểm đến
@@ -482,10 +480,10 @@ async def create_tour_package(
         is_active: Trạng thái kích hoạt
         images: Danh sách file ảnh (tối đa 10 ảnh, định dạng: JPEG/JPG/PNG/WebP)
         service: Tour package service instance
-        
+
     Returns:
         TourPackageCreateResponse với image_urls từ Cloudinary
-        
+
     Example:
         POST /api/v1/tour-packages
         Content-Type: multipart/form-data
@@ -507,7 +505,7 @@ async def create_tour_package(
         # Validate max 10 images
         if len(images) > 10:
             raise HTTPException(status_code=400, detail="Maximum 10 images allowed")
-        
+
         # Validate image types
         allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
         for image in images:
@@ -516,14 +514,14 @@ async def create_tour_package(
                     status_code=400,
                     detail=f"Invalid file type: {image.content_type}. Allowed: jpeg, jpg, png, webp"
                 )
-        
+
         # Upload images to Cloudinary
         logger.info(f"Uploading {len(images)} images to Cloudinary...")
         image_urls = await service.upload_images(images)
-        
+
         if not image_urls:
             raise HTTPException(status_code=500, detail="Failed to upload images")
-        
+
         # Prepare package data
         package_data = {
             "package_name": package_name,
@@ -539,18 +537,18 @@ async def create_tour_package(
             "suitable_for": suitable_for,
             "is_active": is_active
         }
-        
+
         # Create tour package
         result = await service.create_package(package_data)
-        
+
         if result["EC"] != 0:
             # Rollback: Delete uploaded images
             await service.delete_images_from_urls(package_data["image_urls"])
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         logger.info(f"✓ Created tour package with {len(image_urls)} images")
         return TourPackageCreateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -566,15 +564,15 @@ async def update_tour_package(
 ):
     """
     Cập nhật thông tin tour package (JSON)
-    
+
     Args:
         package_id: UUID của tour package cần cập nhật
         package: Dữ liệu cần cập nhật (các trường optional)
         service: Tour package service instance
-        
+
     Returns:
         TourPackageUpdateResponse với thông tin tour package đã cập nhật
-        
+
     Example:
         PUT /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000
         Content-Type: application/json
@@ -588,25 +586,25 @@ async def update_tour_package(
     try:
         # Convert to dict and remove None values
         update_data = package.model_dump(exclude_unset=True)
-        
+
         # Convert dates to ISO format strings if present
         if 'start_date' in update_data and update_data['start_date']:
             update_data['start_date'] = update_data['start_date'].isoformat()
         if 'end_date' in update_data and update_data['end_date']:
             update_data['end_date'] = update_data['end_date'].isoformat()
-        
+
         if not update_data:
             raise HTTPException(status_code=400, detail="No data provided for update")
-        
+
         result = await service.update_package(str(package_id), update_data)
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return TourPackageUpdateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -623,16 +621,16 @@ async def manage_tour_images(
 ):
     """
     Upload/quản lý ảnh cho tour package
-    
+
     Args:
         package_id: UUID của tour package
         images: Danh sách file ảnh cần upload
         replace_existing: True = thay thế ảnh cũ, False = thêm vào ảnh hiện có
         service: Tour package service instance
-        
+
     Returns:
         Dict với danh sách URL ảnh
-        
+
     Example:
         POST /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000/images?replace_existing=false
         Content-Type: multipart/form-data
@@ -643,21 +641,21 @@ async def manage_tour_images(
         package_result = await service.get_package_by_id(str(package_id))
         if package_result["EC"] != 0:
             raise HTTPException(status_code=404, detail="Tour package not found")
-        
+
         existing_package = package_result["package"]
-        
+
         # Validate max 10 images total
         existing_image_count = 0
         if not replace_existing and existing_package.get("image_urls"):
             existing_image_count = len(existing_package["image_urls"].split("|"))
-        
+
         total_images = existing_image_count + len(images)
         if total_images > 10:
             raise HTTPException(
                 status_code=400,
                 detail=f"Maximum 10 images allowed. Current: {existing_image_count}, Uploading: {len(images)}"
             )
-        
+
         # Validate image types
         allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
         for image in images:
@@ -666,14 +664,14 @@ async def manage_tour_images(
                     status_code=400,
                     detail=f"Invalid file type: {image.content_type}. Allowed: jpeg, jpg, png, webp"
                 )
-        
+
         # Upload new images
         logger.info(f"Uploading {len(images)} images to Cloudinary...")
         new_image_urls = await service.upload_images(images)
-        
+
         if not new_image_urls:
             raise HTTPException(status_code=500, detail="Failed to upload images")
-        
+
         # Prepare final image_urls
         if replace_existing:
             # Delete old images from Cloudinary
@@ -687,25 +685,25 @@ async def manage_tour_images(
                 final_image_urls = existing_urls + "|" + "|".join(new_image_urls)
             else:
                 final_image_urls = "|".join(new_image_urls)
-        
+
         # Update package with new image_urls
         update_result = await service.update_package(
             str(package_id),
             {"image_urls": final_image_urls}
         )
-        
+
         if update_result["EC"] != 0:
             # Rollback: Delete newly uploaded images
             await service.delete_images_from_urls("|".join(new_image_urls))
             raise HTTPException(status_code=500, detail="Failed to update package with new images")
-        
+
         return {
             "EC": 0,
             "EM": "Images uploaded successfully",
             "image_urls": final_image_urls.split("|"),
             "total_images": len(final_image_urls.split("|"))
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -720,27 +718,27 @@ async def delete_tour_package(
 ):
     """
     Xóa một tour package
-    
+
     Args:
         package_id: UUID của tour package cần xóa
         service: Tour package service instance
-        
+
     Returns:
         TourPackageDeleteResponse với kết quả xóa
-        
+
     Example:
         DELETE /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000
     """
     try:
         result = await service.delete_package(str(package_id))
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return TourPackageDeleteResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -756,21 +754,21 @@ async def cancel_tour_package(
 ):
     """
     Hủy tour package và tất cả bookings liên quan (Admin only)
-    
+
     Khi admin hủy tour:
     1. Set is_active = False
     2. Tự động hủy tất cả bookings có status 'pending' hoặc 'confirmed'
     3. Hoàn trả available_slots cho mỗi booking
     4. Tạo notification cho tất cả users bị ảnh hưởng
-    
+
     Args:
         package_id: UUID của tour package cần hủy
         reason: Lý do hủy tour
         service: Tour package service instance
-        
+
     Returns:
         Dict với số booking đã hủy và số notification đã gửi
-        
+
     Example:
         POST /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000/cancel?reason=Thiên tai
     """
@@ -779,14 +777,14 @@ async def cancel_tour_package(
             package_id=str(package_id),
             reason=reason
         )
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return result
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -801,7 +799,7 @@ async def create_tour_packages_from_csv(
 ):
     """
     Tạo nhiều tour packages từ file CSV
-    
+
     CSV file phải có các cột sau (header):
     - package_name: Tên gói tour (bắt buộc)
     - destination: Điểm đến (bắt buộc)
@@ -815,14 +813,14 @@ async def create_tour_packages_from_csv(
     - cuisine: Ẩm thực (tùy chọn)
     - suitable_for: Phù hợp cho (tùy chọn)
     - is_active: Trạng thái kích hoạt (tùy chọn, true/false, mặc định: true)
-    
+
     Args:
         file: File CSV upload
         service: Tour package service instance
-        
+
     Returns:
         TourPackageBulkCreateResponse với thống kê kết quả
-        
+
     Example:
         POST /api/v1/tour-packages/bulk/csv
         Content-Type: multipart/form-data
@@ -832,7 +830,7 @@ async def create_tour_packages_from_csv(
         # Kiểm tra file type
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="File phải có định dạng CSV")
-        
+
         # Đọc nội dung file (ưu tiên UTF-8, fallback nếu file không hợp lệ)
         contents = await file.read()
         try:
@@ -845,28 +843,28 @@ async def create_tour_packages_from_csv(
             except Exception:
                 csv_text = contents.decode('utf-8', errors='replace')  # Cuối cùng: bỏ/replace byte lỗi
         csv_reader = csv.DictReader(io.StringIO(csv_text))
-        
+
         # Kiểm tra header
         required_fields = [
             'package_name', 'destination', 'description', 'duration_days',
             'price', 'available_slots', 'start_date', 'end_date'
         ]
-        
+
         if not csv_reader.fieldnames:
             raise HTTPException(status_code=400, detail="File CSV không có header")
-        
+
         missing_fields = [field for field in required_fields if field not in csv_reader.fieldnames]
         if missing_fields:
             raise HTTPException(
                 status_code=400,
                 detail=f"Thiếu các cột bắt buộc: {', '.join(missing_fields)}"
             )
-        
+
         # Parse và validate từng dòng
         packages_data = []
         errors = []
         row_num = 1  # Bắt đầu từ 1 (sau header)
-        
+
         for row in csv_reader:
             row_num += 1
             try:
@@ -881,24 +879,24 @@ async def create_tour_packages_from_csv(
                     'start_date': datetime.strptime(row['start_date'].strip(), '%Y-%m-%d').date().isoformat(),
                     'end_date': datetime.strptime(row['end_date'].strip(), '%Y-%m-%d').date().isoformat(),
                 }
-                
+
                 # Optional fields
                 if row.get('image_urls'):
                     package_data['image_urls'] = row['image_urls'].strip()
-                
+
                 if row.get('cuisine'):
                     package_data['cuisine'] = row['cuisine'].strip()
-                
+
                 if row.get('suitable_for'):
                     package_data['suitable_for'] = row['suitable_for'].strip()
-                
+
                 # Parse is_active
                 if row.get('is_active'):
                     is_active_str = row['is_active'].strip().lower()
                     package_data['is_active'] = is_active_str in ['true', '1', 'yes', 'y']
                 else:
                     package_data['is_active'] = True
-                
+
                 # Validation
                 if not package_data['package_name']:
                     raise ValueError("package_name không được để trống")
@@ -912,33 +910,31 @@ async def create_tour_packages_from_csv(
                     raise ValueError("price phải lớn hơn 0")
                 if package_data['available_slots'] < 0:
                     raise ValueError("available_slots phải lớn hơn hoặc bằng 0")
-                
+
                 packages_data.append(package_data)
-                
+
             except ValueError as e:
                 errors.append(f"Dòng {row_num}: {str(e)}")
             except Exception as e:
                 errors.append(f"Dòng {row_num}: Lỗi parse dữ liệu - {str(e)}")
-        
+
         if not packages_data:
             raise HTTPException(
                 status_code=400,
                 detail=f"Không có dữ liệu hợp lệ để tạo. Lỗi: {'; '.join(errors)}"
             )
-        
+
         # Tạo packages qua service
         result = await service.create_packages_bulk(packages_data)
-        
+
         # Thêm parsing errors vào kết quả
         if errors:
             result['parsing_errors'] = errors
-        
+
         return TourPackageBulkCreateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in create_tour_packages_from_csv endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Lỗi xử lý file CSV: {str(e)}")
-
-

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, OnDestroy } from '@angular/core';
-import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
 import { NotificationBellComponent } from '../../components/notification-bell/notification-bell.component';
@@ -9,7 +9,7 @@ import { ClickOutsideDirective } from '../../directives/click-outside.directive'
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, CommonModule, ClickOutsideDirective, NotificationBellComponent],
+  imports: [RouterLink, RouterLinkActive, CommonModule, ClickOutsideDirective, NotificationBellComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -28,6 +28,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     { label: 'Tin tức & Cẩm nang', url: '/travel-news' },
     { label: 'Đánh giá', url: '/reviews' },
   ]
+
+  serviceMenu: ServiceMenu[] = [
+    { label: 'Kh\u00e1ch s\u1ea1n', url: '/hotel', icon: 'icon/hotel.png' },
+    { label: 'V\u00e9 m\u00e1y bay', url: '/flights', icon: 'icon/air-plane.png' },
+    { label: 'V\u00e9 t\u00e0u h\u1ecfa', url: '/trains', icon: 'icon/train.png' },
+    { label: 'V\u00e9 xe kh\u00e1ch', url: '/buses', icon: 'icon/car.png' },
+    { label: '\u0110\u01b0a \u0111\u00f3n s\u00e2n bay', url: '/airport-transfer', icon: 'icon/plane.png' },
+    { label: 'Thu\u00ea xe', url: '/car-rental', icon: 'icon/car.png' },
+    { label: 'Ho\u1ea1t \u0111\u1ed9ng', url: '/activities', icon: 'icon/car.png' },
+  ];
 
   get topMenu(): Menu[] {
     if (this.isAuthenticated) {
@@ -126,4 +136,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
 interface Menu {
   label: string;
   url: string;
+}
+
+interface ServiceMenu extends Menu {
+  icon: string;
 }

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict
+from typing import Optional
+
 
 class SearchTourPackagesInput(BaseModel):
     """Input schema for search_tour_packages tool"""
@@ -32,6 +33,7 @@ class SearchFlightsInput(BaseModel):
     """Input schema for search_flights tool"""
     departure_iata: str = Field(description="Departure airport IATA code (e.g., HAN for Hanoi, SGN for Ho Chi Minh)")
     arrival_iata: str = Field(description="Arrival airport IATA code (e.g., SGN for Ho Chi Minh, HAN for Hanoi)")
+    date: str = Field(default="", description="Travel date (YYYY-MM-DD), empty = today")
     limit: int = Field(default=5, description="Maximum number of flights to return (1-100)")
 
 
@@ -77,8 +79,43 @@ class BookTrainInput(BaseModel):
     passenger_name: str = Field(description="Full name of passenger")
     passenger_phone: str = Field(description="Phone number")
     passenger_email: str = Field(description="Email address")
-    seat_type: str = Field(default="soft_seat", description="Seat type: hard_seat, soft_seat, hard_sleeper_6, soft_sleeper_6, soft_sleeper_4, vip_cabin")
+    seat_type: str = Field(
+        default="soft_seat",
+        description="Seat type: hard_seat, soft_seat, hard_sleeper_6, soft_sleeper_6, soft_sleeper_4, vip_cabin")
     num_passengers: int = Field(default=1, description="Number of passengers")
+
+
+class SearchBusesInput(BaseModel):
+    """Input schema for search_buses tool"""
+    departure_station: str = Field(description="Departure bus station code (e.g., BXSG=Ho Chi Minh, BXHN=Ha Noi)")
+    arrival_station: str = Field(description="Arrival bus station code")
+    date: str = Field(default="", description="Travel date (YYYY-MM-DD), empty = today")
+    limit: int = Field(default=5, description="Maximum number of buses to return (1-10)")
+
+
+class BookBusInput(BaseModel):
+    """Input schema for book_bus tool"""
+    bus_id: str = Field(description="Bus ID from search results")
+    passenger_name: str = Field(description="Full name of passenger")
+    passenger_phone: str = Field(description="Phone number")
+    passenger_email: str = Field(description="Email address")
+    seat_type: str = Field(
+        default="standard",
+        description="Seat type: standard, premium, single_sleeper, double_sleeper")
+    num_passengers: int = Field(default=1, description="Number of passengers")
+    user_id: Optional[str] = Field(default=None, description="User ID if available")
+
+
+class CreateTransportPaymentInput(BaseModel):
+    """Input schema for create_transport_payment tool"""
+    booking_type: str = Field(description="Transport booking type: flight or train")
+    booking_id: str = Field(description="Booking ID returned by book_flight or book_train")
+    payment_method: str = Field(default="vnpay", description="Payment method")
+
+
+class EmptyInput(BaseModel):
+    """Input schema for tools that do not require arguments"""
+    pass
 
 
 class RequestFlightSearchInput(BaseModel):

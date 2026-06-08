@@ -3,7 +3,6 @@ Agent Management API Endpoints
 """
 import logging
 from fastapi import APIRouter
-from typing import Dict, Any
 from ...services.agent_services import supervisor_graph
 from ...services.agent_services.config import agent_config
 
@@ -16,7 +15,7 @@ router = APIRouter()
 async def get_agent_status():
     """
     Get agent system status
-    
+
     Returns:
         Agent status information
     """
@@ -43,13 +42,13 @@ async def get_agent_status():
 async def get_agent_graph():
     """
     Get LangGraph structure information
-    
+
     Returns:
         Graph structure and flow information
     """
     try:
-        graph = supervisor_graph.graph
-        
+        _graph = supervisor_graph.graph  # noqa: F841
+
         return {
             "graph_type": "StateGraph",
             "nodes": [
@@ -80,7 +79,7 @@ async def get_agent_graph():
 async def get_agent_info():
     """
     Get detailed agent information
-    
+
     Returns:
         Comprehensive agent information
     """

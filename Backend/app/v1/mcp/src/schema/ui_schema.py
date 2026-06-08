@@ -21,4 +21,5 @@ class TourPackageUIModel(BaseModel):
 
 class GenerateTourUIInput(BaseModel):
     """Input schema for generate_tour_ui tool"""
-    packages: List[Dict[str, Any]] = Field(..., description="List of tour package dictionaries to display in UI grid. Each package should have: package_id, package_name, destination, duration_days, price, image_urls, description, start_date, available_slots")
+    packages: List[Dict[str, Any]] = Field(
+        ..., description="List of tour package dictionaries to display in UI grid. Each package should have: package_id, package_name, destination, duration_days, price, image_urls, description, start_date, available_slots")

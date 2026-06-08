@@ -31,7 +31,7 @@ class PaymentService:
     def _pg_conn(self):
         """Get PostgreSQL connection"""
         return psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor)
-    
+
     async def create_payment(
         self,
         booking_id: str,
@@ -59,7 +59,9 @@ class PaymentService:
 
                     # 2. Kiểm tra booking status
                     if booking['status'] not in ['pending', 'confirmed']:
-                        return {"EC": 2, "EM": f"Cannot create payment for booking with status: {booking['status']}", "data": None}
+                        return {
+                            "EC": 2, "EM": f"Cannot create payment for booking with status: {
+                                booking['status']}", "data": None}
 
                     # 3. Kiểm tra đã có payment pending chưa
                     cur.execute("""
@@ -105,7 +107,7 @@ class PaymentService:
         except Exception as e:
             logger.error(f"Error creating payment: {str(e)}")
             return {"EC": 5, "EM": f"Error creating payment: {str(e)}", "data": None}
-    
+
     async def _regenerate_payment_url(
         self,
         payment_id: str,
@@ -205,7 +207,7 @@ class PaymentService:
         except Exception as e:
             logger.error(f"Error updating payment {payment_id}: {str(e)}")
             return {"EC": 2, "EM": f"Error: {str(e)}", "data": None}
-    
+
     async def verify_and_complete_payment(
         self,
         callback_data: Dict[str, Any]
@@ -251,7 +253,7 @@ class PaymentService:
             if pay_date and is_success:
                 try:
                     paid_at = datetime.strptime(pay_date, '%Y%m%d%H%M%S').isoformat()
-                except:
+                except BaseException:
                     paid_at = datetime.now(timezone.utc).isoformat()
 
             update_result = await self.update_status(
@@ -269,7 +271,8 @@ class PaymentService:
                     if flight_bid:
                         with self._pg_conn() as conn:
                             with conn.cursor() as cur:
-                                cur.execute("UPDATE flight_bookings SET status = 'confirmed', payment_status = 'paid' WHERE booking_id = %s", (flight_bid,))
+                                cur.execute(
+                                    "UPDATE flight_bookings SET status = 'confirmed', payment_status = 'paid' WHERE booking_id = %s", (flight_bid,))
                                 conn.commit()
                         logger.info(f"Flight booking {flight_bid} confirmed after payment")
                 elif booking_type == 'train':
@@ -277,7 +280,8 @@ class PaymentService:
                     if train_bid:
                         with self._pg_conn() as conn:
                             with conn.cursor() as cur:
-                                cur.execute("UPDATE train_bookings SET status = 'confirmed', payment_status = 'paid' WHERE booking_id = %s", (train_bid,))
+                                cur.execute(
+                                    "UPDATE train_bookings SET status = 'confirmed', payment_status = 'paid' WHERE booking_id = %s", (train_bid,))
                                 conn.commit()
                         logger.info(f"Train booking {train_bid} confirmed after payment")
                 else:
@@ -285,7 +289,8 @@ class PaymentService:
                     if booking_id:
                         with self._pg_conn() as conn:
                             with conn.cursor() as cur:
-                                cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
+                                cur.execute(
+                                    "UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
                                 conn.commit()
                         logger.info(f"Booking {booking_id} confirmed after payment")
 
@@ -346,15 +351,25 @@ class PaymentService:
                             ip_addr=ip_addr,
                             client_return_url=client_return_url
                         )
-                        return {"EC": 0, "EM": "Payment URL regenerated", "data": {"payment_id": str(existing["payment_id"]), "payment_url": payment_url, "amount": amount}}
+                        return {
+                            "EC": 0,
+                            "EM": "Payment URL regenerated",
+                            "data": {
+                                "payment_id": str(
+                                    existing["payment_id"]),
+                                "payment_url": payment_url,
+                                "amount": amount}}
 
                     amount = float(booking["total_price"])
                     now = datetime.now(timezone.utc)
 
                     cur.execute(
                         f"INSERT INTO payments (booking_type, {id_col}, amount, payment_method, status, created_at) VALUES (%s, %s, %s, %s, 'pending', %s) RETURNING payment_id, amount, payment_method, status, created_at",
-                        (booking_type, booking_id, amount, payment_method, now)
-                    )
+                        (booking_type,
+                         booking_id,
+                         amount,
+                         payment_method,
+                         now))
                     payment = dict(cur.fetchone())
                     conn.commit()
 
@@ -370,7 +385,9 @@ class PaymentService:
                     payment["payment_url"] = payment_url
                     payment["booking_type"] = booking_type
                     payment["booking_id"] = booking_id
-                    logger.info(f"Created transport payment {payment['payment_id']} for {booking_type} booking {booking_id}")
+                    logger.info(
+                        f"Created transport payment {
+                            payment['payment_id']} for {booking_type} booking {booking_id}")
 
                     return {"EC": 0, "EM": "Payment created successfully", "data": payment}
 
@@ -447,7 +464,7 @@ class PaymentService:
         except Exception as e:
             logger.error(f"Error getting user payments: {str(e)}")
             return {"EC": 1, "EM": f"Error: {str(e)}", "data": None, "total": 0}
-    
+
     # ================== ADMIN PAYMENT METHODS ==================
 
     async def create_payment_by_admin(
@@ -462,17 +479,21 @@ class PaymentService:
             with self._pg_conn() as conn:
                 with conn.cursor() as cur:
                     # 1. Kiểm tra booking
-                    cur.execute("SELECT booking_id, total_amount, status, user_id FROM bookings WHERE booking_id = %s", (booking_id,))
+                    cur.execute(
+                        "SELECT booking_id, total_amount, status, user_id FROM bookings WHERE booking_id = %s", (booking_id,))
                     booking = cur.fetchone()
 
                     if not booking:
                         return {"EC": 1, "EM": "Booking not found", "data": None}
 
                     if booking['status'] not in ['pending', 'confirmed']:
-                        return {"EC": 2, "EM": f"Cannot create payment for booking with status '{booking['status']}'", "data": None}
+                        return {
+                            "EC": 2, "EM": f"Cannot create payment for booking with status '{
+                                booking['status']}'", "data": None}
 
                     # 2. Kiểm tra đã có payment completed chưa
-                    cur.execute("SELECT payment_id FROM payments WHERE booking_id = %s AND status = 'completed'", (booking_id,))
+                    cur.execute(
+                        "SELECT payment_id FROM payments WHERE booking_id = %s AND status = 'completed'", (booking_id,))
                     if cur.fetchone():
                         return {"EC": 3, "EM": "Payment already exists for this booking", "data": None}
 
@@ -507,24 +528,33 @@ class PaymentService:
             with self._pg_conn() as conn:
                 with conn.cursor() as cur:
                     # 1. Kiểm tra booking
-                    cur.execute("SELECT booking_id, total_amount, status, user_id FROM bookings WHERE booking_id = %s", (booking_id,))
+                    cur.execute(
+                        "SELECT booking_id, total_amount, status, user_id FROM bookings WHERE booking_id = %s", (booking_id,))
                     booking = cur.fetchone()
 
                     if not booking:
                         return {"EC": 1, "EM": "Booking not found", "data": None}
 
                     if booking['status'] != 'pending':
-                        return {"EC": 2, "EM": f"Chỉ có thể xác nhận thanh toán cho booking có status 'pending'. Booking hiện tại có status '{booking['status']}'", "data": None}
+                        return {
+                            "EC": 2,
+                            "EM": f"Chỉ có thể xác nhận thanh toán cho booking có status 'pending'. Booking hiện tại có status '{
+                                booking['status']}'",
+                            "data": None}
 
                     # 2. Kiểm tra payment hiện có
-                    cur.execute("SELECT payment_id, status, payment_method FROM payments WHERE booking_id = %s", (booking_id,))
+                    cur.execute(
+                        "SELECT payment_id, status, payment_method FROM payments WHERE booking_id = %s", (booking_id,))
                     existing = cur.fetchone()
 
                     now = datetime.now(timezone.utc)
 
                     if existing:
                         if existing['status'] == 'completed':
-                            return {"EC": 3, "EM": "Booking này đã có payment completed. Không thể tạo payment mới.", "data": None}
+                            return {
+                                "EC": 3,
+                                "EM": "Booking này đã có payment completed. Không thể tạo payment mới.",
+                                "data": None}
 
                         # Update existing payment
                         cur.execute("""
@@ -545,12 +575,16 @@ class PaymentService:
                     cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
                     conn.commit()
 
-                    log_msg = f"Admin {admin_id} confirmed cash payment for booking {booking_id}. Amount: {booking['total_amount']}"
+                    log_msg = f"Admin {admin_id} confirmed cash payment for booking {booking_id}. Amount: {
+                        booking['total_amount']}"
                     if notes:
                         log_msg += f" Notes: {notes}"
                     logger.info(log_msg)
 
-                    return {"EC": 0, "EM": "Đã xác nhận thanh toán tiền mặt thành công. Booking đã được xác nhận.", "data": payment}
+                    return {
+                        "EC": 0,
+                        "EM": "Đã xác nhận thanh toán tiền mặt thành công. Booking đã được xác nhận.",
+                        "data": payment}
 
         except Exception as e:
             logger.error(f"Error confirming cash payment by admin: {str(e)}")
@@ -567,7 +601,8 @@ class PaymentService:
             with self._pg_conn() as conn:
                 with conn.cursor() as cur:
                     # 1. Lấy thông tin payment
-                    cur.execute("SELECT payment_id, booking_id, amount, status, refunded_at FROM payments WHERE payment_id = %s", (payment_id,))
+                    cur.execute(
+                        "SELECT payment_id, booking_id, amount, status, refunded_at FROM payments WHERE payment_id = %s", (payment_id,))
                     payment = cur.fetchone()
 
                     if not payment:
@@ -580,14 +615,17 @@ class PaymentService:
                         return {"EC": 3, "EM": "Payment already refunded", "data": None}
 
                     # 2. Lấy thông tin booking
-                    cur.execute("SELECT booking_id, status FROM bookings WHERE booking_id = %s", (payment['booking_id'],))
+                    cur.execute("SELECT booking_id, status FROM bookings WHERE booking_id = %s",
+                                (payment['booking_id'],))
                     booking = cur.fetchone()
 
                     if not booking:
                         return {"EC": 4, "EM": "Booking not found", "data": None}
 
                     if booking['status'] in ['cancelled', 'completed']:
-                        return {"EC": 5, "EM": f"Cannot refund payment for booking with status '{booking['status']}'", "data": None}
+                        return {
+                            "EC": 5, "EM": f"Cannot refund payment for booking with status '{
+                                booking['status']}'", "data": None}
 
                     # 3. Update payment với thông tin refund
                     now = datetime.now(timezone.utc)
@@ -598,7 +636,8 @@ class PaymentService:
                     refunded = dict(cur.fetchone())
 
                     # 4. Update booking status về pending
-                    cur.execute("UPDATE bookings SET status = 'pending' WHERE booking_id = %s", (payment['booking_id'],))
+                    cur.execute("UPDATE bookings SET status = 'pending' WHERE booking_id = %s",
+                                (payment['booking_id'],))
                     conn.commit()
 
                     logger.info(f"Admin {admin_id} refunded payment {payment_id} for booking {payment['booking_id']}")
@@ -684,4 +723,3 @@ class PaymentService:
         except Exception as e:
             logger.error(f"Error getting all payments for admin: {str(e)}")
             return {"EC": 1, "EM": f"Error: {str(e)}", "data": None, "total": 0}
-

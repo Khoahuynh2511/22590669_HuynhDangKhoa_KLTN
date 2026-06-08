@@ -5,7 +5,6 @@ Pydantic models for admin customer management endpoints
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
-from uuid import UUID
 
 
 class AdminUserProfile(BaseModel):
@@ -302,7 +301,10 @@ class AdminCreateUserRequest(BaseModel):
     email: str = Field(..., description="User email (must be unique)")
     full_name: Optional[str] = Field(None, description="User full name")
     phone_number: Optional[str] = Field(None, description="User phone number")
-    password: Optional[str] = Field(None, min_length=6, description="User password (optional, will generate random if not provided)")
+    password: Optional[str] = Field(
+        None,
+        min_length=6,
+        description="User password (optional, will generate random if not provided)")
     role: str = Field("user", description="User role (user or admin)")
     is_active: bool = Field(True, description="Account active status")
 
@@ -327,7 +329,8 @@ class AdminCreateUserData(BaseModel):
     phone_number: Optional[str] = Field(None, description="User phone number")
     role: str = Field(..., description="User role")
     is_active: bool = Field(..., description="Account active status")
-    password: Optional[str] = Field(None, description="Generated password (only returned if password was auto-generated)")
+    password: Optional[str] = Field(
+        None, description="Generated password (only returned if password was auto-generated)")
 
 
 class AdminCreateUserResponse(BaseModel):

@@ -36,29 +36,29 @@ async def get_notifications(
 ):
     """
     Lấy danh sách notifications của user hiện tại
-    
+
     Args:
         unread_only: Chỉ lấy thông báo chưa đọc
         limit: Số lượng kết quả
         offset: Bỏ qua số lượng
         current_user: User hiện tại (từ auth)
         service: Notification service instance
-        
+
     Returns:
         NotificationListResponse với danh sách notifications
     """
     try:
         user_id = current_user.get("user_id")
-        
+
         result = await service.get_user_notifications(
             user_id=user_id,
             unread_only=unread_only,
             limit=limit,
             offset=offset
         )
-        
+
         return NotificationListResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in get_notifications endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -72,20 +72,20 @@ async def get_unread_count(
 ):
     """
     Lấy số lượng thông báo chưa đọc
-    
+
     Args:
         current_user: User hiện tại (từ auth)
         service: Notification service instance
-        
+
     Returns:
         NotificationUnreadCountResponse với count
     """
     try:
         user_id = current_user.get("user_id")
         result = await service.get_unread_count(user_id)
-        
+
         return NotificationUnreadCountResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in get_unread_count endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -98,20 +98,20 @@ async def mark_all_notifications_as_read(
 ):
     """
     Đánh dấu tất cả thông báo của user là đã đọc
-    
+
     Args:
         current_user: User hiện tại (từ auth)
         service: Notification service instance
-        
+
     Returns:
         NotificationMarkReadResponse
     """
     try:
         user_id = current_user.get("user_id")
         result = await service.mark_all_as_read(user_id)
-        
+
         return NotificationMarkReadResponse(**result)
-        
+
     except Exception as e:
         logger.error(f"Error in mark_all_notifications_as_read endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -125,24 +125,24 @@ async def mark_notification_as_read(
 ):
     """
     Đánh dấu một thông báo là đã đọc
-    
+
     Args:
         notification_id: UUID của notification
         service: Notification service instance
-        
+
     Returns:
         NotificationMarkReadResponse
     """
     try:
         result = await service.mark_as_read(str(notification_id))
-        
+
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return NotificationMarkReadResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:

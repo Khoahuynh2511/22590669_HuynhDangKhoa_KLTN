@@ -11,4 +11,3 @@ __all__ = [
     "RecommendationEngine",
     "recommendation_engine"
 ]
-

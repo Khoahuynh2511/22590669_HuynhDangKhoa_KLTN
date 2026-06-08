@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.tools.weather_tools import register_weather_tools
 from src.tools.flight_tools import register_flight_tools
 from src.tools.train_tools import register_train_tools
+from src.tools.bus_tools import register_bus_tools
 from src.tools.booking_tools import register_booking_tools
 from src.tools.search_personalization import register_search_personalization_tools
 from src.tools.tour_search_tools import register_tour_search_tools
@@ -31,6 +32,7 @@ mcp = FastMCP(
 weather_server = FastMCP(name="Weather")
 flight_server = FastMCP(name="Flight")
 train_server = FastMCP(name="Train")
+bus_server = FastMCP(name="Bus")
 booking_server = FastMCP(name="Booking")
 search_server = FastMCP(name="Search")
 
@@ -38,15 +40,19 @@ search_server = FastMCP(name="Search")
 register_weather_tools(weather_server)
 register_flight_tools(flight_server)
 register_train_tools(train_server)
+register_bus_tools(bus_server)
 register_booking_tools(booking_server)
 register_search_personalization_tools(search_server)
 register_tour_search_tools(search_server)
 
 # Import sub-servers into main (static composition, no prefixes to keep original tool names)
+
+
 async def compose_servers():
     await mcp.import_server(weather_server)
     await mcp.import_server(flight_server)
     await mcp.import_server(train_server)
+    await mcp.import_server(bus_server)
     await mcp.import_server(booking_server)
     await mcp.import_server(search_server)
 
@@ -54,19 +60,20 @@ async def compose_servers():
 _servers_composed = False
 _composition_lock = threading.Lock()
 
+
 def ensure_servers_composed():
     """Ensure servers are composed, using thread-safe approach"""
     global _servers_composed
     if _servers_composed:
         return
-    
+
     with _composition_lock:
         # Double-check after acquiring lock
         if _servers_composed:
             return
-        
+
         import threading
-        
+
         # Use a separate thread to run the async composition
         # This avoids conflicts with uvicorn's event loop
         def run_in_thread():
@@ -76,15 +83,16 @@ def ensure_servers_composed():
                 new_loop.run_until_complete(compose_servers())
             finally:
                 new_loop.close()
-        
+
         thread = threading.Thread(target=run_in_thread, daemon=False)
         thread.start()
         thread.join(timeout=10.0)  # Wait max 10 seconds
-        
+
         if thread.is_alive():
             raise RuntimeError("Server composition timed out")
-        
+
         _servers_composed = True
+
 
 # Compose servers lazily - only when needed
 # This will be called when mcp.http_app() is accessed or when server is used
@@ -117,10 +125,12 @@ register_all_prompts(mcp)
 # Wrap http_app to ensure composition before use
 _original_http_app = mcp.http_app
 
+
 def http_app(path: str = ""):
     """Wrapper to ensure servers are composed before creating http app"""
     ensure_servers_composed()
     return _original_http_app(path)
+
 
 # Monkey patch to use our wrapper
 mcp.http_app = http_app

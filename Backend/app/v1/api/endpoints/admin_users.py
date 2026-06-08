@@ -36,15 +36,15 @@ async def create_user(
 ):
     """
     Create a new user (admin only)
-    
+
     Args:
         request: User creation request data
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Created user information (including generated password if auto-generated)
-        
+
     Raises:
         400: Email already exists or invalid data
         403: Not admin
@@ -57,12 +57,12 @@ async def create_user(
         role=request.role,
         is_active=request.is_active
     )
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=400, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -73,22 +73,22 @@ async def get_all_users(
 ):
     """
     Get all users in the database (admin only)
-    
+
     Args:
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         List of all users with last_access_time
-        
+
     Raises:
         403: Not admin
     """
     result = service.get_all_users()
-    
+
     if result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -100,26 +100,26 @@ async def get_user_profile(
 ):
     """
     Get user profile by ID (admin only)
-    
+
     Args:
         user_id: User ID
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         User profile data
-        
+
     Raises:
         404: User not found
         403: Not admin
     """
     result = service.get_user_profile(user_id)
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -137,7 +137,7 @@ async def get_user_bookings(
 ):
     """
     Get user bookings with pagination and filters (admin only)
-    
+
     Args:
         user_id: User ID
         page: Page number (>=1)
@@ -148,10 +148,10 @@ async def get_user_bookings(
         sort: Sort order (created_at_desc/start_date_desc/start_date_asc)
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Paginated list of user bookings
-        
+
     Raises:
         403: Not admin
     """
@@ -164,10 +164,10 @@ async def get_user_bookings(
         to_date=to_date,
         sort=sort
     )
-    
+
     if result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -180,34 +180,34 @@ async def update_user_status(
 ):
     """
     Update user active status (admin only)
-    
+
     Args:
         user_id: User ID
         request: Status update request body
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Updated status
-        
+
     Raises:
         404: User not found
         403: Not admin
     """
     admin_id = current_admin.get("user_id")
-    
+
     result = service.set_user_active(
         user_id=user_id,
         is_active=request.is_active,
         reason=request.reason,
         admin_id=admin_id
     )
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -221,17 +221,17 @@ async def get_user_summary(
 ):
     """
     Get comprehensive user summary with KPIs and recent activities (admin only)
-    
+
     Args:
         user_id: User ID
         from_date: Optional start date for KPI filtering (ISO format)
         to_date: Optional end date for KPI filtering (ISO format)
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Complete user summary with profile, KPIs, and recent activities
-        
+
     Raises:
         404: User not found
         403: Not admin
@@ -241,12 +241,12 @@ async def get_user_summary(
         from_date=from_date,
         to_date=to_date
     )
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -258,24 +258,24 @@ async def get_user_chat_history(
 ):
     """
     Get user's chat history grouped by chat rooms (admin only)
-    
+
     Args:
         user_id: User ID
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Chat history grouped by rooms with last 50 messages per room
-        
+
     Raises:
         404: User not found
         403: Not admin
     """
     result = service.get_user_chat_history(user_id)
-    
+
     if result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -288,16 +288,16 @@ async def update_user(
 ):
     """
     Update user information (admin only)
-    
+
     Args:
         user_id: User ID to update
         request: User update request data
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Updated user information
-        
+
     Raises:
         404: User not found
         400: Email already exists or invalid data
@@ -312,14 +312,14 @@ async def update_user(
         is_active=request.is_active,
         password=request.password
     )
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] == 2:
         raise HTTPException(status_code=400, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result
 
 
@@ -332,27 +332,27 @@ async def delete_user(
     """
     Delete user by ID (admin only)
     Only allows deletion if user has no related records (bookings, payments, reviews, chat_rooms)
-    
+
     Args:
         user_id: User ID to delete
         current_admin: Current admin user from JWT
         service: AdminUserService instance
-        
+
     Returns:
         Deleted user information
-        
+
     Raises:
         404: User not found
         400: User has related records (cannot delete)
         403: Not admin
     """
     result = service.delete_user(user_id)
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] == 3:
         raise HTTPException(status_code=400, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     return result

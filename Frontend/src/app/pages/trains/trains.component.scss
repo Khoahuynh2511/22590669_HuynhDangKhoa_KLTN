@@ -1,0 +1,10 @@
+﻿:host {
+  display: block;
+  padding-top: 126px;
+}
+
+@media (max-width: 768px) {
+  :host {
+    padding-top: 114px;
+  }
+}

@@ -1,8 +1,10 @@
 import logging
-from fastapi import APIRouter
-from typing import Dict, Any
 
-from Backend.app.v1.api import router
+logger = logging.getLogger(__name__)
+
+from Backend.app.v1.api import router  # noqa: E402
+
+
 @router.get("/docs")
 async def get_api_docs():
     """

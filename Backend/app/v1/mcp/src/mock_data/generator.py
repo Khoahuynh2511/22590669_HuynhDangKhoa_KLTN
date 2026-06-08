@@ -16,6 +16,10 @@ from .train_data import (
     TRAIN_STATIONS, TRAIN_TYPES, TRAIN_ROUTES,
     SEAT_TYPES, TRAIN_DEPARTURE_HOURS
 )
+from .bus_data import (
+    BUS_COMPANIES, BUS_STATIONS, BUS_TYPES, BUS_SEAT_TYPES,
+    BUS_ROUTES, BUS_DEPARTURE_HOURS
+)
 
 
 class MockDataGenerator:
@@ -434,6 +438,154 @@ class MockDataGenerator:
 
         return result
 
+    # ==================== BUS GENERATOR ====================
+
+    def generate_buses(
+        self,
+        departure_station: str,
+        arrival_station: str,
+        date: Optional[str] = None,
+        days_ahead: int = 1,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Tạo danh sách chuyến xe khách cho tuyến và ngày cụ thể.
+        """
+        departure_station = departure_station.upper()
+        arrival_station = arrival_station.upper()
+
+        if departure_station not in BUS_STATIONS:
+            return []
+        if arrival_station not in BUS_STATIONS:
+            return []
+        if departure_station == arrival_station:
+            return []
+
+        if not date:
+            base_date = datetime.now(self.vietnam_tz)
+        else:
+            try:
+                base_date = datetime.strptime(date, "%Y-%m-%d")
+                base_date = base_date.replace(tzinfo=self.vietnam_tz)
+            except ValueError:
+                base_date = datetime.now(self.vietnam_tz)
+
+        route_key = (departure_station, arrival_station)
+        if route_key not in BUS_ROUTES:
+            route_info = {
+                "base_price": 250000,
+                "duration_hours": 8,
+                "buses_per_day": 5,
+                "bus_types": ["limousine_11", "sleeper_40"]
+            }
+        else:
+            route_info = BUS_ROUTES[route_key]
+
+        dep_station = BUS_STATIONS[departure_station]
+        arr_station = BUS_STATIONS[arrival_station]
+
+        all_buses = []
+
+        for day_offset in range(days_ahead):
+            current_date = base_date + timedelta(days=day_offset)
+            date_str = current_date.strftime("%Y-%m-%d")
+
+            seed = self._get_seed(date_str, f"BUS_{departure_station}_{arrival_station}")
+            rng = self._get_random(seed)
+
+            num_buses = min(route_info["buses_per_day"], limit)
+
+            # Select departure hours
+            bus_type_code = rng.choice(route_info["bus_types"])
+            available_hours = BUS_DEPARTURE_HOURS.get(bus_type_code, [6, 12, 18])
+            rng.shuffle(available_hours)
+            selected_hours = sorted(available_hours[:num_buses])
+
+            for i, hour in enumerate(selected_hours):
+                # Rotate bus types
+                bus_type_code = rng.choice(route_info["bus_types"])
+                bus_type = BUS_TYPES[bus_type_code]
+
+                # Choose company
+                company = rng.choice(BUS_COMPANIES)
+
+                # Bus number
+                bus_number = f"{company['code']}{rng.randint(100, 999)}"
+
+                # Price
+                price_multiplier = self._get_price_multiplier(current_date, rng)
+                base_price = route_info["base_price"]
+                seat_prices = {}
+                seat_availability = {}
+                for seat_code, seat_info in BUS_SEAT_TYPES.items():
+                    price = int(base_price * seat_info["price_multiplier"] * price_multiplier)
+                    price = round(price, -3)
+                    seat_prices[seat_code] = {
+                        "name": seat_info["name"],
+                        "code": seat_info["code"],
+                        "price": price,
+                        "description": seat_info["description"]
+                    }
+                    seat_availability[seat_code] = rng.randint(0, bus_type["capacity"] // 2)
+
+                # Times
+                minute = rng.choice([0, 15, 30, 45])
+                dep_time = current_date.replace(hour=hour, minute=minute, second=0, microsecond=0)
+                duration_hours = route_info["duration_hours"]
+                arr_time = dep_time + timedelta(hours=duration_hours)
+
+                total_seats = bus_type["capacity"]
+                available_seats = rng.randint(2, total_seats // 2)
+
+                bus = {
+                    "bus_id": f"BS{seed % 1000000:06d}{i:02d}",
+                    "bus_number": bus_number,
+                    "company": {
+                        "code": company["code"],
+                        "name": company["name"],
+                        "logo": company["logo"],
+                        "phone": company["phone"],
+                        "rating": company["rating"]
+                    },
+                    "bus_type": {
+                        "code": bus_type_code,
+                        "name": bus_type["name"],
+                        "description": bus_type["description"],
+                        "capacity": bus_type["capacity"],
+                        "amenities": bus_type["amenities"]
+                    },
+                    "departure": {
+                        "station": dep_station["name"],
+                        "city": dep_station["city"],
+                        "code": departure_station,
+                        "address": dep_station["address"],
+                        "scheduled": dep_time.isoformat(),
+                        "date": date_str,
+                        "time": dep_time.strftime("%H:%M")
+                    },
+                    "arrival": {
+                        "station": arr_station["name"],
+                        "city": arr_station["city"],
+                        "code": arrival_station,
+                        "address": arr_station["address"],
+                        "scheduled": arr_time.isoformat(),
+                        "date": arr_time.strftime("%Y-%m-%d"),
+                        "time": arr_time.strftime("%H:%M")
+                    },
+                    "duration_hours": duration_hours,
+                    "duration_formatted": f"{int(duration_hours)}h {int((duration_hours % 1) * 60)}m",
+                    "seats": seat_prices,
+                    "availability": seat_availability,
+                    "total_seats": total_seats,
+                    "available_seats": available_seats,
+                    "status": "scheduled",
+                    "currency": "VND"
+                }
+                all_buses.append(bus)
+
+        all_buses.sort(key=lambda x: x["departure"]["scheduled"])
+        return all_buses
+
     # ==================== BOOKING GENERATORS ====================
 
     def generate_flight_booking(
@@ -505,6 +657,48 @@ class MockDataGenerator:
             "booking_id": booking_id,
             "booking_type": "train",
             "train_id": train_id,
+            "passenger": {
+                "name": passenger_name,
+                "phone": passenger_phone,
+                "email": passenger_email
+            },
+            "seat_type": {
+                "code": seat_type,
+                "name": seat_info["name"]
+            },
+            "num_passengers": num_passengers,
+            "total_price": total_price,
+            "currency": "VND",
+            "status": "pending_payment",
+            "expires_at": (datetime.now(self.vietnam_tz) + timedelta(minutes=30)).isoformat(),
+            "created_at": datetime.now(self.vietnam_tz).isoformat()
+        }
+
+    def generate_bus_booking(
+        self,
+        bus_id: str,
+        passenger_name: str,
+        passenger_phone: str,
+        passenger_email: str,
+        seat_type: str = "standard",
+        num_passengers: int = 1
+    ) -> Dict[str, Any]:
+        """Tạo booking cho chuyến xe khách"""
+        seed = self._get_seed(datetime.now().isoformat(), bus_id)
+        rng = self._get_random(seed)
+
+        booking_id = f"BBK{rng.randint(100000, 999999)}"
+
+        seat_info = BUS_SEAT_TYPES.get(seat_type, BUS_SEAT_TYPES["standard"])
+        base_price = rng.randint(150000, 600000)
+        price = int(base_price * seat_info["price_multiplier"])
+        total_price = price * num_passengers
+
+        return {
+            "success": True,
+            "booking_id": booking_id,
+            "booking_type": "bus",
+            "bus_id": bus_id,
             "passenger": {
                 "name": passenger_name,
                 "phone": passenger_phone,

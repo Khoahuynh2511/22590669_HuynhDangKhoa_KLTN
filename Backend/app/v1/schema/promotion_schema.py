@@ -11,7 +11,9 @@ class PromotionCreate(BaseModel):
     """Schema for creating a new promotion"""
     name: str = Field(..., description="Tên khuyến mãi (VD: Sale hè 2024)")
     description: Optional[str] = Field(None, description="Mô tả chi tiết khuyến mãi")
-    discount_type: Literal["PERCENTAGE", "FIXED_AMOUNT"] = Field(..., description="Loại giảm giá: PERCENTAGE (%) hoặc FIXED_AMOUNT (tiền)")
+    discount_type: Literal["PERCENTAGE",
+                           "FIXED_AMOUNT"] = Field(...,
+                                                   description="Loại giảm giá: PERCENTAGE (%) hoặc FIXED_AMOUNT (tiền)")
     discount_value: float = Field(..., gt=0, description="Giá trị giảm (VD: 10 nếu %, 500000 nếu tiền)")
     start_date: datetime = Field(..., description="Ngày bắt đầu áp dụng")
     end_date: datetime = Field(..., description="Ngày hết hạn")
@@ -46,7 +48,7 @@ class PromotionResponse(BaseModel):
     used_count: int
     is_active: bool
     code: str
-    
+
     class Config:
         from_attributes = True
 

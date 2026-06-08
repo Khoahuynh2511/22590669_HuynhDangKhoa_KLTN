@@ -2,11 +2,9 @@
 Chat API Endpoints
 """
 import logging
-import uuid
 import json
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from typing import Optional
 from ...schema.agent_schema import ChatRequest, ChatResponse, ConversationHistory
 from ...services.agent_services import supervisor_graph
 from ...services.agent_services.memory import conversation_memory
@@ -50,7 +48,7 @@ async def chat_stream(
     """
     try:
         user_id = str(current_user["user_id"])
-        
+
         # Nếu có conversation_id, dùng làm room_id
         # Nếu không có, tạo room mới
         room_id = None
@@ -69,12 +67,12 @@ async def chat_stream(
             room_result = chat_room_service.create_room(user_id)
             if room_result["EC"] == 0:
                 room_id = str(room_result["data"]["room_id"])
-        
+
         if not room_id:
             raise HTTPException(status_code=500, detail="Failed to create or get chat room")
-        
+
         conversation_id = room_id  # Use room_id as conversation_id
-        
+
         # Lưu user message vào database
         try:
             chat_room_service.save_message(
@@ -85,7 +83,7 @@ async def chat_stream(
             )
         except Exception as e:
             logger.warning(f"Failed to save user message: {str(e)}")
-        
+
         async def event_generator():
             try:
                 # Send start event
@@ -136,7 +134,7 @@ async def chat_stream(
                             # Safety: ensure full_response is always str before concat
                             if not isinstance(full_response, str):
                                 full_response = _content_to_text(full_response)
-                            
+
                             token_event = {
                                 "type": "token",
                                 "content": content
@@ -144,27 +142,29 @@ async def chat_stream(
                             yield f"data: {json.dumps(token_event, ensure_ascii=False)}\n\n"
                             full_response += content
                             has_streamed_tokens = True
-                            
+
                             # If we have pending MCP UI and now have tokens, send it
                             if pending_mcp_ui_resource or pending_mcp_ui_html or pending_tour_packages:
                                 if pending_mcp_ui_resource and isinstance(pending_mcp_ui_resource, dict):
                                     if 'uri' in pending_mcp_ui_resource:
                                         pending_mcp_ui_resource['uri'] = str(pending_mcp_ui_resource['uri'])
-                                
+
                                 ui_event = {
                                     "type": "mcp_ui",
                                     "ui_resource": pending_mcp_ui_resource,
                                     "html": pending_mcp_ui_html,  # Keep for backward compatibility
                                     "tourPackages": pending_tour_packages  # New: Send tour packages data
                                 }
-                                logger.info(f"📤 Streaming MCP UI event (after tokens): {len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
+                                logger.info(
+                                    f"📤 Streaming MCP UI event (after tokens): {
+                                        len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
                                 yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
-                                
+
                                 # Clear pending
                                 pending_mcp_ui_resource = None
                                 pending_mcp_ui_html = None
                                 pending_tour_packages = None
-                    
+
                     # Track final state
                     elif event_type == "on_chain_end":
                         chain_output = event.get("data", {}).get("output", {})
@@ -178,57 +178,67 @@ async def chat_stream(
                                 tour_packages = chain_output.get("tour_packages", [])
                             if "metadata" in chain_output:
                                 metadata = chain_output.get("metadata", {})
-                            
+
                             # Check for MCP UI Resource updates
                             mcp_ui_resource = chain_output.get("mcp_ui_resource")
                             mcp_ui_html = chain_output.get("mcp_ui_html")
                             tour_packages_for_ui = chain_output.get("tour_packages", [])
-                            
+
                             # Only send tour packages if this is a recommendation response (check URI)
                             if mcp_ui_resource and isinstance(mcp_ui_resource, dict):
                                 uri = str(mcp_ui_resource.get('uri', ''))
                                 if 'tour-recommendations' in uri:
                                     is_recommendation_response = True
-                            
+
                             # Only include tour packages if this is a recommendation response
                             if mcp_ui_resource or mcp_ui_html or (tour_packages_for_ui and is_recommendation_response):
                                 # Convert AnyUrl objects to strings if present in mcp_ui_resource
                                 if mcp_ui_resource and isinstance(mcp_ui_resource, dict):
                                     if 'uri' in mcp_ui_resource:
                                         mcp_ui_resource['uri'] = str(mcp_ui_resource['uri'])
-                                
+
                                 # If tokens have already been streamed, send UI immediately
                                 if has_streamed_tokens:
                                     ui_event = {
                                         "type": "mcp_ui",
                                         "ui_resource": mcp_ui_resource,
                                         "html": mcp_ui_html,  # Keep for backward compatibility
-                                        "tourPackages": tour_packages_for_ui[:5] if (tour_packages_for_ui and is_recommendation_response) else None  # Only send if recommendation
+                                        # Only send if recommendation
+                                        "tourPackages": tour_packages_for_ui[:5] if (tour_packages_for_ui and is_recommendation_response) else None
                                     }
-                                    logger.info(f"📤 Streaming MCP UI event (tokens already streamed): {len(tour_packages_for_ui) if (tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
+                                    logger.info(
+                                        f"📤 Streaming MCP UI event (tokens already streamed): {
+                                            len(tour_packages_for_ui) if (
+                                                tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
                                     yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
                                 else:
                                     # Store for later (will be sent when first token arrives)
                                     pending_mcp_ui_resource = mcp_ui_resource
                                     pending_mcp_ui_html = mcp_ui_html
-                                    pending_tour_packages = tour_packages_for_ui[:5] if (tour_packages_for_ui and is_recommendation_response) else None
-                                    logger.info(f"⏳ MCP UI pending (waiting for tokens): {len(tour_packages_for_ui) if (tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
-                
+                                    pending_tour_packages = tour_packages_for_ui[:5] if (
+                                        tour_packages_for_ui and is_recommendation_response) else None
+                                    logger.info(
+                                        f"⏳ MCP UI pending (waiting for tokens): {
+                                            len(tour_packages_for_ui) if (
+                                                tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
+
                 # If we still have pending MCP UI but no tokens were streamed (edge case), send it at the end
                 if (pending_mcp_ui_resource or pending_mcp_ui_html or pending_tour_packages) and not has_streamed_tokens:
                     if pending_mcp_ui_resource and isinstance(pending_mcp_ui_resource, dict):
                         if 'uri' in pending_mcp_ui_resource:
                             pending_mcp_ui_resource['uri'] = str(pending_mcp_ui_resource['uri'])
-                    
+
                     ui_event = {
                         "type": "mcp_ui",
                         "ui_resource": pending_mcp_ui_resource,
                         "html": pending_mcp_ui_html,  # Keep for backward compatibility
                         "tourPackages": pending_tour_packages  # Only set if recommendation response
                     }
-                    logger.info(f"📤 Streaming MCP UI event (no tokens, sending at end): {len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
+                    logger.info(
+                        f"📤 Streaming MCP UI event (no tokens, sending at end): {
+                            len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
                     yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
-                
+
                 # Send recommendations (full tour packages) ONLY if this is a recommendation response
                 if is_recommendation_response and (recommendations or tour_packages):
                     # Use tour_packages if available (has full details), otherwise use IDs
@@ -238,7 +248,7 @@ async def chat_stream(
                         "data": rec_data
                     }
                     yield f"data: {json.dumps(rec_event, ensure_ascii=False)}\n\n"
-                
+
                 # Send metadata
                 metadata_event = {
                     "type": "metadata",
@@ -246,10 +256,10 @@ async def chat_stream(
                     "metadata": metadata
                 }
                 yield f"data: {json.dumps(metadata_event, ensure_ascii=False)}\n\n"
-                
+
                 # Send done
                 yield f"data: {json.dumps({'type': 'done'})}\n\n"
-                
+
                 # Lưu assistant response vào database
                 try:
                     # Prepare entities with MCP UI data
@@ -260,7 +270,7 @@ async def chat_stream(
                         entities_data["mcp_ui_html"] = mcp_ui_html
                     if tour_packages_for_ui and is_recommendation_response:
                         entities_data["tour_packages"] = tour_packages_for_ui[:5]
-                    
+
                     chat_room_service.save_message(
                         room_id=room_id,
                         user_id=user_id,
@@ -269,7 +279,7 @@ async def chat_stream(
                         intent=metadata.get("intent") if metadata else None,
                         entities=entities_data if entities_data else None
                     )
-                    
+
                     # Update room title từ message đầu tiên nếu chưa có title tùy chỉnh
                     if full_response:
                         # Check if this is first message in room
@@ -278,23 +288,23 @@ async def chat_stream(
                             .eq('room_id', room_id)\
                             .execute()
                         msg_count = msg_count_result.count if hasattr(msg_count_result, 'count') else 0
-                        
+
                         # Nếu chỉ có 2 messages (user + assistant), update title
                         if msg_count == 2:
                             title = chat_room_service.auto_generate_title(request.message)
                             chat_room_service.update_room(room_id, user_id, title=title)
                 except Exception as e:
                     logger.warning(f"Failed to save assistant message: {str(e)}")
-                
+
                 # Store episode in memory (without large tour_packages data to avoid metadata limit)
                 try:
                     # Only store lightweight metadata to avoid Mem0 2000 char limit
                     storage_metadata = metadata.copy() if metadata else {}
-                    
+
                     # Remove large data that would exceed Mem0 limit
                     storage_metadata.pop('tour_packages', None)
                     storage_metadata.pop('recommended_package_ids', None)
-                    
+
                     await conversation_memory.store_episode(
                         conversation_id=conversation_id,
                         user_id=user_id,
@@ -304,12 +314,12 @@ async def chat_stream(
                     )
                 except Exception as e:
                     logger.warning(f"Failed to store episode: {str(e)}")
-                    
+
             except Exception as e:
                 logger.error(f"Error in stream generator: {str(e)}")
                 error_event = {"type": "error", "error": str(e)}
                 yield f"data: {json.dumps(error_event)}\n\n"
-        
+
         return StreamingResponse(
             event_generator(),
             media_type="text/event-stream",
@@ -319,7 +329,7 @@ async def chat_stream(
                 "X-Accel-Buffering": "no"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Error in chat_stream endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -333,18 +343,18 @@ async def chat(
 ):
     """
     Send a chat message and get AI response
-    
+
     Args:
         request: Chat request with message and optional conversation_id
         current_user: Current authenticated user
         chat_room_service: ChatRoomService instance
-        
+
     Returns:
         ChatResponse with assistant's response
     """
     try:
         user_id = str(current_user["user_id"])
-        
+
         # Nếu có conversation_id, dùng làm room_id
         # Nếu không có, tạo room mới
         room_id = None
@@ -363,12 +373,12 @@ async def chat(
             room_result = chat_room_service.create_room(user_id)
             if room_result["EC"] == 0:
                 room_id = str(room_result["data"]["room_id"])
-        
+
         if not room_id:
             raise HTTPException(status_code=500, detail="Failed to create or get chat room")
-        
+
         conversation_id = room_id  # Use room_id as conversation_id
-        
+
         # Lưu user message vào database
         try:
             chat_room_service.save_message(
@@ -379,17 +389,17 @@ async def chat(
             )
         except Exception as e:
             logger.warning(f"Failed to save user message: {str(e)}")
-        
+
         # Process message through supervisor graph
         result = await supervisor_graph.process_message(
             user_message=request.message,
             conversation_id=conversation_id,
             user_id=user_id
         )
-        
+
         # Extract response
         response_message = result.get("response", "Xin lỗi, không thể xử lý yêu cầu của bạn.")
-        
+
         # Lưu assistant response vào database
         try:
             metadata = result.get("metadata", {})
@@ -401,7 +411,7 @@ async def chat(
                 intent=metadata.get("intent") if metadata else None,
                 entities=metadata.get("entities") if metadata else None
             )
-            
+
             # Update room title từ message đầu tiên nếu chưa có title tùy chỉnh
             # Check if this is first message in room
             msg_count_result = chat_room_service.supabase.table('chat_history')\
@@ -409,14 +419,14 @@ async def chat(
                 .eq('room_id', room_id)\
                 .execute()
             msg_count = msg_count_result.count if hasattr(msg_count_result, 'count') else 0
-            
+
             # Nếu chỉ có 2 messages (user + assistant), update title
             if msg_count == 2:
                 title = chat_room_service.auto_generate_title(request.message)
                 chat_room_service.update_room(room_id, user_id, title=title)
         except Exception as e:
             logger.warning(f"Failed to save assistant message: {str(e)}")
-        
+
         # Store episode in memory if available
         try:
             await conversation_memory.store_episode(
@@ -428,7 +438,7 @@ async def chat(
             )
         except Exception as e:
             logger.warning(f"Failed to store episode: {str(e)}")
-        
+
         return ChatResponse(
             conversation_id=conversation_id,
             message=response_message,
@@ -438,7 +448,7 @@ async def chat(
             },
             timestamp=datetime.now()
         )
-        
+
     except Exception as e:
         logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -448,17 +458,17 @@ async def chat(
 async def get_conversation(conversation_id: str):
     """
     Get conversation history by conversation_id
-    
+
     Args:
         conversation_id: Conversation ID
-        
+
     Returns:
         ConversationHistory with messages
     """
     try:
         # Get memory for this conversation
         memory = conversation_memory.get_memory(conversation_id)
-        
+
         # Convert messages to schema format
         messages = []
         for msg in memory.messages:
@@ -469,14 +479,14 @@ async def get_conversation(conversation_id: str):
                 content=msg.content,
                 timestamp=datetime.now()
             ))
-        
+
         return ConversationHistory(
             conversation_id=conversation_id,
             messages=messages,
             created_at=datetime.now(),
             updated_at=datetime.now()
         )
-        
+
     except Exception as e:
         logger.error(f"Error getting conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -486,10 +496,10 @@ async def get_conversation(conversation_id: str):
 async def delete_conversation(conversation_id: str):
     """
     Delete a conversation and its history
-    
+
     Args:
         conversation_id: Conversation ID to delete
-        
+
     Returns:
         Success message
     """
@@ -497,12 +507,12 @@ async def delete_conversation(conversation_id: str):
         # Delete from memory storage
         if conversation_id in conversation_memory.memory_storage:
             del conversation_memory.memory_storage[conversation_id]
-        
+
         return {
             "message": f"Conversation {conversation_id} deleted successfully",
             "conversation_id": conversation_id
         }
-        
+
     except Exception as e:
         logger.error(f"Error deleting conversation: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

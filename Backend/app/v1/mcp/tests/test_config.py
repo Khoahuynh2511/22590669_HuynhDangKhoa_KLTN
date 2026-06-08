@@ -1,14 +1,13 @@
 """
 Test Configuration
 """
-import pytest
 from src.mcp_server.core.config import Settings
 
 
 def test_settings_defaults():
     """Test default settings values"""
     settings = Settings()
-    
+
     assert settings.SERVER_NAME == "AI Assistant MCP Server"
     assert settings.SERVER_VERSION == "1.0.0"
     assert settings.BACKEND_API_URL == "http://localhost:8000"
@@ -25,7 +24,7 @@ def test_settings_custom_values():
         BACKEND_API_URL="http://example.com",
         MAX_ITERATIONS=20
     )
-    
+
     assert settings.SERVER_NAME == "Custom Server"
     assert settings.BACKEND_API_URL == "http://example.com"
     assert settings.MAX_ITERATIONS == 20

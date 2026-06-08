@@ -2,6 +2,8 @@
 MCP Tools - Search Personalization
 Search conversation memories stored in Mem0 for personalization.
 """
+from app.v1.mcp.src.schema import SearchEpisodesInput
+from pydantic import ValidationError
 from fastmcp import FastMCP
 from typing import Optional, Dict, Any
 import logging
@@ -27,9 +29,6 @@ def _format_mem0_episode(memory: Dict[str, Any]) -> Dict[str, Any]:
         "metadata": metadata
     }
 
-
-from pydantic import ValidationError
-from app.v1.mcp.src.schema import SearchEpisodesInput
 
 def register_search_personalization_tools(mcp: FastMCP):
     """Register search personalization tools using Mem0"""
@@ -61,25 +60,24 @@ def register_search_personalization_tools(mcp: FastMCP):
             if not mem0_client.is_available:
                 logger.warning("Mem0 client not available for search_episodes")
                 return {"found": 0, "episodes": []}
-            
+
             # Search memories using MCP Mem0 client
             results = mem0_client.search(
                 query=validated.search_query,
                 user_id=validated.user_id,
                 limit=validated.limit
             )
-            
+
             # Format results as episodes
             episodes = []
             for memory in results:
                 formatted = _format_mem0_episode(memory)
                 episodes.append(formatted)
-            
+
             logger.info(f"✅ Found {len(episodes)} episodes for query: {validated.search_query[:50]}...")
             return {"found": len(episodes), "episodes": episodes}
-            
+
         except ValidationError as e:
             return {"found": 0, "episodes": [], "error": str(e)}
         except Exception as e:
             return {"found": 0, "episodes": [], "error": str(e)}
-

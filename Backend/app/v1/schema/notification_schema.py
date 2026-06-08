@@ -17,7 +17,7 @@ class NotificationResponse(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
     is_read: bool
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -35,29 +35,29 @@ async def chat_with_news_agent(
     """
     Chat với AI agent để tìm tin tức/cẩm nang du lịch.
     Yêu cầu user phải đăng nhập.
-    
+
     Args:
         request: NewsAgentChatRequest với message từ user
         current_user: Current authenticated user (from JWT token)
-        
+
     Returns:
         NewsAgentChatResponse với response từ agent và sources
     """
     try:
         user_id = str(current_user["user_id"])
-        
+
         # Get agent instance
         agent = get_news_search_agent()
-        
+
         # Call agent chat
         result = await agent.chat(user_id=user_id, message=request.message)
-        
+
         if not result.get("success"):
             raise HTTPException(
                 status_code=500,
                 detail=result.get("error", "Failed to process request")
             )
-        
+
         return NewsAgentChatResponse(
             EC=0,
             EM="Success",
@@ -65,7 +65,7 @@ async def chat_with_news_agent(
             sources=result.get("sources", []),
             destination=result.get("destination")
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -82,10 +82,10 @@ async def clear_conversation(
 ):
     """
     Clear conversation history cho user hiện tại.
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         Success message
     """
@@ -93,7 +93,7 @@ async def clear_conversation(
         user_id = str(current_user["user_id"])
         agent = get_news_search_agent()
         agent.clear_conversation(user_id)
-        
+
         return {
             "EC": 0,
             "EM": "Conversation cleared successfully"

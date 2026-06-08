@@ -4,7 +4,6 @@ Handles admin control over tour recommendations
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Optional
 
 from ...schema.tour_package_schema import (
     AdminRecommendationConfig,
@@ -48,9 +47,9 @@ async def get_admin_recommendations(
 ):
     """
     Get admin recommendation configuration and featured tours
-    
+
     Requires: Admin role
-    
+
     Returns:
         - enabled: Admin Mode status (from database, fallback to settings)
         - featured_tours: List of currently featured tours
@@ -62,22 +61,22 @@ async def get_admin_recommendations(
             'ADMIN_RECOMMENDATION_ENABLED',
             default_value=settings.ADMIN_RECOMMENDATION_ENABLED
         )
-        
+
         # Get featured tours
         featured_tours = service.get_featured_tours()
-        
+
         config = AdminRecommendationConfig(
             enabled=admin_mode_enabled,
             featured_tours=featured_tours,
             total_featured=len(featured_tours)
         )
-        
+
         return AdminRecommendationResponse(
             EC=0,
             EM="Successfully retrieved admin recommendation config",
             data=config
         )
-        
+
     except Exception as e:
         logger.error(f"Error in get_admin_recommendations: {str(e)}")
         raise HTTPException(
@@ -94,20 +93,20 @@ async def update_admin_recommendations(
 ):
     """
     Update admin recommendation settings
-    
+
     Requires: Admin role
-    
+
     Body:
         - enabled (optional): Toggle Admin/AI mode (persisted to database)
         - tour_package_ids (optional): Set featured tours (will unset others)
-    
-    Note: 
+
+    Note:
         - enabled flag is persisted to database (admin_settings table) and also updated in-memory
         - tour_package_ids are validated before updating (must exist and be active)
     """
     try:
         updated_config = {}
-        
+
         # Update enabled flag (persist to database + in-memory)
         if update_data.enabled is not None:
             # Persist to database
@@ -116,54 +115,60 @@ async def update_admin_recommendations(
                 update_data.enabled,
                 updated_by=current_user.get('user_id')
             )
-            
+
             if success:
                 # Also update in-memory settings for immediate effect
                 settings.ADMIN_RECOMMENDATION_ENABLED = update_data.enabled
                 updated_config['enabled'] = update_data.enabled
-                logger.info(f"✅ Admin Mode {'ENABLED' if update_data.enabled else 'DISABLED'} by admin {current_user.get('user_id')}")
+                logger.info(
+                    f"✅ Admin Mode {
+                        'ENABLED' if update_data.enabled else 'DISABLED'} by admin {
+                        current_user.get('user_id')}")
             else:
-                logger.warning(f"⚠️ Failed to persist admin setting to database")
+                logger.warning("⚠️ Failed to persist admin setting to database")
                 raise HTTPException(
                     status_code=500,
                     detail="Failed to save admin recommendation setting"
                 )
-        
+
         # Update featured tours
         if update_data.tour_package_ids is not None:
             result = service.update_featured_tours(update_data.tour_package_ids)
-            
+
             if not result.get('success'):
                 raise HTTPException(
                     status_code=400,
                     detail=result.get('message', 'Failed to update featured tours')
                 )
-            
+
             updated_config['featured_updated'] = result.get('updated', 0)
             updated_config['valid_ids'] = result.get('valid_ids', [])
             updated_config['invalid_ids'] = result.get('invalid_ids', [])
-            
-            logger.info(f"✅ Featured tours updated: {result.get('updated')} tours by admin {current_user.get('user_id')}")
-        
+
+            logger.info(
+                f"✅ Featured tours updated: {
+                    result.get('updated')} tours by admin {
+                    current_user.get('user_id')}")
+
         # Get updated config (from database, fallback to settings)
         admin_mode_enabled = service.get_admin_setting(
             'ADMIN_RECOMMENDATION_ENABLED',
             default_value=settings.ADMIN_RECOMMENDATION_ENABLED
         )
         featured_tours = service.get_featured_tours()
-        
+
         config = AdminRecommendationConfig(
             enabled=admin_mode_enabled,
             featured_tours=featured_tours,
             total_featured=len(featured_tours)
         )
-        
+
         return AdminRecommendationResponse(
             EC=0,
             EM=f"Successfully updated admin recommendations: {', '.join(updated_config.keys())}",
             data=config
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -172,4 +177,3 @@ async def update_admin_recommendations(
             status_code=500,
             detail=f"Error updating admin recommendations: {str(e)}"
         )
-

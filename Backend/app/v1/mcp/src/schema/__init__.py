@@ -13,6 +13,7 @@ from .booking_schema import (
     VerifyOTPInput,
     ResendOTPInput,
     CreatePaymentInput,
+    CreateTransportPaymentInput,
     ApplyPromotionCodeInput
 )
 from .tour_search_schema import SearchTourPackagesInput, RequestRecommendationInput
@@ -33,6 +34,7 @@ __all__ = [
     "VerifyOTPInput",
     "ResendOTPInput",
     "CreatePaymentInput",
+    "CreateTransportPaymentInput",
     "ApplyPromotionCodeInput",
     # Tour Search
     "SearchTourPackagesInput",

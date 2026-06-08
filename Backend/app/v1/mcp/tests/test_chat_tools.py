@@ -32,10 +32,10 @@ async def test_chat_with_agent(mcp_server, mock_backend_client):
         "metadata": {"iterations": 1},
         "timestamp": "2025-10-11T10:00:00"
     }
-    
+
     # Register tools
     register_chat_tools(mcp_server)
-    
+
     # Test would go here - FastMCP testing framework needed
     # This is a placeholder showing the test structure
     assert True
@@ -52,7 +52,7 @@ async def test_get_conversation_history(mcp_server, mock_backend_client):
         ],
         "summary": {"message_count": 2}
     }
-    
+
     register_chat_tools(mcp_server)
     assert True
 
@@ -61,6 +61,6 @@ async def test_get_conversation_history(mcp_server, mock_backend_client):
 async def test_delete_conversation(mcp_server, mock_backend_client):
     """Test delete_conversation tool"""
     mock_backend_client.delete_conversation.return_value = True
-    
+
     register_chat_tools(mcp_server)
     assert True

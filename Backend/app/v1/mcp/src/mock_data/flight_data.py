@@ -4,12 +4,27 @@ Cấu hình dữ liệu cho chuyến bay nội địa Việt Nam
 """
 
 # Các hãng hàng không Việt Nam
-VIETNAM_AIRLINES = [
-    {"code": "VN", "name": "Vietnam Airlines", "logo": "vietnam-airlines.png", "baggage_checked": "23kg", "baggage_carry": "7kg"},
-    {"code": "VJ", "name": "VietJet Air", "logo": "vietjet.png", "baggage_checked": "20kg", "baggage_carry": "7kg"},
-    {"code": "QH", "name": "Bamboo Airways", "logo": "bamboo.png", "baggage_checked": "20kg", "baggage_carry": "7kg"},
-    {"code": "BL", "name": "Pacific Airlines", "logo": "pacific.png", "baggage_checked": "23kg", "baggage_carry": "7kg"},
-]
+VIETNAM_AIRLINES = [{"code": "VN",
+                     "name": "Vietnam Airlines",
+                     "logo": "vietnam-airlines.png",
+                     "baggage_checked": "23kg",
+                     "baggage_carry": "7kg"},
+                    {"code": "VJ",
+                     "name": "VietJet Air",
+                     "logo": "vietjet.png",
+                     "baggage_checked": "20kg",
+                     "baggage_carry": "7kg"},
+                    {"code": "QH",
+                     "name": "Bamboo Airways",
+                     "logo": "bamboo.png",
+                     "baggage_checked": "20kg",
+                     "baggage_carry": "7kg"},
+                    {"code": "BL",
+                     "name": "Pacific Airlines",
+                     "logo": "pacific.png",
+                     "baggage_checked": "23kg",
+                     "baggage_carry": "7kg"},
+                    ]
 
 # Sân bay Việt Nam
 VIETNAM_AIRPORTS = {

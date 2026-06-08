@@ -3,7 +3,7 @@ MCP Tools - Booking Tools
 Interactive booking collection và management
 """
 from fastmcp import FastMCP
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timezone
 import logging
 import random
@@ -42,43 +42,46 @@ async def _create_booking_impl(
     Implementation of create_booking tool.
     """
     logger.info(f"Creating booking: phone={user_phone}, pkg={package_id}, user_id={user_id}")
-    
+
     # Validate phone number: must be exactly 10 digits
     phone_digits = ''.join(filter(str.isdigit, user_phone))
     if len(phone_digits) != 10:
         return {"success": False, "error": "Số điện thoại phải có đúng 10 số"}
     user_phone = phone_digits  # Use cleaned phone number
-    
+
     try:
         supabase = get_supabase_client()
-        
+
         # 1. Validate Package & Check Slots
-        package_res = supabase.table("tour_packages").select("*").eq("package_id", package_id).eq("is_active", True).execute()
+        package_res = supabase.table("tour_packages").select(
+            "*").eq("package_id", package_id).eq("is_active", True).execute()
         if not package_res.data:
             return {"success": False, "error": f"Tour package '{package_id}' not found or inactive."}
-        
+
         package = package_res.data[0]
         if package['available_slots'] < number_of_people:
             return {
-                "success": False, 
+                "success": False,
                 "error": f"Insufficient slots. Available: {package['available_slots']}, Requested: {number_of_people}"
             }
 
         # 2. Get or Create User
         user = None
-        
+
         # Priority 1: Check by user_id if provided
         if user_id:
             logger.info(f"Checking user by ID: {user_id}")
-            user_res = supabase.table("users").select("user_id, full_name, phone_number").eq("user_id", user_id).execute()
+            user_res = supabase.table("users").select(
+                "user_id, full_name, phone_number").eq("user_id", user_id).execute()
             if user_res.data:
                 user = user_res.data[0]
                 logger.info(f"Found user by ID: {user}")
-        
+
         # Priority 2: Check by phone_number if user not found yet
         if not user:
             logger.info(f"Checking user by phone: {user_phone}")
-            user_res = supabase.table("users").select("user_id, full_name, phone_number").eq("phone_number", user_phone).execute()
+            user_res = supabase.table("users").select(
+                "user_id, full_name, phone_number").eq("phone_number", user_phone).execute()
             if user_res.data:
                 user = user_res.data[0]
                 logger.info(f"Found user by phone: {user}")
@@ -90,15 +93,15 @@ async def _create_booking_impl(
                 # Create new user
                 logger.info("Creating new user...")
                 new_user = {
-                "phone_number": user_phone,
-                "full_name": f"Khách hàng {user_phone[-4:]}",
-                "email": user_email  # store real email
+                    "phone_number": user_phone,
+                    "full_name": f"Khách hàng {user_phone[-4:]}",
+                    "email": user_email  # store real email
                 }
                 # If user_id was provided but not found, use it for the new user
                 if user_id:
                     new_user["user_id"] = user_id
                     logger.info(f"Using provided user_id for new user: {user_id}")
-                    
+
                 create_res = supabase.table("users").insert(new_user).execute()
                 if not create_res.data:
                     return {"success": False, "error": "Failed to create user profile."}
@@ -120,17 +123,17 @@ async def _create_booking_impl(
             "created_at": datetime.now(timezone.utc).isoformat(),
             "updated_at": datetime.now(timezone.utc).isoformat()
         }
-        
+
         booking_res = supabase.table("bookings").insert(booking_data).execute()
         if not booking_res.data:
-             return {"success": False, "error": "Database error: Failed to insert booking."}
-        
+            return {"success": False, "error": "Database error: Failed to insert booking."}
+
         booking = booking_res.data[0]
         booking_id = booking['booking_id']
 
         # 4. Generate OTP (6 số)
         otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-        
+
         # 5. Lưu OTP vào otp_verifications table
         otp_data = {
             "booking_id": booking_id,
@@ -151,14 +154,14 @@ async def _create_booking_impl(
             # Rollback booking
             supabase.table("bookings").delete().eq("booking_id", booking_id).execute()
             return {"success": False, "error": f"Failed to create OTP: {str(e)}"}
-        
+
         # 6. Gửi OTP qua email bằng SendGrid
         try:
             otp_service = get_otp_service()
-            
+
             # Check if SendGrid client is available
             if not otp_service.sendgrid_client:
-                logger.error(f"❌ SendGrid client not initialized. Check SENDGRID_API_KEY in .env")
+                logger.error("❌ SendGrid client not initialized. Check SENDGRID_API_KEY in .env")
                 logger.error(f"   SENDGRID_API_KEY configured: {bool(settings.SENDGRID_API_KEY)}")
                 logger.error(f"   SENDGRID_FROM_EMAIL: {settings.SENDGRID_FROM_EMAIL}")
             else:
@@ -168,12 +171,14 @@ async def _create_booking_impl(
                     otp=otp_code,
                     tour_name=package['package_name']
                 )
-                
+
                 if email_sent:
                     logger.info(f"✅ OTP email sent successfully to {user_email}")
                 else:
-                    logger.warning(f"⚠️ Failed to send OTP email to {user_email}, but booking and OTP record created. OTP code: {otp_code}")
-                    logger.warning("⚠️ User can still verify OTP manually if they know the code, but email notification failed.")
+                    logger.warning(
+                        f"⚠️ Failed to send OTP email to {user_email}, but booking and OTP record created. OTP code: {otp_code}")
+                    logger.warning(
+                        "⚠️ User can still verify OTP manually if they know the code, but email notification failed.")
         except Exception as e:
             logger.error(f"❌ Exception while sending OTP email: {str(e)}")
             logger.error(f"   Exception type: {type(e).__name__}")
@@ -200,9 +205,7 @@ async def _create_booking_impl(
                 "total_amount": total_amount,
                 "status": "otp_sent",
                 "contact_phone": user_phone,
-                "email": user_email
-            }
-        }
+                "email": user_email}}
 
     except Exception as e:
         logger.error(f"Booking error: {str(e)}")
@@ -217,14 +220,14 @@ async def _get_user_bookings_impl(user_id: Optional[str]) -> Dict[str, Any]:
 
     try:
         supabase = get_supabase_client()
-        
+
         # 1. Get Bookings with Package Info
         bookings_res = supabase.table("bookings")\
             .select("*, tour_packages(package_name, destination, start_date, price)")\
             .eq("user_id", user_id)\
             .order("created_at", desc=True)\
             .execute()
-            
+
         if not bookings_res.data:
             return {"success": True, "bookings": [], "message": "No bookings found for this user."}
 
@@ -233,8 +236,10 @@ async def _get_user_bookings_impl(user_id: Optional[str]) -> Dict[str, Any]:
         for b in bookings_res.data:
             pkg = b.get('tour_packages', {})
             # Handle case where pkg might be None or list (though single relation usually dict)
-            if isinstance(pkg, list) and pkg: pkg = pkg[0]
-            elif not isinstance(pkg, dict): pkg = {}
+            if isinstance(pkg, list) and pkg:
+                pkg = pkg[0]
+            elif not isinstance(pkg, dict):
+                pkg = {}
 
             bookings.append({
                 "booking_id": b['booking_id'],
@@ -255,22 +260,22 @@ async def _get_user_bookings_impl(user_id: Optional[str]) -> Dict[str, Any]:
 
 
 async def _update_booking_impl(
-    booking_id: str, 
-    number_of_people: Optional[int] = None, 
+    booking_id: str,
+    number_of_people: Optional[int] = None,
     special_requests: Optional[str] = None
 ) -> Dict[str, Any]:
     """Implementation of update_booking tool"""
     try:
         supabase = get_supabase_client()
-        
+
         # 1. Get Booking
         booking_res = supabase.table("bookings").select("*").eq("booking_id", booking_id).execute()
         if not booking_res.data:
             return {"success": False, "error": f"Booking {booking_id} not found."}
         booking = booking_res.data[0]
-        
+
         updates = {}
-        
+
         # 2. Handle Number of People Change
         if number_of_people is not None and number_of_people != booking['number_of_people']:
             package_id = booking['package_id']
@@ -278,38 +283,39 @@ async def _update_booking_impl(
             if not package_res.data:
                 return {"success": False, "error": "Associated tour package not found."}
             package = package_res.data[0]
-            
+
             diff = number_of_people - booking['number_of_people']
-            
+
             # Check slots if increasing
             if diff > 0 and package['available_slots'] < diff:
                 return {
-                    "success": False, 
+                    "success": False,
                     "error": f"Insufficient slots for increase. Available: {package['available_slots']}, Needed: {diff}"
                 }
-            
+
             # Update slots
             new_slots = package['available_slots'] - diff
-            supabase.table("tour_packages").update({"available_slots": new_slots}).eq("package_id", package_id).execute()
-            
+            supabase.table("tour_packages").update(
+                {"available_slots": new_slots}).eq("package_id", package_id).execute()
+
             # Update booking amount
             updates['number_of_people'] = number_of_people
             updates['total_amount'] = float(package['price']) * number_of_people
-            
+
         # 3. Handle Special Requests
         if special_requests is not None:
             updates['special_requests'] = special_requests
-            
+
         if not updates:
             return {"success": True, "message": "No changes requested."}
-            
+
         updates['updated_at'] = datetime.now().isoformat()
-        
+
         # 4. Update Booking
         res = supabase.table("bookings").update(updates).eq("booking_id", booking_id).execute()
         if not res.data:
             return {"success": False, "error": "Failed to update booking in database."}
-            
+
         return {"success": True, "message": "Booking updated successfully", "booking": res.data[0]}
 
     except Exception as e:
@@ -321,19 +327,19 @@ async def _delete_booking_impl(booking_id: str, reason: Optional[str] = None) ->
     """Implementation of delete_booking tool - SOFT DELETE (cancel)"""
     try:
         supabase = get_supabase_client()
-        
+
         # 1. Get Booking
         booking_res = supabase.table("bookings").select("*").eq("booking_id", booking_id).execute()
         if not booking_res.data:
             return {"success": False, "error": f"Booking {booking_id} not found."}
         booking = booking_res.data[0]
-        
+
         if booking['status'] == 'cancelled':
             return {"success": False, "error": "Booking is already cancelled."}
-        
+
         if booking['status'] not in ['pending', 'confirmed']:
             return {"success": False, "error": f"Cannot cancel booking with status '{booking['status']}'"}
-        
+
         # 2. Insert to booking_cancellations table (full booking snapshot)
         cancellation_data = {
             "booking_id": booking_id,
@@ -354,7 +360,7 @@ async def _delete_booking_impl(booking_id: str, reason: Optional[str] = None) ->
             "cancelled_by": "user"
         }
         supabase.table("booking_cancellations").insert(cancellation_data).execute()
-        
+
         # 3. Update booking status to cancelled (soft delete)
         supabase.table("bookings").update({
             "status": "cancelled",
@@ -367,7 +373,8 @@ async def _delete_booking_impl(booking_id: str, reason: Optional[str] = None) ->
         if package_res.data:
             current_slots = package_res.data[0]['available_slots']
             new_slots = current_slots + booking['number_of_people']
-            supabase.table("tour_packages").update({"available_slots": new_slots}).eq("package_id", package_id).execute()
+            supabase.table("tour_packages").update(
+                {"available_slots": new_slots}).eq("package_id", package_id).execute()
             logger.info(f"Restored {booking['number_of_people']} slots to package {package_id}")
 
         logger.info(f"Cancelled booking {booking_id}")
@@ -380,7 +387,7 @@ async def _delete_booking_impl(booking_id: str, reason: Optional[str] = None) ->
 
 def register_booking_tools(mcp: FastMCP):
     """Register booking-related tools"""
-    
+
     @mcp.tool()
     async def create_booking(
         user_phone: str,
@@ -392,17 +399,17 @@ def register_booking_tools(mcp: FastMCP):
     ) -> Dict[str, Any]:
         """
         Create a new tour booking for a user.
-        
+
         REQUIRED PARAMETERS:
         - user_phone: User's phone number (Vietnamese format, e.g., '0901234567')
         - user_email: User's email address (REQUIRED - OTP will be sent to this email)
         - package_id: Tour package UUID (exactly as returned from search_tour_packages)
         - number_of_people: Number of people (1-50)
-        
+
         OPTIONAL PARAMETERS:
         - special_requests: Special requests or dietary restrictions
         - user_id: User ID if available (for authenticated users, auto-injected if not provided)
-        
+
         IMPORTANT: You MUST collect user_email from the user before calling this tool.
         After calling, system will send OTP code to user_email and return awaiting_otp=True.
         """
@@ -466,16 +473,16 @@ def register_booking_tools(mcp: FastMCP):
         """Verify OTP và confirm booking"""
         try:
             supabase = get_supabase_client()
-            
+
             # 1. Get OTP record - First check if booking exists
             booking_check = supabase.table("otp_verifications")\
                 .select("*")\
                 .eq("booking_id", booking_id)\
                 .execute()
-            
+
             if not booking_check.data:
                 return {"success": False, "error": "Không tìm thấy mã OTP cho booking này"}
-            
+
             # 2. Get OTP record with correct code and not verified
             # NOTE: Do NOT filter by expires_at in query - check expiry in code after getting record
             # This allows us to distinguish between wrong code vs expired
@@ -485,25 +492,25 @@ def register_booking_tools(mcp: FastMCP):
                 .eq("otp_code", otp_code)\
                 .eq("is_verified", False)\
                 .execute()
-            
+
             if not otp_res.data:
                 # OTP code is wrong - increment attempts
                 existing_otp = supabase.table("otp_verifications")\
                     .select("attempts, otp_code, expires_at, created_at")\
                     .eq("booking_id", booking_id)\
                     .execute()
-                
+
                 if existing_otp.data:
                     otp_info = existing_otp.data[0]
                     current_attempts = otp_info.get("attempts", 0)
                     stored_otp = otp_info.get("otp_code", "")
-                    
+
                     # Increment attempts
                     supabase.table("otp_verifications")\
                         .update({"attempts": current_attempts + 1})\
                         .eq("booking_id", booking_id)\
                         .execute()
-                    
+
                     # Check if it's wrong code vs expired
                     expires_at_str = otp_info.get('expires_at')
                     if expires_at_str:
@@ -514,30 +521,30 @@ def register_booking_tools(mcp: FastMCP):
                             expires_at = datetime.fromisoformat(expires_at_str)
                         else:
                             expires_at = expires_at_str
-                        
+
                         if expires_at.tzinfo is None:
                             expires_at = expires_at.replace(tzinfo=timezone.utc)
                         else:
                             expires_at = expires_at.astimezone(timezone.utc)
-                        
+
                         now_utc = datetime.now(timezone.utc)
                         if now_utc > expires_at:
                             logger.warning(f"OTP expired: expires_at={expires_at}, now={now_utc}")
                             return {"success": False, "error": "Mã OTP đã hết hạn"}
-                    
+
                     logger.warning(f"Wrong OTP code: provided={otp_code}, stored={stored_otp}")
                     return {"success": False, "error": "Mã OTP không đúng"}
-                
+
                 return {"success": False, "error": "Mã OTP không đúng"}
-            
+
             otp_record = otp_res.data[0]
-            
+
             # 3. Check expiry - Fix timezone comparison issue
             expires_at_str = otp_record['expires_at']
             created_at_str = otp_record.get('created_at')
-            
+
             from datetime import timezone
-            
+
             # Parse expires_at and ensure UTC timezone
             if isinstance(expires_at_str, str):
                 # Handle different datetime formats from database
@@ -546,7 +553,7 @@ def register_booking_tools(mcp: FastMCP):
                 expires_at = datetime.fromisoformat(expires_at_str)
             else:
                 expires_at = expires_at_str
-            
+
             # Ensure expires_at is timezone-aware (assume UTC if not)
             if expires_at.tzinfo is None:
                 # If no timezone, assume UTC (database TIMESTAMP without timezone defaults to UTC in Supabase)
@@ -554,32 +561,34 @@ def register_booking_tools(mcp: FastMCP):
             else:
                 # Convert to UTC for consistent comparison
                 expires_at = expires_at.astimezone(timezone.utc)
-            
+
             # Get current time in UTC
             now_utc = datetime.now(timezone.utc)
-            
+
             # Log for debugging - show raw values and parsed values
             logger.info(f"🔍 OTP expiry check for booking {booking_id}:")
             logger.info(f"   Raw expires_at from DB: {expires_at_str}")
             logger.info(f"   Parsed expires_at (UTC): {expires_at}")
             logger.info(f"   Current time (UTC): {now_utc}")
             logger.info(f"   Created_at: {created_at_str}")
-            
+
             remaining_seconds = (expires_at - now_utc).total_seconds()
             logger.info(f"   ⏱️ Time remaining: {remaining_seconds:.2f} seconds ({remaining_seconds/60:.2f} minutes)")
-            
+
             # Compare in UTC - only expire if current time is AFTER expires_at
             if now_utc > expires_at:
                 time_diff = (now_utc - expires_at).total_seconds()
-                logger.error(f"❌ OTP EXPIRED: expires_at={expires_at}, now={now_utc}, expired by {time_diff:.2f} seconds")
+                logger.error(
+                    f"❌ OTP EXPIRED: expires_at={expires_at}, now={now_utc}, expired by {
+                        time_diff:.2f} seconds")
                 return {"success": False, "error": "Mã OTP đã hết hạn"}
-            
+
             logger.info(f"✅ OTP is still valid - {remaining_seconds:.2f} seconds remaining")
-            
+
             # 3. Check attempts (max 3)
             if otp_record.get('attempts', 0) >= 3:
                 return {"success": False, "error": "Đã vượt quá số lần nhập OTP cho phép"}
-            
+
             # 4. Mark OTP as verified
             supabase.table("otp_verifications")\
                 .update({
@@ -588,40 +597,42 @@ def register_booking_tools(mcp: FastMCP):
                 })\
                 .eq("booking_id", booking_id)\
                 .execute()
-            
+
             # 5. Set booking status to "pending" (waiting for payment)
             supabase.table("bookings")\
                 .update({"status": "pending"})\
                 .eq("booking_id", booking_id)\
                 .execute()
-            
+
             # 6. Get booking details for response
             booking_res = supabase.table("bookings")\
                 .select("*, tour_packages(package_name, destination, start_date, price)")\
                 .eq("booking_id", booking_id)\
                 .execute()
-            
+
             booking = booking_res.data[0] if booking_res.data else {}
             pkg = booking.get('tour_packages', {})
             if isinstance(pkg, list) and pkg:
                 pkg = pkg[0]
             elif not isinstance(pkg, dict):
                 pkg = {}
-            
+
             return {
                 "success": True,
                 "message": "✅ Xác thực thành công! Đặt tour của bạn đã được xác nhận. Vui lòng thanh toán để hoàn tất đặt tour.",
                 "booking_id": booking_id,
                 "confirmation": {
                     "booking_id": booking_id,
-                    "tour_name": pkg.get('package_name', 'Unknown Tour'),
-                    "destination": pkg.get('destination', 'Unknown'),
+                    "tour_name": pkg.get(
+                        'package_name',
+                        'Unknown Tour'),
+                    "destination": pkg.get(
+                        'destination',
+                        'Unknown'),
                     "start_date": pkg.get('start_date'),
                     "number_of_people": booking.get('number_of_people'),
                     "total_amount": booking.get('total_amount'),
-                    "status": "pending"
-                }
-            }
+                    "status": "pending"}}
         except Exception as e:
             logger.error(f"Verify OTP error: {str(e)}")
             return {"success": False, "error": f"System error: {str(e)}"}
@@ -631,10 +642,10 @@ def register_booking_tools(mcp: FastMCP):
         try:
             supabase = get_supabase_client()
             booking_service = BookingService(supabase)
-            
+
             # Call BookingService.resend_otp
             result = await booking_service.resend_otp(booking_id)
-            
+
             # Convert BookingService response format to MCP tool format
             if result["EC"] == 0:
                 return {
@@ -790,7 +801,7 @@ def register_booking_tools(mcp: FastMCP):
         Áp dụng mã khuyến mãi vào booking đã tạo.
         Use this tool when user provides a promotion code after booking is created (status='pending').
         This will update the booking total_amount with discount applied.
-        
+
         IMPORTANT:
         - Only works for bookings with status='pending' (after OTP verification, before payment)
         - If booking already has a promotion, it will be replaced with the new one
@@ -807,7 +818,7 @@ def register_booking_tools(mcp: FastMCP):
             )
         except ValidationError as e:
             return {"success": False, "error": f"Input Validation Error: {str(e)}"}
-    
+
     logger.info("✅ Booking tools registered (including payment tools and promotion code tool)")
 
 
@@ -820,11 +831,11 @@ async def _create_payment_impl(
     try:
         supabase = get_supabase_client()
         payment_service = PaymentService(supabase)
-        
+
         # Get client IP (default to 127.0.0.1 if not available in context)
         # In MCP context, we don't have direct access to request, so use default
         ip_addr = "127.0.0.1"
-        
+
         # Call payment service
         result = await payment_service.create_payment(
             booking_id=booking_id,
@@ -832,36 +843,36 @@ async def _create_payment_impl(
             ip_addr=ip_addr,
             client_return_url=client_return_url
         )
-        
+
         if result["EC"] != 0:
             return {
                 "success": False,
                 "error": result["EM"],
                 "error_code": result["EC"]
             }
-        
+
         payment_data = result["data"]
         payment_url = payment_data.get("payment_url")
-        
+
         if not payment_url:
             return {
                 "success": False,
                 "error": "Payment URL not generated"
             }
-        
+
         # Get booking details for response
         booking_res = supabase.table("bookings")\
             .select("*, tour_packages(package_name, destination, start_date, price)")\
             .eq("booking_id", booking_id)\
             .execute()
-        
+
         booking = booking_res.data[0] if booking_res.data else {}
         pkg = booking.get('tour_packages', {})
         if isinstance(pkg, list) and pkg:
             pkg = pkg[0]
         elif not isinstance(pkg, dict):
             pkg = {}
-        
+
         return {
             "success": True,
             "message": "Payment URL đã được tạo thành công. Bạn có thể thanh toán ngay.",
@@ -894,40 +905,40 @@ async def _apply_promotion_code_impl(
     try:
         supabase = get_supabase_client()
         promotion_service = PromotionService(supabase)
-        
+
         # 1. Get booking and validate status
         booking_res = supabase.table("bookings")\
             .select("*, tour_packages(package_name, destination, start_date, price)")\
             .eq("booking_id", booking_id)\
             .execute()
-        
+
         if not booking_res.data:
             return {
                 "success": False,
                 "error": f"Booking {booking_id} not found"
             }
-        
+
         booking = booking_res.data[0]
-        
+
         # Check booking status - only allow for pending bookings
         if booking['status'] != 'pending':
             return {
                 "success": False,
-                "error": f"Cannot apply promotion code. Booking status is '{booking['status']}'. Only bookings with status 'pending' can have promotion codes applied."
-            }
-        
+                "error": f"Cannot apply promotion code. Booking status is '{
+                    booking['status']}'. Only bookings with status 'pending' can have promotion codes applied."}
+
         # 2. Get promotion by code
         promo_result = await promotion_service.get_promotion_by_code(promotion_code)
-        
+
         if promo_result['EC'] != 0:
             return {
                 "success": False,
                 "error": f"Promotion code '{promotion_code}' not found or invalid"
             }
-        
+
         promotion = promo_result['promotion']
         promotion_id = promotion['promotion_id']
-        
+
         # Check if booking already has a promotion
         existing_promo_id = None
         if booking.get('promotion_id'):
@@ -954,42 +965,42 @@ async def _apply_promotion_code_impl(
             except Exception as e:
                 logger.warning(f"Failed to rollback old promotion used_count: {str(e)}")
                 # Continue anyway - not critical
-        
+
         # 3. Get current booking amount to apply discount
         # Use current total_amount (may already have discount from previous promotion)
         current_amount = float(booking.get('total_amount', 0))
-        
+
         # Get package info for response (not for calculation)
         pkg = booking.get('tour_packages', {})
         if isinstance(pkg, list) and pkg:
             pkg = pkg[0]
         elif not isinstance(pkg, dict):
             pkg = {}
-        
+
         # Calculate original price (package price * number_of_people) for reference
         package_price = float(pkg.get('price', 0))
         number_of_people = booking.get('number_of_people', 1)
         original_package_amount = package_price * number_of_people
-        
+
         # Use current_amount as base for discount calculation
         # This means if booking already has a promotion, new promotion applies on already-discounted price
         base_amount = current_amount if current_amount > 0 else original_package_amount
-        
+
         # 4. Apply promotion using PromotionService
         promo_apply_result = await promotion_service.apply_promotion_to_booking(
             str(promotion_id),
             base_amount
         )
-        
+
         if promo_apply_result['EC'] != 0:
             return {
                 "success": False,
                 "error": promo_apply_result['EM']
             }
-        
+
         final_amount = promo_apply_result['final_price']
         discount_amount = promo_apply_result['discount_amount']
-        
+
         # 5. Update booking with new total_amount and promotion_id
         update_result = supabase.table("bookings")\
             .update({
@@ -999,16 +1010,17 @@ async def _apply_promotion_code_impl(
             })\
             .eq("booking_id", booking_id)\
             .execute()
-        
+
         if not update_result.data:
             return {
                 "success": False,
                 "error": "Failed to update booking with promotion"
             }
-        
+
         # 6. Return success with discount info
-        logger.info(f"✅ Applied promotion code '{promotion_code}' to booking {booking_id}: {base_amount} -> {final_amount} (discount: {discount_amount})")
-        
+        logger.info(
+            f"✅ Applied promotion code '{promotion_code}' to booking {booking_id}: {base_amount} -> {final_amount} (discount: {discount_amount})")
+
         return {
             "success": True,
             "message": f"✅ Mã khuyến mãi '{promotion_code}' đã được áp dụng thành công!",
@@ -1030,7 +1042,7 @@ async def _apply_promotion_code_impl(
                 "discount_amount": discount_amount
             }
         }
-        
+
     except Exception as e:
         logger.error(f"Apply promotion code error: {str(e)}")
         return {"success": False, "error": f"System error: {str(e)}"}
@@ -1054,7 +1066,7 @@ async def _generate_payment_ui_impl(
             safe_total_amount = 0.0
         safe_tour_name = str(tour_name or "")
         safe_payment_method = str(payment_method or "vnpay")
-        
+
         html = generate_payment_button_html(
             payment_url=safe_payment_url,
             booking_id=safe_booking_id,
@@ -1062,7 +1074,7 @@ async def _generate_payment_ui_impl(
             tour_name=safe_tour_name,
             payment_method=safe_payment_method
         )
-        
+
         return {
             "success": True,
             "html": html,
@@ -1082,7 +1094,3 @@ async def _generate_payment_ui_impl(
     except Exception as e:
         logger.error(f"Generate payment UI error: {str(e)}")
         return {"success": False, "error": f"System error: {str(e)}"}
-
-
-    
-   

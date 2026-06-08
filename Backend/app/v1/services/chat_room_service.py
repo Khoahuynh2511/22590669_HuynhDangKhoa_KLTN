@@ -4,7 +4,6 @@ Chat Room Service - psycopg2 version
 import re
 import logging
 import json
-from typing import Optional, Dict, Any
 from datetime import datetime
 
 import psycopg2
@@ -85,7 +84,10 @@ class ChatRoomService:
             params.extend([room_id, user_id])
             with self._conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(f"UPDATE chat_rooms SET {', '.join(sets)} WHERE room_id = %s AND user_id = %s RETURNING *", params)
+                    cur.execute(
+                        f"UPDATE chat_rooms SET {
+                            ', '.join(sets)} WHERE room_id = %s AND user_id = %s RETURNING *",
+                        params)
                     row = cur.fetchone()
                     conn.commit()
             if not row:
@@ -140,7 +142,13 @@ class ChatRoomService:
             return {"EC": 0, "EM": "Success", "data": messages, "total": total, "limit": limit, "offset": offset}
         except Exception as e:
             logger.error(f"Error getting room messages: {e}")
-            return {"EC": 1, "EM": f"Error getting messages: {e}", "data": [], "total": 0, "limit": limit, "offset": offset}
+            return {
+                "EC": 1,
+                "EM": f"Error getting messages: {e}",
+                "data": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset}
 
     def count_messages(self, room_id):
         try:
@@ -163,7 +171,11 @@ class ChatRoomService:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO chat_history (room_id, user_id, role, content, metadata) VALUES (%s, %s, %s, %s, %s) RETURNING *",
-                        (room_id, user_id, role, content, json.dumps(metadata) if metadata else None),
+                        (room_id,
+                         user_id,
+                         role,
+                         content,
+                         json.dumps(metadata) if metadata else None),
                     )
                     msg = dict(cur.fetchone())
                     cur.execute("UPDATE chat_rooms SET updated_at = NOW() WHERE room_id = %s", (room_id,))

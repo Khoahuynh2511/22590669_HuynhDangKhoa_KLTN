@@ -16,8 +16,10 @@ class BookingBase(BaseModel):
     contact_email: Optional[str] = Field(None, description="Email liên hệ (cho OTP)")
     special_requests: Optional[str] = Field(None, max_length=500, description="Yêu cầu đặc biệt")
     user_id: UUID = Field(..., description="ID của người dùng đặt tour")
-    promotion_id: Optional[UUID] = Field(None, description="ID của mã khuyến mãi (nếu có) - dùng promotion_id HOẶC promotion_code")
-    promotion_code: Optional[str] = Field(None, description="Mã khuyến mãi 8 ký tự (VD: ABC12345) - ưu tiên dùng code thay vì ID")
+    promotion_id: Optional[UUID] = Field(
+        None, description="ID của mã khuyến mãi (nếu có) - dùng promotion_id HOẶC promotion_code")
+    promotion_code: Optional[str] = Field(
+        None, description="Mã khuyến mãi 8 ký tự (VD: ABC12345) - ưu tiên dùng code thay vì ID")
 
 
 class BookingCreate(BookingBase):
@@ -37,6 +39,7 @@ class BookingCreate(BookingBase):
         }
     )
 
+
 class BookingUpdate(BaseModel):
     """Schema for updating booking"""
     model_config = ConfigDict(
@@ -50,7 +53,7 @@ class BookingUpdate(BaseModel):
             }
         }
     )
-    
+
     number_of_people: Optional[int] = Field(None, ge=1, description="Số lượng người (total_amount sẽ tự động cập nhật)")
     contact_name: Optional[str] = Field(None, min_length=2, max_length=100, description="Tên người liên hệ")
     contact_phone: Optional[str] = Field(None, min_length=10, max_length=20, description="Số điện thoại")
@@ -76,7 +79,7 @@ class BookingResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -89,7 +92,7 @@ class BookingListResponse(BaseModel):
 
 
 class BookingDetailResponse(BaseModel):
-    """Response schema for single booking detail"""    
+    """Response schema for single booking detail"""
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     data: Optional[BookingResponse] = None
@@ -118,7 +121,7 @@ class BookingDeleteResponse(BaseModel):
 class BookingCancelRequest(BaseModel):
     """Schema for cancelling a booking"""
     reason: Optional[str] = Field(None, max_length=500, description="Lý do hủy booking")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -150,7 +153,7 @@ class TourPackageInfo(BaseModel):
     end_date: Optional[str] = Field(None, description="Ngày kết thúc")
     price: float = Field(..., description="Giá tour")
     image_urls: Optional[str] = Field(None, description="URLs hình ảnh (phân cách bằng |)")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -165,7 +168,7 @@ class MyBookingListItem(BaseModel):
     total_amount: float = Field(..., description="Tổng số tiền")
     status: str = Field(..., description="Trạng thái: pending/confirmed/cancelled/completed")
     created_at: datetime = Field(..., description="Ngày tạo booking")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -182,7 +185,7 @@ class MyBookingDetail(BaseModel):
     created_at: datetime = Field(..., description="Ngày tạo")
     updated_at: datetime = Field(..., description="Ngày cập nhật")
     tour_package: Optional[TourPackageInfo] = Field(None, description="Thông tin tour package")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -214,7 +217,7 @@ class AdminBookingListItem(BaseModel):
     total_amount: float = Field(..., description="Tổng số tiền")
     status: str = Field(..., description="Trạng thái")
     created_at: datetime = Field(..., description="Ngày tạo booking")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -246,7 +249,7 @@ class BookingCreateWithOTP(BaseModel):
     contact_email: str = Field(..., description="Email để nhận OTP")
     special_requests: Optional[str] = Field(None, max_length=500, description="Yêu cầu đặc biệt")
     user_id: UUID = Field(..., description="ID của người dùng đặt tour (bắt buộc)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -266,7 +269,7 @@ class VerifyOTPRequest(BaseModel):
     """Schema for verifying OTP"""
     booking_id: UUID = Field(..., description="ID của booking cần verify")
     otp_code: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$", description="Mã OTP 6 số")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -286,7 +289,7 @@ class AdminBookingCreate(BaseModel):
     contact_email: Optional[str] = Field(None, description="Email liên hệ (optional, không cần cho OTP)")
     special_requests: Optional[str] = Field(None, max_length=500, description="Yêu cầu đặc biệt")
     user_id: UUID = Field(..., description="ID của người dùng đặt tour (bắt buộc)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -312,7 +315,7 @@ class BookingOTPResponse(BaseModel):
 class ResendOTPRequest(BaseModel):
     """Schema for resending OTP"""
     booking_id: UUID = Field(..., description="ID của booking cần gửi lại OTP")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {

@@ -11,16 +11,16 @@ logger = logging.getLogger(__name__)
 
 class BookingManagementService:
     """Service for managing user bookings with tour package information"""
-    
+
     def __init__(self, supabase_client: Client):
         """
         Initialize BookingManagementService
-        
+
         Args:
             supabase_client: Supabase client instance
         """
         self.supabase = supabase_client
-    
+
     async def get_user_bookings(
         self,
         user_id: str,
@@ -30,37 +30,39 @@ class BookingManagementService:
     ) -> Dict[str, Any]:
         """
         Lấy danh sách bookings của user với thông tin tour package
-        
+
         Args:
             user_id: ID của user
             status: Filter theo trạng thái (pending/confirmed/cancelled/completed)
             limit: Maximum number of results
             offset: Number of records to skip
-            
+
         Returns:
             Dict with EC, EM, data, and total
         """
         try:
             # Join với tour_packages để lấy thông tin tour
-            query = self.supabase.table('bookings')\
-                .select('booking_id, package_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date, end_date)', count='exact')\
-                .eq('user_id', user_id)
-            
+            query = self.supabase.table('bookings') .select(
+                'booking_id, package_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date, end_date)',
+                count='exact') .eq(
+                'user_id',
+                user_id)
+
             # Apply status filter
             if status:
                 query = query.eq('status', status)
-            
+
             # Apply pagination
             if limit:
                 query = query.limit(limit)
             if offset:
                 query = query.offset(offset)
-            
+
             # Order by created_at descending
             query = query.order('created_at', desc=True)
-            
+
             result = query.execute()
-            
+
             # Format response data
             formatted_data = []
             for booking in result.data:
@@ -70,7 +72,7 @@ class BookingManagementService:
                     tour_pkg = tour_pkg[0]
                 elif not isinstance(tour_pkg, dict):
                     tour_pkg = {}
-                
+
                 formatted_data.append({
                     "booking_id": booking['booking_id'],
                     "package_id": booking['package_id'],
@@ -83,14 +85,14 @@ class BookingManagementService:
                     "status": booking['status'],
                     "created_at": booking['created_at']
                 })
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data,
                 "total": result.count
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting user bookings: {str(e)}")
             return {
@@ -99,7 +101,7 @@ class BookingManagementService:
                 "data": None,
                 "total": 0
             }
-    
+
     async def get_user_booking_detail(
         self,
         booking_id: str,
@@ -107,11 +109,11 @@ class BookingManagementService:
     ) -> Dict[str, Any]:
         """
         Lấy chi tiết booking của user với đầy đủ thông tin tour package
-        
+
         Args:
             booking_id: UUID của booking
             user_id: ID của user (để verify ownership)
-            
+
         Returns:
             Dict with EC, EM, and data
         """
@@ -122,14 +124,14 @@ class BookingManagementService:
                 .eq('booking_id', booking_id)\
                 .eq('user_id', user_id)\
                 .execute()
-            
+
             if not result.data:
                 return {
                     "EC": 1,
                     "EM": "Booking not found or access denied",
                     "data": None
                 }
-            
+
             booking = result.data[0]
             tour_pkg = booking.get('tour_packages', {})
             # Handle case where tour_packages might be a list or dict
@@ -137,7 +139,7 @@ class BookingManagementService:
                 tour_pkg = tour_pkg[0]
             elif not isinstance(tour_pkg, dict):
                 tour_pkg = {}
-            
+
             # Format tour package info
             tour_package_info = None
             if tour_pkg:
@@ -152,7 +154,7 @@ class BookingManagementService:
                     "price": float(tour_pkg.get('price', 0)),
                     "image_urls": tour_pkg.get('image_urls')
                 }
-            
+
             # Format booking detail
             formatted_data = {
                 "booking_id": booking['booking_id'],
@@ -166,13 +168,13 @@ class BookingManagementService:
                 "updated_at": booking['updated_at'],
                 "tour_package": tour_package_info
             }
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting booking detail {booking_id}: {str(e)}")
             return {
@@ -180,7 +182,7 @@ class BookingManagementService:
                 "EM": f"Error retrieving booking: {str(e)}",
                 "data": None
             }
-    
+
     async def get_all_bookings_admin(
         self,
         status: Optional[str] = None,
@@ -189,36 +191,37 @@ class BookingManagementService:
     ) -> Dict[str, Any]:
         """
         Admin: Lấy tất cả bookings trong hệ thống với thông tin user và tour
-        
+
         Args:
             status: Filter theo trạng thái
             limit: Maximum number of results
             offset: Number of records to skip
-            
+
         Returns:
             Dict with EC, EM, data, and total
         """
         try:
             # Join với tour_packages và users để lấy đầy đủ thông tin
             # Note: Supabase join syntax requires foreign key relationship
-            query = self.supabase.table('bookings')\
-                .select('booking_id, user_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)', count='exact')
-            
+            query = self.supabase.table('bookings') .select(
+                'booking_id, user_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)',
+                count='exact')
+
             # Apply status filter
             if status:
                 query = query.eq('status', status)
-            
+
             # Apply pagination
             if limit:
                 query = query.limit(limit)
             if offset:
                 query = query.offset(offset)
-            
+
             # Order by created_at descending
             query = query.order('created_at', desc=True)
-            
+
             result = query.execute()
-            
+
             # Format response data
             formatted_data = []
             for booking in result.data:
@@ -227,7 +230,7 @@ class BookingManagementService:
                     tour_pkg = tour_pkg[0]
                 elif not isinstance(tour_pkg, dict):
                     tour_pkg = {}
-                
+
                 # Get user info separately if needed
                 user_id = booking.get('user_id')
                 user_email = None
@@ -244,7 +247,7 @@ class BookingManagementService:
                             user_full_name = user_info.get('full_name')
                     except Exception as e:
                         logger.warning(f"Could not fetch user info for {user_id}: {str(e)}")
-                
+
                 formatted_data.append({
                     "booking_id": booking['booking_id'],
                     "user_id": user_id,
@@ -258,14 +261,14 @@ class BookingManagementService:
                     "status": booking['status'],
                     "created_at": booking['created_at']
                 })
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data,
                 "total": result.count
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting all bookings admin: {str(e)}")
             return {
@@ -274,7 +277,7 @@ class BookingManagementService:
                 "data": None,
                 "total": 0
             }
-    
+
     async def get_user_bookings_admin(
         self,
         user_id: str,
@@ -284,37 +287,39 @@ class BookingManagementService:
     ) -> Dict[str, Any]:
         """
         Admin: Lấy tất cả bookings của 1 user cụ thể
-        
+
         Args:
             user_id: ID của user cần xem
             status: Filter theo trạng thái
             limit: Maximum number of results
             offset: Number of records to skip
-            
+
         Returns:
             Dict with EC, EM, data, and total
         """
         try:
             # Join với tour_packages để lấy thông tin tour
-            query = self.supabase.table('bookings')\
-                .select('booking_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)', count='exact')\
-                .eq('user_id', user_id)
-            
+            query = self.supabase.table('bookings') .select(
+                'booking_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)',
+                count='exact') .eq(
+                'user_id',
+                user_id)
+
             # Apply status filter
             if status:
                 query = query.eq('status', status)
-            
+
             # Apply pagination
             if limit:
                 query = query.limit(limit)
             if offset:
                 query = query.offset(offset)
-            
+
             # Order by created_at descending
             query = query.order('created_at', desc=True)
-            
+
             result = query.execute()
-            
+
             # Format response data
             formatted_data = []
             for booking in result.data:
@@ -323,7 +328,7 @@ class BookingManagementService:
                     tour_pkg = tour_pkg[0]
                 elif not isinstance(tour_pkg, dict):
                     tour_pkg = {}
-                
+
                 formatted_data.append({
                     "booking_id": booking['booking_id'],
                     "user_id": user_id,  # Include user_id for admin
@@ -335,14 +340,14 @@ class BookingManagementService:
                     "status": booking['status'],
                     "created_at": booking['created_at']
                 })
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data,
                 "total": result.count
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting user bookings admin: {str(e)}")
             return {
@@ -351,17 +356,17 @@ class BookingManagementService:
                 "data": None,
                 "total": 0
             }
-    
+
     async def get_booking_detail_admin(
         self,
         booking_id: str
     ) -> Dict[str, Any]:
         """
         Admin: Lấy chi tiết bất kỳ booking nào
-        
+
         Args:
             booking_id: UUID của booking
-            
+
         Returns:
             Dict with EC, EM, and data
         """
@@ -371,21 +376,21 @@ class BookingManagementService:
                 .select('*, tour_packages(*)', count='exact')\
                 .eq('booking_id', booking_id)\
                 .execute()
-            
+
             if not result.data:
                 return {
                     "EC": 1,
                     "EM": "Booking not found",
                     "data": None
                 }
-            
+
             booking = result.data[0]
             tour_pkg = booking.get('tour_packages', {})
             if isinstance(tour_pkg, list) and tour_pkg:
                 tour_pkg = tour_pkg[0]
             elif not isinstance(tour_pkg, dict):
                 tour_pkg = {}
-            
+
             # Format tour package info
             tour_package_info = None
             if tour_pkg:
@@ -400,7 +405,7 @@ class BookingManagementService:
                     "price": float(tour_pkg.get('price', 0)),
                     "image_urls": tour_pkg.get('image_urls')
                 }
-            
+
             # Format booking detail
             formatted_data = {
                 "booking_id": booking['booking_id'],
@@ -414,13 +419,13 @@ class BookingManagementService:
                 "updated_at": booking['updated_at'],
                 "tour_package": tour_package_info
             }
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting booking detail admin {booking_id}: {str(e)}")
             return {
@@ -437,12 +442,12 @@ class BookingManagementService:
     ) -> Dict[str, Any]:
         """
         Admin: Lấy danh sách tất cả booking cancellations trong hệ thống
-        
+
         Args:
             cancelled_by: Filter by who cancelled (user/admin/system)
             limit: Maximum number of results
             offset: Number of records to skip
-            
+
         Returns:
             Dict with EC, EM, data, and total
         """
@@ -450,22 +455,22 @@ class BookingManagementService:
             # Query booking_cancellations with joins
             query = self.supabase.table('booking_cancellations')\
                 .select('*', count='exact')
-            
+
             # Apply filter
             if cancelled_by:
                 query = query.eq('cancelled_by', cancelled_by)
-            
+
             # Apply pagination
             if limit:
                 query = query.limit(limit)
             if offset:
                 query = query.offset(offset)
-            
+
             # Order by cancelled_at descending
             query = query.order('cancelled_at', desc=True)
-            
+
             result = query.execute()
-            
+
             # Format response data with additional info
             formatted_data = []
             for cancel in result.data:
@@ -482,7 +487,7 @@ class BookingManagementService:
                             tour_name = tour_info.get('package_name', 'Unknown Tour')
                     except Exception as e:
                         logger.warning(f"Could not fetch tour info for {cancel.get('package_id')}: {str(e)}")
-                
+
                 # Get user info
                 user_email = None
                 user_full_name = None
@@ -498,7 +503,7 @@ class BookingManagementService:
                             user_full_name = user_info.get('full_name')
                     except Exception as e:
                         logger.warning(f"Could not fetch user info for {cancel.get('user_id')}: {str(e)}")
-                
+
                 formatted_data.append({
                     "cancellation_id": cancel.get('cancellation_id'),
                     "booking_id": cancel.get('booking_id'),
@@ -522,14 +527,14 @@ class BookingManagementService:
                     "cancelled_by": cancel.get('cancelled_by'),
                     "created_at": cancel.get('created_at')
                 })
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
                 "data": formatted_data,
                 "total": result.count
             }
-            
+
         except Exception as e:
             logger.error(f"Error getting all cancellations admin: {str(e)}")
             return {

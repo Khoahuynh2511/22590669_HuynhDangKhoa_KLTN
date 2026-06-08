@@ -16,7 +16,7 @@ class PaymentCreate(BaseModel):
         default=None,
         description="Optional: URL frontend muốn quay lại sau thanh toán. Sẽ được append vào VNPAY_RETURN_URL dưới dạng redirect param."
     )
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -38,7 +38,7 @@ class PaymentResponse(BaseModel):
     payment_url: Optional[str] = Field(None, description="URL redirect đến VNPay")
     paid_at: Optional[datetime] = Field(None, description="Thời gian thanh toán thành công")
     created_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -69,7 +69,7 @@ class PaymentListItem(BaseModel):
     # Booking info
     tour_name: Optional[str] = Field(None, description="Tên tour")
     destination: Optional[str] = Field(None, description="Điểm đến")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -96,7 +96,7 @@ class VNPayCallbackData(BaseModel):
     vnp_TxnRef: Optional[str] = None  # payment_id
     vnp_SecureHash: Optional[str] = None
     vnp_SecureHashType: Optional[str] = None
-    
+
     model_config = ConfigDict(extra="allow")
 
 
@@ -111,10 +111,11 @@ class VNPayIPNResponse(BaseModel):
 class AdminPaymentCreate(BaseModel):
     """Schema for admin manual payment creation"""
     booking_id: UUID = Field(..., description="ID của booking cần tạo payment")
-    payment_method: str = Field(default="bank_transfer", description="Phương thức thanh toán (bank_transfer, momo, vnpay, zalopay)")
+    payment_method: str = Field(default="bank_transfer",
+                                description="Phương thức thanh toán (bank_transfer, momo, vnpay, zalopay)")
     transaction_id: Optional[str] = Field(None, description="Mã giao dịch (nếu có)")
     notes: Optional[str] = Field(None, description="Ghi chú của admin")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -131,7 +132,7 @@ class AdminConfirmCashPayment(BaseModel):
     """Schema for admin confirming cash payment"""
     booking_id: UUID = Field(..., description="ID của booking cần xác nhận thanh toán tiền mặt")
     notes: Optional[str] = Field(None, description="Ghi chú của admin (optional)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -145,7 +146,7 @@ class AdminConfirmCashPayment(BaseModel):
 class AdminPaymentRefund(BaseModel):
     """Schema for admin payment refund"""
     refund_reason: str = Field(..., description="Lý do hoàn tiền")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -201,7 +202,7 @@ class AdminPaymentListItem(BaseModel):
     created_by_admin_id: Optional[str] = None
     refunded_by: Optional[str] = None
     refunded_at: Optional[datetime] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -211,4 +212,3 @@ class AdminPaymentListResponse(BaseModel):
     EM: str = Field(..., description="Error message")
     data: Optional[list[AdminPaymentListItem]] = None
     total: Optional[int] = None
-

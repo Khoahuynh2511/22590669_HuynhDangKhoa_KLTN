@@ -91,6 +91,20 @@
           </div>
         </div>
       </div>
+
+      <nav [class.service-nav-on-hero]="!isScrolled && isHomePage"
+        [class.service-nav-solid]="isScrolled || !isHomePage"
+        class="service-nav" aria-label="Service navigation">
+        @for (item of serviceMenu; track item.url) {
+        <a [routerLink]="item.url" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+          class="service-item">
+          <span class="service-icon">
+            <img [src]="item.icon" [alt]="item.label" />
+          </span>
+          <span class="service-label">{{ item.label }}</span>
+        </a>
+        }
+      </nav>
     </div>
   </div>
 </header>

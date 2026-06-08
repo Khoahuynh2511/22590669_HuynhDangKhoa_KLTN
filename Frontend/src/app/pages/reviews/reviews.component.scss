@@ -1,7 +1,7 @@
 .reviews-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: calc(126px + 2rem) 2rem 2rem;
 
   .reviews-header {
     text-align: center;
@@ -447,7 +447,7 @@
 // Responsive Design
 @media (max-width: 768px) {
   .reviews-container {
-    padding: 1rem;
+    padding: calc(114px + 1rem) 1rem 1rem;
 
     .reviews-header {
       h1 {

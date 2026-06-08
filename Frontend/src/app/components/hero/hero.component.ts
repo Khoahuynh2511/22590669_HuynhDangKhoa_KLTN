@@ -27,31 +27,31 @@ export class HeroComponent implements OnInit, OnDestroy {
 
   menuItems: Menu[] = [
     {
-      label: 'Khách sạn', url: '', path: 'icon/hotel.png',
+      label: 'Khách sạn', url: '/hotel', path: 'icon/hotel.png',
       isActive: true
     },
     {
-      label: 'Vé máy bay', url: '', path: 'icon/air-plane.png',
+      label: 'Vé máy bay', url: '/flights', path: 'icon/air-plane.png',
       isActive: false
     },
     {
-      label: 'Vé tàu hỏa', url: '', path: 'icon/train.png',
+      label: 'Vé tàu hỏa', url: '/trains', path: 'icon/train.png',
       isActive: false
     },
     {
-      label: 'Vé xe khách & Du lịch', url: '', path: 'icon/train.png',
+      label: 'Vé xe khách & Du lịch', url: '/buses', path: 'icon/train.png',
       isActive: false
     },
     {
-      label: 'Đưa đón sân bay', url: '', path: 'icon/car.png',
+      label: 'Đưa đón sân bay', url: '/airport-transfer', path: 'icon/car.png',
       isActive: false
     },
     {
-      label: 'Thuê xe', url: '', path: 'icon/car.png',
+      label: 'Thuê xe', url: '/car-rental', path: 'icon/car.png',
       isActive: false
     },
     {
-      label: 'Giải trí và hoạt động', url: '', path: 'icon/car.png',
+      label: 'Giải trí và hoạt động', url: '/activities', path: 'icon/car.png',
       isActive: false
     },
     {

@@ -28,30 +28,30 @@ async def get_my_profile(
 ):
     """
     Get current user's profile
-    
+
     Args:
         current_user: Current user from JWT
         service: UserProfileService instance
-        
+
     Returns:
         User profile data
-        
+
     Raises:
         404: User not found
         403: Account disabled
     """
     user_id = current_user.get("user_id")
     result = service.get_my_profile(user_id)
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     # Check if account is activated
     if result["data"] and not result["data"].get("is_active", True):
         raise HTTPException(status_code=403, detail="Account is disabled")
-    
+
     return result
 
 
@@ -63,37 +63,37 @@ async def update_my_profile(
 ):
     """
     Update current user's profile (allowlist fields only)
-    
+
     Args:
         request: Profile update request body
         current_user: Current user from JWT
         service: UserProfileService instance
-        
+
     Returns:
         Updated user profile data
-        
+
     Raises:
         404: User not found
         403: Account disabled
     """
     user_id = current_user.get("user_id")
-    
+
     result = service.update_my_profile(
         user_id=user_id,
         full_name=request.full_name,
         phone_number=request.phone_number,
         profile_picture=request.profile_picture
     )
-    
+
     if result["EC"] == 1:
         raise HTTPException(status_code=404, detail=result["EM"])
     elif result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
-    
+
     # Check if account is active
     if result["data"] and not result["data"].get("is_active", True):
         raise HTTPException(status_code=403, detail="Account is disabled")
-    
+
     return result
 
 

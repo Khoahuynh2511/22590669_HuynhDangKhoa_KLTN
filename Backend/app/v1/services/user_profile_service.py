@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 
 class UserProfileService:
     """Service for user profile self-service operations"""
-    
+
     def __init__(self, supabase: Client):
         self.supabase = supabase
-    
+
     def get_my_profile(self, user_id: str) -> Dict[str, Any]:
         """
         Get current user's profile by user_id from JWT
-        
+
         Args:
             user_id: User ID from JWT token
-            
+
         Returns:
             Dict with EC, EM, data keys
         """
@@ -33,16 +33,16 @@ class UserProfileService:
             response = self.supabase.table("users").select(
                 "user_id, email, full_name, phone_number, profile_picture, role, is_active, created_at, updated_at"
             ).eq("user_id", user_id).execute()
-            
+
             if not response.data or len(response.data) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found",
                     "data": None
                 }
-            
+
             user = response.data[0]
-            
+
             return {
                 "EC": 0,
                 "EM": "Success",
@@ -65,7 +65,7 @@ class UserProfileService:
                 "EM": f"Error retrieving user profile: {str(e)}",
                 "data": None
             }
-    
+
     def update_my_profile(
         self,
         user_id: str,
@@ -75,13 +75,13 @@ class UserProfileService:
     ) -> Dict[str, Any]:
         """
         Update current user's profile (allowlist fields only)
-        
+
         Args:
             user_id: User ID from JWT token
             full_name: Optional new full name
             phone_number: Optional new phone number
             profile_picture: Optional new profile picture URL
-            
+
         Returns:
             Dict with EC, EM, data keys
         """
@@ -90,14 +90,14 @@ class UserProfileService:
             update_data = {
                 "updated_at": datetime.utcnow().isoformat()
             }
-            
+
             if full_name is not None:
                 update_data["full_name"] = full_name
             if phone_number is not None:
                 update_data["phone_number"] = phone_number
             if profile_picture is not None:
                 update_data["profile_picture"] = profile_picture
-            
+
             # Check if any fields to update
             if len(update_data) == 1:  # Only updated_at
                 return {
@@ -105,20 +105,20 @@ class UserProfileService:
                     "EM": "No fields to update",
                     "data": None
                 }
-            
+
             # Update user profile
             response = self.supabase.table("users").update(update_data).eq("user_id", user_id).execute()
-            
+
             if not response.data or len(response.data) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found",
                     "data": None
                 }
-            
+
             # Return updated profile
             return self.get_my_profile(user_id)
-            
+
         except Exception as e:
             logger.error(f"Error updating user profile {user_id}: {str(e)}", exc_info=True)
             return {
@@ -188,56 +188,56 @@ class UserProfileService:
     ) -> Dict[str, Any]:
         """
         Change user password after verifying current password
-        
+
         Args:
             user_id: User ID from JWT token
             current_password: Current password to verify
             new_password: New password to set
-            
+
         Returns:
             Dict with EC, EM keys
         """
         try:
             import bcrypt
-            
+
             # Get current user password hash
             response = self.supabase.table("users").select("password_hash").eq("user_id", user_id).execute()
-            
+
             if not response.data or len(response.data) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found"
                 }
-            
+
             stored_password = response.data[0].get("password_hash")
-            
+
             # Verify current password
             if not bcrypt.checkpw(current_password.encode('utf-8'), stored_password.encode('utf-8')):
                 return {
                     "EC": 1,
                     "EM": "Current password is incorrect"
                 }
-            
+
             # Hash new password
             new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-            
+
             # Update password
             update_response = self.supabase.table("users").update({
                 "password_hash": new_password_hash,
                 "updated_at": datetime.utcnow().isoformat()
             }).eq("user_id", user_id).execute()
-            
+
             if not update_response.data or len(update_response.data) == 0:
                 return {
                     "EC": 2,
                     "EM": "Failed to update password"
                 }
-            
+
             return {
                 "EC": 0,
                 "EM": "Password changed successfully"
             }
-            
+
         except Exception as e:
             logger.error(f"Error changing password for {user_id}: {str(e)}", exc_info=True)
             return {

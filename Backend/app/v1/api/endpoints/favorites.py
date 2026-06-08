@@ -32,20 +32,20 @@ async def add_favorite(
 ):
     """
     Add a tour package to favorites (create favorite/thêm thích)
-    
+
     Chỉ dùng để thêm favorite. Nếu tour đã được favorite rồi, sẽ trả về lỗi.
     Để xóa favorite, sử dụng DELETE /api/v1/favorites/{package_id}
-    
+
     Requires authentication.
-    
+
     Args:
         request: FavoriteToggleRequest with package_id
         current_user: Current authenticated user (from JWT token)
         service: Favorite service instance
-        
+
     Returns:
         FavoriteResponse with is_favorite=True
-        
+
     Example:
         POST /api/v1/favorites/
         Body:
@@ -59,16 +59,16 @@ async def add_favorite(
             user_id=user_id,
             package_id=str(request.package_id)
         )
-        
+
         # Nếu đã favorite rồi (EC=1), trả về 409 Conflict
         if result["EC"] == 1:
             raise HTTPException(status_code=409, detail=result["EM"])
         # Nếu có lỗi khác (EC != 0), trả về 400
         elif result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return FavoriteResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -83,30 +83,30 @@ async def get_my_favorites(
 ):
     """
     Get list of favorite tours for the current user
-    
+
     Returns full tour package details, sorted by most recently favorited first.
-    
+
     Requires authentication.
-    
+
     Args:
         current_user: Current authenticated user (from JWT token)
         service: Favorite service instance
-        
+
     Returns:
         FavoriteListResponse with list of favorite tour packages
-        
+
     Example:
         GET /api/v1/favorites/my
     """
     try:
         user_id = current_user["user_id"]
         result = await service.get_user_favorites(user_id=user_id)
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=500, detail=result["EM"])
-        
+
         return FavoriteListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -122,17 +122,17 @@ async def remove_favorite(
 ):
     """
     Remove a tour package from favorites (unfavorite/hủy thích)
-    
+
     Requires authentication.
-    
+
     Args:
         package_id: UUID of the tour package to remove from favorites
         current_user: Current authenticated user (from JWT token)
         service: Favorite service instance
-        
+
     Returns:
         FavoriteResponse with is_favorite=False
-        
+
     Example:
         DELETE /api/v1/favorites/07e8c89e-90d4-4ebc-9302-384dc6cb2f0c
     """
@@ -142,12 +142,12 @@ async def remove_favorite(
             user_id=user_id,
             package_id=str(package_id)
         )
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return FavoriteResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -163,17 +163,17 @@ async def check_favorite(
 ):
     """
     Check if a specific tour package is favorited by the current user
-    
+
     Requires authentication.
-    
+
     Args:
         package_id: UUID of the tour package to check
         current_user: Current authenticated user (from JWT token)
         service: Favorite service instance
-        
+
     Returns:
         FavoriteCheckResponse with is_favorite status
-        
+
     Example:
         GET /api/v1/favorites/check/07e8c89e-90d4-4ebc-9302-384dc6cb2f0c
     """
@@ -183,15 +183,14 @@ async def check_favorite(
             user_id=user_id,
             package_id=str(package_id)
         )
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=500, detail=result["EM"])
-        
+
         return FavoriteCheckResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in check_favorite endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-

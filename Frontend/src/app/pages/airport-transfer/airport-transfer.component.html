@@ -1,0 +1,58 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="bg-gradient-to-r from-teal-600 to-teal-800 py-10">
+    <div class="container mx-auto px-6">
+      <h1 class="text-3xl font-bold text-white mb-6">Đưa đón sân bay</h1>
+      <p class="text-teal-100 mb-6">Đặt xe đưa đón sân bay nhanh chóng, an toàn và tiện lợi</p>
+    </div>
+  </div>
+
+  <!-- Coming Soon Section -->
+  <div class="container mx-auto px-6 py-12">
+    <div class="max-w-2xl mx-auto text-center">
+      <div class="w-24 h-24 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg class="w-12 h-12 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+        </svg>
+      </div>
+      <h2 class="text-2xl font-bold text-gray-800 mb-4">Tính năng đang được cập nhật</h2>
+      <p class="text-gray-600 mb-8">Dịch vụ đưa đón sân bay sẽ sớm có mặt. Hãy chat với AI để được tư vấn và hỗ trợ đặt xe ngay.</p>
+
+      <!-- AI Chat CTA -->
+      <div class="bg-teal-50 border border-teal-200 rounded-lg p-5 flex items-center justify-between max-w-lg mx-auto">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div class="text-left">
+            <h3 class="font-semibold text-teal-900">AI Agent hỗ trợ đặt xe</h3>
+            <p class="text-sm text-teal-700">Chat với AI để đặt xe đưa đón</p>
+          </div>
+        </div>
+        <button type="button" (click)="openAIChat()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
+          Chat ngay
+        </button>
+      </div>
+
+      <!-- Other services -->
+      <div class="mt-12">
+        <h3 class="text-lg font-semibold text-gray-700 mb-4">Khám phá các dịch vụ khác</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-lg mx-auto">
+          <a routerLink="/flights" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
+            <div class="text-2xl mb-2">✈️</div>
+            <span class="text-sm font-medium text-gray-700">Vé máy bay</span>
+          </a>
+          <a routerLink="/trains" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
+            <div class="text-2xl mb-2">🚂</div>
+            <span class="text-sm font-medium text-gray-700">Vé tàu hỏa</span>
+          </a>
+          <a routerLink="/tours" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
+            <div class="text-2xl mb-2">🗺️</div>
+            <span class="text-sm font-medium text-gray-700">Tour du lịch</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

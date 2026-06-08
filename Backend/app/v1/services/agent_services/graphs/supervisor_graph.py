@@ -7,7 +7,6 @@ from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 import logging
-import os
 import time
 from typing import Dict, Tuple
 
@@ -46,32 +45,32 @@ class GraphConfig(BaseModel):
 class SupervisorGraph:
     """
     Supervisor Graph - Orchestrates Chat Agent and Recommendation Agent
-    
+
     Architecture:
     - Chat Agent: Handles conversation with tool calling loop
     - Recommendation Agent: Provides tour recommendations (called by Chat Agent via tool)
-    
+
     Memory Management:
     - Uses LangGraph MemorySaver checkpointer for conversation history persistence
     - Each conversation_id acts as a thread_id for state management
     - All messages and context are automatically saved per conversation
     - Agent remembers full conversation history across requests
-    
+
     Flow:
     1. START → chat_llm (LLM decides to use tools or respond)
-    2. chat_llm → should_continue → 
+    2. chat_llm → should_continue →
        - If tool_calls: chat_tools → should_recommend
        - If no tool_calls: END
     3. chat_tools → should_recommend →
        - If recommendation requested: recommendation_agent → END
        - Otherwise: chat_llm (loop back)
     """
-    
+
     def __init__(self):
         """Initialize Supervisor Graph"""
         # Initialize LLM for Chat Agent
         callbacks = [agent_callback] if agent_callback and agent_config.enable_streaming else []
-        
+
         # Build LLM kwargs
         llm_kwargs = {
             "model": agent_config.model,
@@ -81,18 +80,18 @@ class SupervisorGraph:
             "callbacks": callbacks,
             "verbose": agent_config.enable_streaming
         }
-        
+
         # Add reasoning config if provided (only for OpenAI o1/o3 models)
         if hasattr(agent_config, 'reasoning') and agent_config.reasoning:
             llm_kwargs["reasoning"] = agent_config.reasoning
-        
+
         # Add organization if provided
         if agent_config.organization:
             llm_kwargs["organization"] = agent_config.organization
-        
+
         provider = create_llm_provider()
         self.llm = provider.get_llm(**llm_kwargs)
-        
+
         # Initialize nodes with LLM
         self.chat_nodes = ChatAgentNodes(self.llm)
         self.recommendation_nodes = RecommendationAgentNodes()
@@ -108,16 +107,17 @@ class SupervisorGraph:
         except Exception as e:
             self.chat_room_service = None
             logger.error(f"❌ Failed to init ChatRoomService: {str(e)}")
-        
+
         # In-memory cache for conversation history (TTL: 5 minutes)
         # Format: {conversation_id: (messages, timestamp)}
         self._history_cache: Dict[str, Tuple[list, float]] = {}
         self._cache_ttl = 300  # 5 minutes in seconds
 
-    async def _load_history_from_supabase(self, conversation_id: str, user_id: str, limit: int = 15) -> list[BaseMessage]:
+    async def _load_history_from_supabase(self, conversation_id: str, user_id: str,
+                                          limit: int = 15) -> list[BaseMessage]:
         """
         Load chat history from Supabase for a conversation/user with caching.
-        
+
         Uses in-memory cache with 5-minute TTL to reduce database queries.
         Only loads last 15 messages (reduced from 50) to minimize prompt size.
 
@@ -134,7 +134,7 @@ class SupervisorGraph:
         # Check cache first
         cache_key = f"{conversation_id}:{user_id}"
         current_time = time.time()
-        
+
         if cache_key in self._history_cache:
             cached_messages, cache_timestamp = self._history_cache[cache_key]
             if current_time - cache_timestamp < self._cache_ttl:
@@ -178,7 +178,7 @@ class SupervisorGraph:
             logger.error(f"❌ Error loading history from Supabase: {str(e)}")
 
         return history_messages
-    
+
     def _build_graph(self) -> StateGraph:
         """
         Build the multi-agent graph following LangGraph agent pattern
@@ -224,7 +224,7 @@ class SupervisorGraph:
         workflow.add_edge("recommendation_agent", "chat_llm")
         workflow.add_edge("flight_agent", "chat_llm")
         workflow.add_edge("train_agent", "chat_llm")
-        
+
         # Compile with memory checkpointer for conversation history persistence
         if HAS_MEMORY_SAVER:
             # Enable conversation memory
@@ -253,7 +253,7 @@ class SupervisorGraph:
 
         logger.info("✅ [Supervisor] Routing back to chat_llm")
         return "chat_llm"
-    
+
     async def process_message(
         self,
         user_message: str,
@@ -263,13 +263,13 @@ class SupervisorGraph:
     ) -> dict:
         """
         Process user message through multi-agent system
-        
+
         Args:
             user_message: User's input
             conversation_history: Previous messages
             conversation_id: Conversation ID for tracking
             user_id: User ID for personalization
-            
+
         Returns:
             Dict with response and metadata
         """
@@ -359,13 +359,13 @@ class SupervisorGraph:
     ):
         """
         Process user message through multi-agent system with streaming
-        
+
         Args:
             user_message: User's input
             conversation_history: Previous messages
             conversation_id: Conversation ID for tracking
             user_id: User ID for personalization
-            
+
         Yields:
             Stream events from LangGraph execution
         """
@@ -404,10 +404,10 @@ class SupervisorGraph:
             loaded = await self._load_history_from_supabase(conversation_id, user_id, limit=15)
             if loaded:
                 history_messages = loaded
-            
+
             if history_messages:
                 initial_state["messages"] = history_messages + initial_state["messages"]
-        
+
         # Stream graph execution with optimized streaming mode
         config = {
             "configurable": {
@@ -415,9 +415,9 @@ class SupervisorGraph:
                 "max_iterations": agent_config.max_iterations
             }
         }
-        
+
         logger.info(f"📝 Streaming conversation for thread_id: {conversation_id}")
-        
+
         try:
             # Use v2 streaming API with "values" mode for state updates
             # This yields state updates immediately as they occur, improving TTFT
@@ -428,7 +428,7 @@ class SupervisorGraph:
                 # Skip: "reasoning", "on_llm_start", "on_chain_start", etc.
                 if event_type in ["on_chat_model_stream", "on_chain_end"]:
                     yield event
-                
+
         except Exception as e:
             logger.error(f"❌ Error streaming message: {str(e)}")
             yield {

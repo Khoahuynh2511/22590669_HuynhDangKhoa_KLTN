@@ -3,14 +3,13 @@ Demo script for searching flights between airports
 Demonstrates the FlightService functionality
 """
 
+from src.mcp_server.tools.flight_tools import FlightService
 import asyncio
 import sys
 from pathlib import Path
 
 # Add parent directory to path to import from src
 sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.mcp_server.tools.flight_tools import FlightService
 
 
 async def search_vietnam_flights():
@@ -19,7 +18,7 @@ async def search_vietnam_flights():
     """
     # Create flight service instance
     flight_service = FlightService()
-    
+
     # Demo 1: Hanoi to Ho Chi Minh City
     print("\n" + "=" * 70)
     print("🔎 Demo 1: Tìm chuyến bay Sài Gòn → Hà Nội")
@@ -31,7 +30,7 @@ async def search_vietnam_flights():
         future_only=True       # Only show future flights
     )
     print(result)
-    
+
     # Demo 2: Ho Chi Minh City to Da Nang
     print("\n\n" + "=" * 70)
     print("🔎 Demo 2: Tìm chuyến bay Sài Gòn → Đà Nẵng")
@@ -43,7 +42,7 @@ async def search_vietnam_flights():
         future_only=True       # Only show future flights
     )
     print(result)
-    
+
     # Demo 3: Ho Chi Minh City to Tokyo (Narita)
     print("\n\n" + "=" * 70)
     print("🔎 Demo 3: Tìm chuyến bay Sài Gòn → Tokyo (Narita)")
@@ -55,7 +54,7 @@ async def search_vietnam_flights():
         future_only=True       # Only show future flights
     )
     print(result)
-    
+
     # Demo 4: Ho Chi Minh City to Osaka
     print("\n\n" + "=" * 70)
     print("🔎 Demo 4: Tìm chuyến bay Sài Gòn → Osaka")
@@ -77,4 +76,3 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print("✅ Demo completed!")
     print("=" * 70 + "\n")
-

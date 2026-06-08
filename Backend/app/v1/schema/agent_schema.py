@@ -26,7 +26,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="User message")
     conversation_id: Optional[str] = Field(None, description="Conversation ID for context")
     user_id: Optional[str] = Field(None, description="User ID")
-    
+
     class Config:
         json_schema_extra = {
             "example": {

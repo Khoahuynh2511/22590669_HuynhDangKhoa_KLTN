@@ -12,13 +12,13 @@ from app.v1.core.config import settings
 
 try:
     from ..mock_data.generator import get_generator
-    from ..mock_data.train_data import TRAIN_STATIONS, TRAIN_TYPES, SEAT_TYPES
+    from ..mock_data.train_data import TRAIN_STATIONS, SEAT_TYPES
 except ImportError:
     import sys
     import os
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from mock_data.generator import get_generator
-    from mock_data.train_data import TRAIN_STATIONS, TRAIN_TYPES, SEAT_TYPES
+    from mock_data.train_data import TRAIN_STATIONS, SEAT_TYPES
 
 
 class TrainService:
@@ -41,15 +41,15 @@ class TrainService:
 
         result += f"🏁 Ga đến: {train['arrival']['time']}"
         if train['departure']['date'] != train['arrival']['date']:
-            result += f" (+1 ngày)"
-        result += f"\n"
+            result += " (+1 ngày)"
+        result += "\n"
         result += f"   {train['arrival']['station']} ({train['arrival']['code']})\n"
         result += f"   📍 {train['arrival']['address']}\n\n"
 
         result += f"⏱️  Thời gian: {train['duration_formatted']}\n"
         result += f"🎯 Tiện ích: {', '.join(train['train_type']['amenities'])}\n\n"
 
-        result += f"💰 Giá vé:\n"
+        result += "💰 Giá vé:\n"
         for seat_code, seat_info in train['seats'].items():
             available = train['availability'].get(seat_code, 0)
             status = f"({available} chỗ)" if available > 0 else "(Hết chỗ)"
@@ -116,7 +116,7 @@ class TrainService:
 
         if not trains:
             return f"❌ Không tìm thấy chuyến tàu từ {departure_station} đến {arrival_station} ngày {date}.\n\n" + \
-                   "💡 Gợi ý: Thử các tuyến phổ biến như HNO-SGO, HNO-DNA, SGO-NTR"
+                "💡 Gợi ý: Thử các tuyến phổ biến như HNO-SGO, HNO-DNA, SGO-NTR"
 
         # Filter future trains only (for today)
         current_time = datetime.now(self.vietnam_tz)
@@ -125,13 +125,13 @@ class TrainService:
 
         if not trains:
             return f"❌ Không còn chuyến tàu nào từ {departure_station} đến {arrival_station} trong ngày {date}.\n" + \
-                   "💡 Gợi ý: Thử tìm cho ngày mai"
+                "💡 Gợi ý: Thử tìm cho ngày mai"
 
         # Format output
         dep_city = TRAIN_STATIONS[departure_station]["city"]
         arr_city = TRAIN_STATIONS[arrival_station]["city"]
 
-        result = f"🚂 KẾT QUẢ TÌM KIẾM CHUYẾN TÀU\n"
+        result = "🚂 KẾT QUẢ TÌM KIẾM CHUYẾN TÀU\n"
         result += "=" * 50 + "\n"
         result += f"📍 {dep_city} ({departure_station}) → {arr_city} ({arrival_station})\n"
         result += f"📅 Ngày: {date}\n"
@@ -230,8 +230,17 @@ class TrainService:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO train_bookings (booking_id, train_id, user_id, passenger_name, passenger_phone, passenger_email, seat_type_id, num_passengers, total_price, status, payment_status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (booking_id) DO NOTHING",
-                        (result["booking_id"], train_id, user_id, passenger_name, passenger_phone, passenger_email, seat_type, num_passengers, result["total_price"], "pending_payment", "unpaid")
-                    )
+                        (result["booking_id"],
+                         train_id,
+                         user_id,
+                         passenger_name,
+                         passenger_phone,
+                         passenger_email,
+                         seat_type,
+                         num_passengers,
+                         result["total_price"],
+                            "pending_payment",
+                            "unpaid"))
                     conn.commit()
         except Exception as e:
             return {"success": False, "error": f"Lưu booking thất bại: {str(e)}"}

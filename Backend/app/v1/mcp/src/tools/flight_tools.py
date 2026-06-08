@@ -12,13 +12,13 @@ from app.v1.core.config import settings
 
 try:
     from ..mock_data.generator import get_generator
-    from ..mock_data.flight_data import VIETNAM_AIRPORTS, VIETNAM_AIRLINES
+    from ..mock_data.flight_data import VIETNAM_AIRPORTS
 except ImportError:
     import sys
     import os
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from mock_data.generator import get_generator
-    from mock_data.flight_data import VIETNAM_AIRPORTS, VIETNAM_AIRLINES
+    from mock_data.flight_data import VIETNAM_AIRPORTS
 
 
 class FlightService:
@@ -47,7 +47,7 @@ class FlightService:
         result += f"💺 Ghế còn: {flight['available_seats']} chỗ\n"
         result += f"🧳 Hành lý: Xách tay {flight['baggage']['carry_on']}, Ký gửi {flight['baggage']['checked']}\n\n"
 
-        result += f"💰 Giá vé:\n"
+        result += "💰 Giá vé:\n"
         result += f"   • Economy: {flight['price']['economy']:,} VND\n"
         result += f"   • Business: {flight['price']['business']:,} VND\n"
 
@@ -118,7 +118,7 @@ class FlightService:
         dep_city = VIETNAM_AIRPORTS[departure_iata]["city"]
         arr_city = VIETNAM_AIRPORTS[arrival_iata]["city"]
 
-        result = f"✈️  KẾT QUẢ TÌM KIẾM CHUYẾN BAY\n"
+        result = "✈️  KẾT QUẢ TÌM KIẾM CHUYẾN BAY\n"
         result += "=" * 50 + "\n"
         result += f"📍 {dep_city} ({departure_iata}) → {arr_city} ({arrival_iata})\n"
         result += f"📅 Ngày: {date}\n"
@@ -212,8 +212,17 @@ class FlightService:
                 with conn.cursor() as cur:
                     cur.execute(
                         "INSERT INTO flight_bookings (booking_id, flight_id, user_id, passenger_name, passenger_phone, passenger_email, seat_class, num_passengers, total_price, status, payment_status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (booking_id) DO NOTHING",
-                        (result["booking_id"], flight_id, user_id, passenger_name, passenger_phone, passenger_email, seat_class, num_passengers, result["total_price"], "pending_payment", "unpaid")
-                    )
+                        (result["booking_id"],
+                         flight_id,
+                         user_id,
+                         passenger_name,
+                         passenger_phone,
+                         passenger_email,
+                         seat_class,
+                         num_passengers,
+                         result["total_price"],
+                            "pending_payment",
+                            "unpaid"))
                     conn.commit()
         except Exception as e:
             return {"success": False, "error": f"Lưu booking thất bại: {str(e)}"}

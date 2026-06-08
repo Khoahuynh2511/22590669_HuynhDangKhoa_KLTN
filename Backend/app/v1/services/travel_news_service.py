@@ -1,4 +1,4 @@
-﻿"""
+"""
 Travel News Service
 Tim kiem va luu tru tin tuc/cam nang du lich bang Perplexity hoac Tavily Search API
 """
@@ -37,12 +37,12 @@ class TravelNewsService:
         # Detailed prompt for Perplexity with preference for trending/new content
         self.detailed_search_prompt = """
         Tim kiem tin tuc va cam nang du lich LATEST va HOT nhat trong 2-4 tuan gan day.
-        
+
         YEU CAU:
         1. UU TIEN TIN TUC MOI: Tim thong tin da xuat ban trong 7-30 ngay gan day (avoid tin cu)
         2. TRENDING TOPICS: Cac diem den HOT hien nay, promotions, seasonal events
         3. RELEVANT FOR VIETNAM: Du lich trong Viet Nam + cac diem den nuoc ngoai popular voi du khach Viet
-        4. PRACTICAL INFO: 
+        4. PRACTICAL INFO:
            - Huong dan du lich (visa, budget, best time to visit)
            - Updates ve dieu kien du lich (an toan, weather, restrictions)
            - Kham pha diem moi la
@@ -50,7 +50,7 @@ class TravelNewsService:
            - Flight deals, tour promotions
         5. SOURCE QUALITY: Uu tien tu cac trang uy tin (tour operators, travel guides, news sites)
         6. RECENCY: Sap xep theo moi nhat truoc
-        
+
         TRA VE TOP RESULTS: Ket qua moi nhat, most relevant, duoc verify tu cac nguon tin tuc
         """
 

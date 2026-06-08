@@ -22,7 +22,7 @@ def _resolve_env_vars(value: Any) -> Any:
     if isinstance(value, str):
         # Match ${VAR:-default} or ${VAR}
         pattern = r'\$\{([^}]+)\}'
-        
+
         def replace_env(match):
             expr = match.group(1)
             if ':-' in expr:
@@ -30,7 +30,7 @@ def _resolve_env_vars(value: Any) -> Any:
                 return os.getenv(var_name.strip(), default.strip())
             else:
                 return os.getenv(expr.strip(), '')
-        
+
         return re.sub(pattern, replace_env, value)
     elif isinstance(value, dict):
         return {k: _resolve_env_vars(v) for k, v in value.items()}
@@ -55,7 +55,7 @@ def _load_yaml_config() -> Dict[str, Any]:
 
 class AgentConfig(BaseModel):
     """Configuration for agent system"""
-    
+
     # LLM Configuration
     model: str = settings.OPENAI_MODEL
     api_key: str = settings.OPENAI_API_KEY
@@ -65,17 +65,17 @@ class AgentConfig(BaseModel):
     modal_api_key: str = settings.MODAL_API_KEY
     temperature: float = 0.7
     reasoning: Optional[Dict[str, Any]] = None  # Reasoning config for OpenAI o1/o3 models
-    
+
     # Agent Configuration
     max_iterations: int = 10
     timeout: int = 300
-    
+
     # Streaming
     enable_streaming: bool = True
-    
+
     # Tracking
     enable_falkor_tracking: bool = False
-    
+
     # MCP Configuration
     mcp_server_url: str = settings.MCP_SERVER_URL
     mcp_timeout: int = settings.MCP_TIMEOUT
@@ -87,7 +87,7 @@ class AgentConfig(BaseModel):
         """Create config from agent.yaml, fallback to settings"""
         yaml_config = _load_yaml_config()
         llm_config = yaml_config.get('llm', {})
-        
+
         # Merge YAML config with defaults (YAML has priority)
         return cls(
             # LLM config from YAML or settings

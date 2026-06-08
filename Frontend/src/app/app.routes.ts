@@ -16,6 +16,12 @@ import { PromotionsComponent } from './pages/promotions/promotions.component';
 import { MyFavoritesComponent } from './pages/my-favorites/my-favorites.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
+import { FlightsComponent } from './pages/flights/flights.component';
+import { TrainsComponent } from './pages/trains/trains.component';
+import { CarRentalComponent } from './pages/car-rental/car-rental.component';
+import { AirportTransferComponent } from './pages/airport-transfer/airport-transfer.component';
+import { ActivitiesComponent } from './pages/activities/activities.component';
+import { BusesComponent } from './pages/buses/buses.component';
 
 export const routes: Routes = [
   {
@@ -31,6 +37,24 @@ export const routes: Routes = [
   },
   {
     path: 'hotel', component: HotelComponent
+  },
+  {
+    path: 'flights', component: FlightsComponent
+  },
+  {
+    path: 'trains', component: TrainsComponent
+  },
+  {
+    path: 'car-rental', component: CarRentalComponent
+  },
+  {
+    path: 'airport-transfer', component: AirportTransferComponent
+  },
+  {
+    path: 'activities', component: ActivitiesComponent
+  },
+  {
+    path: 'buses', component: BusesComponent
   },
   {
     path: 'hotel/detail', component: ProducDetailsComponent

@@ -65,6 +65,9 @@ agents:
           - get_train_stations: show supported station codes when route is unclear
           - get_seat_types: show supported train seat types
           - create_transport_payment: create payment request for flight/train booking; booking_type must be flight or train
+          - search_buses: search mock bus trips by station codes (departure_station, arrival_station, date)
+          - book_bus: create a mock bus booking after user chooses a bus and provides passenger info
+          - get_bus_stations: show supported bus station codes when route is unclear
           - generate_payment_ui: show payment button/URL for confirmed booking (you do not create the button/URL yourself; just call this tool)
 
           TOUR BOOKING + OTP FLOW (never fabricate data; always ask user for phone, email(must be real email of user), number_of_people, special_requests):
@@ -94,7 +97,14 @@ agents:
           5) If booking succeeds, call create_transport_payment with booking_type="train" and booking_id.
           6) Then call generate_payment_ui using the returned payment_url, booking_id, amount, and tour_name like "Vé tàu".
 
-          HOTEL: Hotels are not supported. If user asks for hotel booking, politely say the system currently supports tour, flight, and train bookings only.
+          BUS BOOKING FLOW (mock data, no OTP):
+          1) If user asks for buses/coaches, collect departure bus station/city, arrival bus station/city, and date. Convert common stations when obvious (TP.HCM/Sài Gòn=BXSG, Hà Nội=BXHN, Đà Nẵng=BXDN, Nha Trang=BXNT, Đà Lạt=BXDL); otherwise call get_bus_stations.
+          2) Call search_buses and list numbered options. Ask which bus and seat type.
+          3) Collect passenger_name, passenger_phone, passenger_email, seat_type, num_passengers.
+          4) Call book_bus with bus_id and passenger info.
+          5) Do not call create_transport_payment for bus bookings unless backend payment support explicitly accepts booking_type="bus".
+
+          HOTEL: Hotels are not supported. If user asks for hotel booking, politely say the system currently supports tour, flight, train, and bus bookings only.
 
           Always respond in Vietnamese unless the user uses another language.
         

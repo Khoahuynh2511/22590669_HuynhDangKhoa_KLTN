@@ -14,14 +14,17 @@ def _build_highlights_section(highlights: list, itinerary_snippet: str, escape_h
     if highlights:
         highlights_html = '<div style="display: flex; flex-wrap: wrap; gap: 6px;">'
         for h in highlights[:4]:
-            highlights_html += f'<span style="font-size: 12px; padding: 4px 10px; background: #f1f5f9; border-radius: 6px; color: #475569; font-weight: 500;">{escape_html_func(str(h))}</span>'
+            highlights_html += f'<span style="font-size: 12px; padding: 4px 10px; background: #f1f5f9; border-radius: 6px; color: #475569; font-weight: 500;">{
+                escape_html_func(
+                    str(h))}</span>'
         highlights_html += '</div>'
-    
+
     snippet_html = ""
     if itinerary_snippet and not highlights:
         snippet_text = itinerary_snippet[:100] + "..." if len(itinerary_snippet) > 100 else itinerary_snippet
-        snippet_html = f'<p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">{escape_html_func(snippet_text)}</p>'
-    
+        snippet_html = f'<p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">{
+            escape_html_func(snippet_text)}</p>'
+
     if highlights_html or snippet_html:
         return f'''
             <div style="margin: 0; padding: 0;">
@@ -35,10 +38,10 @@ def _build_highlights_section(highlights: list, itinerary_snippet: str, escape_h
 def generate_tour_card_html(package: Dict[str, Any]) -> str:
     """
     Generate HTML for a single tour card
-    
+
     Args:
         package: Tour package data dict
-        
+
     Returns:
         HTML string for tour card
     """
@@ -47,22 +50,23 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
     destination = package.get("destination", "Unknown")
     duration_days = package.get("duration_days", 0)
     price = package.get("price", 0)
-    
+
     # Handle both image_url (singular) and image_urls (plural) fields
     # Check multiple possible field names
     image_urls_str = (
-        package.get("image_urls", "") 
+        package.get("image_urls", "")
     )
-    
-    description = package.get("description", "")
+
+    _description = package.get("description", "")  # noqa: F841
     start_date = package.get("start_date", "")
     available_slots = package.get("available_slots", 0)
-    
+
     # Log for debugging
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"📦 Card for: {package_name} | Image URL: {image_urls_str[:80] if image_urls_str else 'None'} | Price: {price}")
-    
+    logger.info(
+        f"📦 Card for: {package_name} | Image URL: {image_urls_str[:80] if image_urls_str else 'None'} | Price: {price}")
+
     # Parse image URLs (pipe-separated or single URL)
     image_urls = []
     if image_urls_str:
@@ -71,24 +75,24 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
             image_urls = [url.strip() for url in str(image_urls_str).split("|") if url.strip()]
         else:
             image_urls = [str(image_urls_str).strip()] if str(image_urls_str).strip() else []
-    
+
     # REVERSE image list as requested by user (take from end)
     if image_urls:
         image_urls.reverse()
-    
+
     # Use actual tour image if available, otherwise placeholder
     featured_image = image_urls[0] if image_urls else "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400&h=300&fit=crop"
-    
+
     # Format price
     formatted_price = f"{int(price):,}".replace(",", ".")
-    
+
     # Get additional info if available
     highlights = package.get("highlights", [])
     itinerary_snippet = package.get("itinerary_snippet", "")
     end_date = package.get("end_date", "")
     suitable_for = package.get("suitable_for", "")
     cuisine = package.get("cuisine", "")
-    
+
     # Build gallery - show first 3 images in a nice row
     gallery_html = ""
     if len(image_urls) > 1:
@@ -97,17 +101,17 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
         for url in gallery_images:
             gallery_items.append(f'''
                 <div style="
-                    flex: 1; 
-                    aspect-ratio: 4/3; 
-                    border-radius: 8px; 
-                    overflow: hidden; 
+                    flex: 1;
+                    aspect-ratio: 4/3;
+                    border-radius: 8px;
+                    overflow: hidden;
                     cursor: pointer;
                     background: #f1f5f9;
                 " onclick="window.open('{url}', '_blank')">
                     <img src="{url}" style="width: 100%; height: 100%; object-fit: cover; display: block;" loading="lazy">
                 </div>
             ''')
-        
+
         if gallery_items:
             gallery_html = f"""
                 <div style="display: flex; gap: 8px; margin-top: 12px;">
@@ -123,7 +127,7 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
                 .replace(">", "&gt;")
                 .replace('"', "&quot;")
                 .replace("'", "&#x27;"))
-    
+
     html = f"""
     <div class="tour-card-clean" style="
         width: calc(100% - 200px);
@@ -190,10 +194,10 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
 
             <!-- Highlights/Snippet -->
             {_build_highlights_section(highlights, itinerary_snippet, escape_html) if (highlights or itinerary_snippet) else ''}
-            
+
             <!-- Mini Gallery (Row of 3) -->
             {gallery_html}
-            
+
             <!-- Footer (Price & Slots) -->
             <div style="
                 margin-top: 8px;
@@ -207,7 +211,7 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
                     <div style="font-size: 12px; color: #64748b; margin-bottom: 2px;">Giá từ</div>
                     <div style="font-size: 20px; font-weight: 700; color: #ef4444;">{formatted_price} ₫</div>
                 </div>
-                
+
                 <div style="text-align: right; font-size: 13px; color: #64748b;">
                     <div style="color: #22c55e; font-weight: 500;">Còn {available_slots} chỗ</div>
                 </div>
@@ -215,22 +219,22 @@ def generate_tour_card_html(package: Dict[str, Any]) -> str:
         </div>
     </div>
     """
-    
+
     return html
 
 
 def generate_tour_grid_html(packages: List[Dict[str, Any]]) -> str:
     """
     Generate complete HTML page with tour cards grid
-    
+
     Args:
         packages: List of tour package dicts
-        
+
     Returns:
         HTML string (just the grid part, not full document)
     """
     cards_html = "\n".join([generate_tour_card_html(pkg) for pkg in packages])
-    
+
     html = f"""
     <div class="mcp-tour-grid-wrapper" style="
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -252,7 +256,7 @@ def generate_tour_grid_html(packages: List[Dict[str, Any]]) -> str:
             {cards_html}
         </div>
     </div>
-    
+
     <script>
         function handleBooking(packageId, packageName) {{
             // Send message to Angular component
@@ -263,19 +267,19 @@ def generate_tour_grid_html(packages: List[Dict[str, Any]]) -> str:
                     packageName: packageName
                 }}, '*');
             }}
-            
+
             // Also trigger Angular event if available
             if (window.dispatchEvent) {{
                 window.dispatchEvent(new CustomEvent('mcpBooking', {{
                     detail: {{ packageId, packageName }}
                 }}));
             }}
-            
+
             console.log('Booking requested:', packageId, packageName);
         }}
     </script>
     """
-    
+
     return html
 
 
@@ -288,30 +292,40 @@ def generate_payment_button_html(
 ) -> str:
     """
     Generate HTML for payment button component
-    
+
     Args:
         payment_url: VNPay payment URL
         booking_id: Booking ID
         total_amount: Total amount to pay
         tour_name: Tour package name
         payment_method: Payment method (vnpay)
-        
+
     Returns:
         HTML string for payment button component
     """
     # Format price
     formatted_price = f"{int(total_amount):,}".replace(",", ".")
-    
+
     # Escape HTML để tránh XSS
     def escape_html(text: str) -> str:
         if not text:
             return ""
-        return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&#x27;")
-    
+        return str(text).replace(
+            "&",
+            "&amp;").replace(
+            "<",
+            "&lt;").replace(
+            ">",
+            "&gt;").replace(
+                '"',
+                "&quot;").replace(
+                    "'",
+            "&#x27;")
+
     safe_tour_name = escape_html(tour_name)
     safe_payment_url = escape_html(payment_url)
     safe_booking_id = escape_html(booking_id)
-    
+
     html = f"""
     <div class="mcp-payment-button-wrapper" style="
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -342,7 +356,7 @@ def generate_payment_button_html(
                     opacity: 0.95;
                 ">{safe_tour_name}</p>
             </div>
-            
+
             <div style="
                 display: flex;
                 justify-content: space-between;
@@ -356,8 +370,8 @@ def generate_payment_button_html(
                 <span style="font-size: 14px; color: rgba(255, 255, 255, 0.9);">Tổng tiền:</span>
                 <span style="font-size: 20px; font-weight: 700; color: white;">{formatted_price} VNĐ</span>
             </div>
-            
-            <button 
+
+            <button
                 class="mcp-payment-button"
                 data-payment-url="{safe_payment_url}"
                 data-booking-id="{safe_booking_id}"
@@ -384,7 +398,7 @@ def generate_payment_button_html(
                 <span>💳</span>
                 <span>Thanh toán ngay qua VNPay</span>
             </button>
-            
+
             <p style="
                 margin: 12px 0 0 0;
                 font-size: 12px;
@@ -393,7 +407,7 @@ def generate_payment_button_html(
             ">Bạn sẽ được chuyển đến trang thanh toán VNPay</p>
         </div>
     </div>
-    
+
     <style>
         @keyframes spin {{
             0% {{ transform: rotate(0deg); }}
@@ -408,34 +422,33 @@ def generate_payment_button_html(
             opacity: 0.7;
         }}
     </style>
-    
+
     <script>
         (function() {{
             const btn = document.getElementById('payment-btn-{safe_booking_id}');
             if (!btn) return;
-            
+
             const paymentUrl = btn.getAttribute('data-payment-url');
-            
+
             btn.addEventListener('click', function(e) {{
                 e.preventDefault();
                 if (btn.disabled) return false;
-                
+
                 // Disable button ngay lập tức
                 btn.disabled = true;
-                
+
                 // Hiển thị loading
                 btn.innerHTML = '<span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #667eea; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite;"></span><span>Đang chuyển hướng...</span>';
-                
+
                 // Redirect sau 100ms
                 setTimeout(function() {{
                     window.location.href = paymentUrl;
                 }}, 100);
-                
+
                 return false;
             }});
         }})();
     </script>
     """
-    
-    return html
 
+    return html

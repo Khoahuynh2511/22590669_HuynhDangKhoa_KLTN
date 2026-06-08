@@ -1,3 +1,18 @@
-// .hotel-pages {
-//   padding-top: 10rem;
-// }
+:host {
+  display: block;
+  padding-top: 126px;
+}
+
+.hotel-pages > .sticky {
+  top: 126px;
+}
+
+@media (max-width: 768px) {
+  :host {
+    padding-top: 114px;
+  }
+
+  .hotel-pages > .sticky {
+    top: 114px;
+  }
+}

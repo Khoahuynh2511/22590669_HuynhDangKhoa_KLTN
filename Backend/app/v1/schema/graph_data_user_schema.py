@@ -3,8 +3,7 @@
 Simple Graph Data Schema for User Interactions
 Using Graphiti's automatic entity extraction - no custom schema needed
 """
-from typing import Dict, List, Optional, Any
-from datetime import datetime
+from typing import List, Optional
 from pydantic import BaseModel
 
 
@@ -24,7 +23,6 @@ class PersonalizationContext(BaseModel):
     user_id: str
     episodes: List[EpisodeData]
     has_data: bool
-    
+
     class Config:
         arbitrary_types_allowed = True
-

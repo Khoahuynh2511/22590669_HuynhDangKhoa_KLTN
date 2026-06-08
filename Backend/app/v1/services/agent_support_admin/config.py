@@ -8,7 +8,7 @@ import re
 import yaml
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 from pydantic import BaseModel
 from app.v1.core.config import settings
 
@@ -22,7 +22,7 @@ def _resolve_env_vars(value: Any) -> Any:
     """
     if isinstance(value, str):
         pattern = r'\$\{([^}]+)\}'
-        
+
         def replace_env(match):
             expr = match.group(1)
             if ':-' in expr:
@@ -30,7 +30,7 @@ def _resolve_env_vars(value: Any) -> Any:
                 return os.getenv(var_name.strip(), default.strip())
             else:
                 return os.getenv(expr.strip(), '')
-        
+
         return re.sub(pattern, replace_env, value)
     elif isinstance(value, dict):
         return {k: _resolve_env_vars(v) for k, v in value.items()}
@@ -56,7 +56,7 @@ def _load_admin_yaml_config() -> Dict[str, Any]:
 
 class AdminAgentConfig(BaseModel):
     """Configuration for admin agent system"""
-    
+
     # LLM Configuration
     model: str = settings.OPENAI_MODEL
     api_key: str = settings.OPENAI_API_KEY
@@ -64,20 +64,20 @@ class AdminAgentConfig(BaseModel):
     temperature: float = 0.3
     max_tokens: int = 1024
     streaming: bool = False
-    
+
     # Agent Configuration
     name: str = "admin_agent"
     description: str = "Admin agent with BigQuery tool"
     max_iterations: int = 5
     timeout: int = 60
-    
+
     # Memory Configuration
     max_history: int = 10
-    
+
     class Config:
         """Pydantic config"""
         extra = "allow"
-    
+
     @classmethod
     def from_yaml(cls) -> "AdminAgentConfig":
         """Create config from admin_agent.yaml, fallback to settings"""
@@ -85,7 +85,7 @@ class AdminAgentConfig(BaseModel):
         llm_config = yaml_config.get('llm', {})
         agent_config = yaml_config.get('agent', {})
         memory_config = yaml_config.get('memory', {})
-        
+
         return cls(
             # LLM config
             provider=llm_config.get('provider', settings.LLM_PROVIDER),
@@ -109,7 +109,7 @@ def get_admin_prompts() -> Dict[str, str]:
     yaml_config = _load_admin_yaml_config()
     agent_config = yaml_config.get('agent', {})
     prompts = agent_config.get('prompts', {})
-    
+
     return {
         'system': prompts.get('system', ''),
         'sql_generation': prompts.get('sql_generation', ''),

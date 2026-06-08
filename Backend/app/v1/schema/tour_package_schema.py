@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 from uuid import UUID
-from fastapi import UploadFile
 
 
 class TourPackageBase(BaseModel):
@@ -99,8 +98,8 @@ class TourPackageBulkCreateResponse(BaseModel):
     created_packages: List[TourPackageResponse] = Field(default=[], description="Danh sách packages đã tạo")
     errors: List[str] = Field(default=[], description="Danh sách lỗi")
     parsing_errors: Optional[List[str]] = Field(default=None, description="Lỗi parse CSV")
-      
-      
+
+
 class TourPackageSearchRequest(BaseModel):
     """Schema for search tour packages request"""
     q: str = Field(..., min_length=1, description="Từ khóa tìm kiếm (ví dụ: 'Tôi muốn đi Đà Lạt')")
@@ -138,7 +137,8 @@ class AdminRecommendationConfig(BaseModel):
 class AdminRecommendationUpdate(BaseModel):
     """Schema for updating admin recommendation settings"""
     enabled: Optional[bool] = Field(None, description="Toggle Admin/AI mode")
-    tour_package_ids: Optional[List[UUID]] = Field(None, description="List of package IDs to set as featured (will unset others)")
+    tour_package_ids: Optional[List[UUID]] = Field(
+        None, description="List of package IDs to set as featured (will unset others)")
 
 
 class AdminRecommendationResponse(BaseModel):

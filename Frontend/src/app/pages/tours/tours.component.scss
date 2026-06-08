@@ -1,6 +1,13 @@
 .tours-page {
   background: #f9fafb;
   min-height: 100vh;
+  padding-top: 126px;
+}
+
+@media (max-width: 768px) {
+  .tours-page {
+    padding-top: 114px;
+  }
 }
 
 .search-section {

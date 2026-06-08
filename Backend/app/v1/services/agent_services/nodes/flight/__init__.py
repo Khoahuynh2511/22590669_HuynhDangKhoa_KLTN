@@ -24,7 +24,7 @@ class FlightAgentNodes:
         try:
             params = state.get("flight_params", {})
             action = params.get("action", "search")
-            user_query = params.get("user_query", "")
+            _user_query = params.get("user_query", "")  # noqa: F841
 
             if action == "search":
                 result = await self._search_flights(params)

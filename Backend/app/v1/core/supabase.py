@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 def get_supabase_client() -> Client:
     """
     Create and return a Supabase client instance
-    
+
     Returns:
         Client: Supabase client instance
     """
@@ -25,10 +25,10 @@ def get_supabase_client() -> Client:
 def check_schema_exists(supabase: Client) -> bool:
     """
     Check if required database schema exists
-    
+
     Args:
         supabase: Supabase client instance
-        
+
     Returns:
         bool: True if schema exists, False otherwise
     """
@@ -41,7 +41,7 @@ def check_schema_exists(supabase: Client) -> bool:
         'chat_history',
         'travel_news_urls'
     ]
-    
+
     try:
         for table in required_tables:
             try:
@@ -50,10 +50,10 @@ def check_schema_exists(supabase: Client) -> bool:
             except Exception as e:
                 logger.warning(f"Table '{table}' does not exist or is not accessible: {str(e)}")
                 return False
-        
+
         logger.info("All required database tables exist")
         return True
-        
+
     except Exception as e:
         logger.error(f"Error checking schema: {str(e)}")
         return False
@@ -67,9 +67,9 @@ def print_migration_instructions():
     ╔══════════════════════════════════════════════════════════════════════════╗
     ║                    DATABASE SCHEMA NOT INITIALIZED                       ║
     ╚══════════════════════════════════════════════════════════════════════════╝
-    
+
     Please initialize your database schema by following these steps:
-    
+
     1. Go to your Supabase Dashboard: https://supabase.com/dashboard
     2. Navigate to your project
     3. Click on "SQL Editor" in the left sidebar
@@ -77,7 +77,7 @@ def print_migration_instructions():
     5. Copy the entire SQL content
     6. Paste it into the Supabase SQL Editor
     7. Click "Run" to execute the migration
-    
+
     Required tables:
     - tour_packages
     - bookings
@@ -85,12 +85,12 @@ def print_migration_instructions():
     - otp_verifications
     - payments
     - chat_history
-    
+
     Required functions:
     - search_tour_packages()
     - create_tour_booking()
     - verify_and_confirm_booking()
-    
+
     After running the migration, restart this application.
     ════════════════════════════════════════════════════════════════════════════
     """

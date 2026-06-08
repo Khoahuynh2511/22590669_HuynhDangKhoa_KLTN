@@ -1,0 +1,235 @@
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Quản lý Xe Khách</h1>
+      <p class="text-gray-500 text-sm mt-1">Quản lý chuyến xe, lịch trình và giá vé</p>
+    </div>
+    <button type="button" (click)="openAddModal()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Thêm chuyến xe
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-center">
+    <div class="flex-1 min-w-[200px]">
+      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
+        placeholder="Tìm theo mã chuyến, số xe..."
+        class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
+    </div>
+    <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()"
+      class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+      <option value="">Tất cả trạng thái</option>
+      @for (s of statusList; track s) {
+        <option [value]="s">{{ getStatusLabel(s) }}</option>
+      }
+    </select>
+    <span class="text-sm text-gray-500">{{ filteredBuses.length }} chuyến xe</span>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <span class="ml-3 text-gray-600">Đang tải...</span>
+    </div>
+  }
+
+  <!-- Table -->
+  @if (!isLoading) {
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">STT</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Mã chuyến</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Hãng xe</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Loại xe</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Tuyến</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giờ đi</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giá</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (bus of filteredBuses; track bus.bus_id; let i = $index) {
+              <tr class="border-b hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-gray-500">{{ i + 1 }}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ bus.bus_number }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ getCompanyName(bus.company_id) }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ getBusTypeName(bus.bus_type_id) }}</td>
+                <td class="px-4 py-3 text-gray-600">
+                  {{ getStationName(bus.departure_station) }} → {{ getStationName(bus.arrival_station) }}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ formatDateTime(bus.departure_time) }}</td>
+                <td class="px-4 py-3 font-medium text-orange-600">{{ formatPrice(bus.base_price) }}</td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-1 rounded-full text-xs font-medium {{ getStatusClass(bus.status) }}">
+                    {{ getStatusLabel(bus.status) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <button type="button" (click)="openEditModal(bus)"
+                      class="text-blue-600 hover:text-blue-800 p-1" title="Chỉnh sửa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
+                    <button type="button" (click)="confirmDelete(bus)"
+                      class="text-red-600 hover:text-red-800 p-1" title="Xóa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (filteredBuses.length === 0) {
+              <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                  @if (buses.length === 0) {
+                    Chưa có chuyến xe nào. Nhấn "Thêm chuyến xe" để bắt đầu.
+                  } @else {
+                    Không tìm thấy chuyến xe phù hợp.
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showAddModal || showEditModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+    (click.self)="closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b">
+        <h2 class="text-xl font-bold text-gray-800">
+          {{ showAddModal ? 'Thêm chuyến xe mới' : 'Chỉnh sửa chuyến xe' }}
+        </h2>
+        <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <div class="px-6 py-4 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Số xe</label>
+            <input type="text" [(ngModel)]="formData.bus_number" placeholder="VD: SM123"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hãng xe</label>
+            <select [(ngModel)]="formData.company_id"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn hãng xe --</option>
+              @for (c of companies; track c.company_id) {
+                <option [value]="c.company_id">{{ c.name }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Loại xe</label>
+            <select [(ngModel)]="formData.bus_type_id"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn loại xe --</option>
+              @for (t of busTypes; track t.id) {
+                <option [value]="t.id">{{ t.name }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+            <select [(ngModel)]="formData.status"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              @for (s of statusList; track s) {
+                <option [value]="s">{{ getStatusLabel(s) }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Bến xe đi</label>
+            <select [(ngModel)]="formData.departure_station"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn bến xe đi --</option>
+              @for (s of stations; track s.station_id) {
+                <option [value]="s.station_id">{{ s.name }} ({{ s.city }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Bến xe đến</label>
+            <select [(ngModel)]="formData.arrival_station"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn bến xe đến --</option>
+              @for (s of stations; track s.station_id) {
+                <option [value]="s.station_id">{{ s.name }} ({{ s.city }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giờ xuất phát</label>
+            <input type="datetime-local" [(ngModel)]="formData.departure_time"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giờ đến</label>
+            <input type="datetime-local" [(ngModel)]="formData.arrival_time"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Thời gian (giờ)</label>
+            <input type="number" [(ngModel)]="formData.duration_hours" step="0.5"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giá cơ bản (VND)</label>
+            <input type="number" [(ngModel)]="formData.base_price"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tổng số ghế</label>
+            <input type="number" [(ngModel)]="formData.total_seats"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ghế trống</label>
+            <input type="number" [(ngModel)]="formData.available_seats"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <button type="button" (click)="closeModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+          Hủy
+        </button>
+        <button type="button" (click)="showAddModal ? saveBus() : updateBus()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+          {{ showAddModal ? 'Tạo chuyến xe' : 'Cập nhật' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

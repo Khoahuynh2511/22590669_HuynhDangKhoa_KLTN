@@ -11,7 +11,7 @@ from uuid import UUID
 class ChatRoomCreate(BaseModel):
     """Schema for creating a new chat room"""
     title: Optional[str] = Field(None, description="Tiêu đề conversation (auto-generate nếu không có)")
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -31,7 +31,7 @@ class ChatMessageResponse(BaseModel):
     message_order: int = Field(..., description="Thứ tự message trong room")
     intent: Optional[str] = None
     entities: Optional[dict] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -47,7 +47,7 @@ class ChatRoomResponse(BaseModel):
     last_message: Optional[str] = Field(None, description="Message cuối cùng")
     last_message_at: Optional[datetime] = Field(None, description="Thời gian message cuối")
     metadata: Optional[dict] = Field(default_factory=dict, description="Metadata bổ sung")
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -70,7 +70,7 @@ class ChatRoomUpdateRequest(BaseModel):
     """Schema for updating chat room"""
     title: Optional[str] = None
     is_archived: Optional[bool] = None
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -96,4 +96,3 @@ class ChatRoomCreateResponse(BaseModel):
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     data: Optional[ChatRoomResponse] = None
-

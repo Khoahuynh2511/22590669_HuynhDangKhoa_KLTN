@@ -10,7 +10,6 @@ from google.auth.transport import requests
 from google_auth_oauthlib.flow import Flow
 from supabase import Client
 from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor
 import asyncio
 
 from ..core.config import settings
@@ -27,11 +26,11 @@ except Exception:
 
 class GoogleOAuthService:
     """Service for Google OAuth authentication"""
-    
+
     def __init__(self, supabase_client: Client):
         """
         Initialize GoogleOAuthService
-        
+
         Args:
             supabase_client: Supabase client instance
         """
@@ -48,11 +47,11 @@ class GoogleOAuthService:
                 self._fernet = Fernet(enc_key.encode('utf-8'))
             except Exception:
                 logger.warning("Invalid TOKEN_ENCRYPTION_KEY provided; refresh tokens will be stored plaintext")
-        
+
     def get_google_auth_url(self) -> str:
         """
         Generate Google OAuth authorization URL
-        
+
         Returns:
             str: Authorization URL for Google OAuth
         """
@@ -74,47 +73,47 @@ class GoogleOAuthService:
                     'https://www.googleapis.com/auth/userinfo.profile'
                 ]
             )
-            
+
             flow.redirect_uri = self.redirect_uri
-            
+
             # Generate authorization URL
             authorization_url, state = flow.authorization_url(
                 access_type='offline',
                 include_granted_scopes='true',
                 prompt='consent'
             )
-            
+
             return authorization_url
-            
+
         except Exception as e:
             logger.error(f"Error generating Google auth URL: {str(e)}")
             raise
-    
+
     def _verify_google_token_sync(self, id_token_str: str, client_id: str) -> Optional[Dict[str, Any]]:
         """
         Synchronous helper to verify Google token (runs in thread pool)
         Uses official Google API verification: google.oauth2.id_token.verify_oauth2_token
         """
         try:
-            logger.info(f"Verifying Google token in thread using official Google API...")
+            logger.info("Verifying Google token in thread using official Google API...")
             logger.debug(f"Token (first 50 chars): {id_token_str[:50]}...")
             logger.debug(f"Client ID: {client_id[:20]}...")
-            
+
             # Verify the token using official Google API
             # This is the proper way to verify Google ID tokens
             idinfo = id_token.verify_oauth2_token(
-                id_token_str, 
-                requests.Request(), 
+                id_token_str,
+                requests.Request(),
                 client_id
             )
-            
+
             logger.info(f"Token verified successfully. Issuer: {idinfo.get('iss')}")
-            
+
             # Check if token is from Google
             if idinfo.get('iss') not in ['accounts.google.com', 'https://accounts.google.com']:
                 logger.error(f"Invalid issuer: {idinfo.get('iss')}")
                 return None
-            
+
             # Token is valid, extract user info
             user_info = {
                 "google_id": idinfo['sub'],
@@ -126,17 +125,17 @@ class GoogleOAuthService:
                 "picture": idinfo.get('picture'),
                 "locale": idinfo.get('locale')
             }
-            
+
             logger.info(f"Successfully verified Google token for user: {user_info['email']}")
             return user_info
-            
+
         except ValueError as e:
             logger.error(f"Invalid Google token (ValueError): {str(e)}")
             return None
         except Exception as e:
             logger.error(f"Error verifying Google token: {str(e)}", exc_info=True)
             return None
-    
+
     def _decode_token_fallback(self, id_token_str: str) -> Optional[Dict[str, Any]]:
         """
         Fallback: Decode JWT token locally without verification (less secure but works)
@@ -145,32 +144,32 @@ class GoogleOAuthService:
         try:
             import base64
             import json
-            
+
             logger.warning("Using fallback: Decoding token locally without verification")
-            
+
             # JWT has 3 parts: header.payload.signature
             parts = id_token_str.split('.')
             if len(parts) != 3:
                 logger.error("Invalid JWT format")
                 return None
-            
+
             # Decode payload (second part)
             payload = parts[1]
             # Add padding if needed
             padding = 4 - len(payload) % 4
             if padding != 4:
                 payload += '=' * padding
-            
+
             decoded = base64.urlsafe_b64decode(payload)
             idinfo = json.loads(decoded)
-            
+
             # Basic validation
             if not idinfo.get('email'):
                 logger.error("No email in token")
                 return None
-            
+
             logger.info(f"Token decoded locally. Email: {idinfo.get('email')}")
-            
+
             user_info = {
                 "google_id": idinfo.get('sub'),
                 "email": idinfo.get('email'),
@@ -181,9 +180,9 @@ class GoogleOAuthService:
                 "picture": idinfo.get('picture'),
                 "locale": idinfo.get('locale')
             }
-            
+
             return user_info
-            
+
         except Exception as e:
             logger.error(f"Fallback token decode also failed: {str(e)}")
             return None
@@ -191,18 +190,18 @@ class GoogleOAuthService:
     async def verify_google_token(self, id_token_str: str) -> Optional[Dict[str, Any]]:
         """
         Verify Google ID token and extract user info (async version)
-        
+
         Args:
             id_token_str: Google ID token string
-            
+
         Returns:
             Dict containing user info if valid, None otherwise
         """
         try:
-            logger.info(f"Attempting to verify Google token...")
+            logger.info("Attempting to verify Google token...")
             logger.debug(f"Token (first 50 chars): {id_token_str[:50]}...")
             logger.debug(f"Client ID: {self.client_id[:20]}...")
-            
+
             # Run blocking I/O in thread pool with timeout to avoid blocking event loop
             # This allows the event loop to handle other requests while waiting for Google API
             loop = asyncio.get_event_loop()
@@ -221,20 +220,20 @@ class GoogleOAuthService:
             except asyncio.TimeoutError:
                 logger.error("Token verification timed out after 30 seconds - Google API may be slow")
                 return None
-            
+
             return idinfo
-            
+
         except Exception as e:
             logger.error(f"Error in async verify_google_token: {str(e)}", exc_info=True)
             return None
-    
+
     async def google_login(self, id_token_str: str) -> Dict[str, Any]:
         """
         Authenticate user with Google ID token
-        
+
         Args:
             id_token_str: Google ID token from client
-            
+
         Returns:
             Dict containing login result with access token
         """
@@ -243,21 +242,21 @@ class GoogleOAuthService:
             logger.info("Verifying Google ID token...")
             google_user = await self.verify_google_token(id_token_str)
             logger.info(f"Google token verified. Email: {google_user.get('email') if google_user else 'None'}")
-            
+
             if not google_user:
                 return {
                     "EC": 1,
                     "EM": "Invalid Google token"
                 }
-            
+
             if not google_user.get('email_verified'):
                 return {
                     "EC": 2,
                     "EM": "Email not verified by Google"
                 }
-            
+
             email = google_user['email']
-            
+
             # Check if user exists
             logger.info(f"Checking if user exists with email: {email}")
             result = self.supabase.table('users') \
@@ -265,14 +264,14 @@ class GoogleOAuthService:
                 .eq('email', email) \
                 .execute()
             logger.info(f"User check result: {len(result.data) if result.data else 0} user(s) found")
-            
+
             from ..services.auth_service import AuthService
             auth_service = AuthService(self.supabase)
-            
+
             if result.data:
                 # User exists - update info and login
                 user = result.data[0]
-                
+
                 # Update user info from Google
                 update_data = {
                     "full_name": google_user.get('full_name') or user.get('full_name'),
@@ -282,19 +281,19 @@ class GoogleOAuthService:
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                     "last_access_time": datetime.now(timezone.utc).isoformat()
                 }
-                
+
                 self.supabase.table('users').update(update_data).eq('user_id', user['user_id']).execute()
-                
+
                 # Check if account is activated
                 if not user.get('is_activate', True):
                     return {
                         "EC": 3,
                         "EM": "Account is not activated"
                     }
-                
+
                 # Get user role (default to 'user' if not set)
                 role = user.get('role', 'user')
-                
+
                 # Generate access token
                 logger.info("Generating access token for existing user...")
                 access_token = auth_service._generate_access_token({
@@ -304,7 +303,7 @@ class GoogleOAuthService:
                     "role": role
                 })
                 logger.info("Access token generated successfully")
-                
+
                 return {
                     "EC": 0,
                     "EM": "Login successful",
@@ -334,17 +333,17 @@ class GoogleOAuthService:
                     "updated_at": current_time,
                     "last_access_time": current_time
                 }
-                
+
                 logger.info("Creating new user account...")
                 create_result = self.supabase.table('users').insert(new_user).execute()
                 logger.info(f"New user created: {create_result.data[0]['user_id'] if create_result.data else 'Failed'}")
-                
+
                 if create_result.data:
                     user = create_result.data[0]
-                    
+
                     # Get user role (default to 'user' if not set)
                     role = user.get('role', 'user')
-                    
+
                     # Generate access token
                     access_token = auth_service._generate_access_token({
                         "email": user["email"],
@@ -352,7 +351,7 @@ class GoogleOAuthService:
                         "user_id": user["user_id"],
                         "role": role
                     })
-                    
+
                     return {
                         "EC": 0,
                         "EM": "Account created and login successful",
@@ -371,7 +370,7 @@ class GoogleOAuthService:
                         "EC": 4,
                         "EM": "Failed to create user account"
                     }
-                    
+
         except Exception as e:
             logger.error(f"Error during Google login: {str(e)}")
             return {
@@ -471,15 +470,15 @@ class GoogleOAuthService:
         except Exception as e:
             logger.error(f"Error refreshing access token: {str(e)}")
             return {"EC": 4, "EM": f"Error: {str(e)}"}
-    
+
     async def handle_google_callback(self, code: str, state: Optional[str] = None) -> Dict[str, Any]:
         """
         Handle Google OAuth callback
-        
+
         Args:
             code: Authorization code from Google (will be URL-decoded automatically)
             state: State parameter from OAuth flow (optional)
-            
+
         Returns:
             Dict containing login result
         """
@@ -487,11 +486,11 @@ class GoogleOAuthService:
             # URL decode the code in case it's passed with %2F instead of /
             from urllib.parse import unquote
             decoded_code = unquote(code)
-            
-            logger.info(f"Handling Google callback with code...")
+
+            logger.info("Handling Google callback with code...")
             logger.debug(f"Original code: {code[:30]}...")
             logger.debug(f"Decoded code: {decoded_code[:30]}...")
-            
+
             # Exchange authorization code for tokens using direct HTTP request
             # This is more reliable than using Flow which requires state management
             token_url = "https://oauth2.googleapis.com/token"
@@ -502,7 +501,7 @@ class GoogleOAuthService:
                 "redirect_uri": self.redirect_uri,
                 "grant_type": "authorization_code"
             }
-            
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(token_url, data=data)
 
@@ -546,7 +545,11 @@ class GoogleOAuthService:
                         expires_at = None
                         if expires_in:
                             try:
-                                expires_at = (datetime.now(timezone.utc) + timedelta(seconds=int(expires_in))).isoformat()
+                                expires_at = (
+                                    datetime.now(
+                                        timezone.utc) +
+                                    timedelta(
+                                        seconds=int(expires_in))).isoformat()
                             except Exception:
                                 expires_at = None
 
@@ -572,11 +575,13 @@ class GoogleOAuthService:
                                 .select('*') \
                                 .eq('user_id', user_id) \
                                 .execute()
-                            logger.info(f"Existing credentials check completed: {len(existing.data) if existing.data else 0} found")
+                            logger.info(
+                                f"Existing credentials check completed: {len(existing.data) if existing.data else 0} found")
 
                             if existing.data:
                                 logger.info("Updating existing Google Drive credentials...")
-                                self.supabase.table('google_drive_credentials').update(creds_data).eq('user_id', user_id).execute()
+                                self.supabase.table('google_drive_credentials').update(
+                                    creds_data).eq('user_id', user_id).execute()
                                 logger.info("Google Drive credentials updated successfully")
                             else:
                                 logger.info("Inserting new Google Drive credentials...")
@@ -596,7 +601,7 @@ class GoogleOAuthService:
 
                 logger.info("Returning login_result from handle_google_callback")
                 return login_result
-            
+
         except Exception as e:
             logger.error(f"Error handling Google callback: {str(e)}")
             return {

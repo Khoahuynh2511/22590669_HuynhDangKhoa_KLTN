@@ -26,7 +26,7 @@ class RevenueReportItem(BaseModel):
     period_end: date = Field(..., description="Ngày kết thúc chu kỳ")
     total_revenue: float = Field(..., description="Tổng doanh thu trong chu kỳ")
     total_bookings: int = Field(..., description="Tổng số booking trong chu kỳ")
-    
+
     model_config = {"from_attributes": True}
 
 
@@ -48,7 +48,7 @@ class PriceRangeStatItem(BaseModel):
     total_people: int = Field(..., description="Tổng số người đi tour trong phân khúc này")
     total_bookings: int = Field(..., description="Tổng số booking trong phân khúc này")
     total_tours: int = Field(..., description="Số lượng tour khác nhau trong phân khúc")
-    
+
     model_config = {"from_attributes": True}
 
 

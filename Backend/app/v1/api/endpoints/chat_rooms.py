@@ -30,12 +30,12 @@ async def create_room(
 ):
     """
     Tạo chat room mới
-    
+
     Args:
         room_data: Room data với optional title
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         ChatRoomCreateResponse với room data
     """
@@ -45,12 +45,12 @@ async def create_room(
             user_id=user_id,
             title=room_data.title
         )
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return ChatRoomCreateResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -68,14 +68,14 @@ async def get_rooms(
 ):
     """
     Lấy danh sách chat rooms của user
-    
+
     Args:
         archived: Filter theo archived status (None = all, True = archived only, False = not archived)
         limit: Số lượng rooms tối đa
         offset: Offset cho pagination
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         ChatRoomListResponse với list rooms
     """
@@ -87,12 +87,12 @@ async def get_rooms(
             limit=limit,
             offset=offset
         )
-        
+
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
-        
+
         return ChatRoomListResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -108,12 +108,12 @@ async def get_room(
 ):
     """
     Lấy thông tin chi tiết một room
-    
+
     Args:
         room_id: ID của room
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         ChatRoomDetailResponse với room data
     """
@@ -123,13 +123,13 @@ async def get_room(
             room_id=str(room_id),
             user_id=user_id
         )
-        
+
         if result["EC"] != 0:
             status_code = 404 if result["EC"] == 404 else 400
             raise HTTPException(status_code=status_code, detail=result["EM"])
-        
+
         return ChatRoomDetailResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -147,14 +147,14 @@ async def get_room_messages(
 ):
     """
     Lấy lịch sử messages của một room
-    
+
     Args:
         room_id: ID của room
         limit: Số lượng messages tối đa
         offset: Offset cho pagination
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         ChatMessagesResponse với list messages
     """
@@ -166,13 +166,13 @@ async def get_room_messages(
             limit=limit,
             offset=offset
         )
-        
+
         if result["EC"] != 0:
             status_code = 404 if result["EC"] == 404 else 400
             raise HTTPException(status_code=status_code, detail=result["EM"])
-        
+
         return ChatMessagesResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -189,13 +189,13 @@ async def update_room(
 ):
     """
     Cập nhật room (title, archive status)
-    
+
     Args:
         room_id: ID của room
         room_data: Update data (title, is_archived)
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         ChatRoomDetailResponse với updated room data
     """
@@ -207,13 +207,13 @@ async def update_room(
             title=room_data.title,
             is_archived=room_data.is_archived
         )
-        
+
         if result["EC"] != 0:
             status_code = 404 if result["EC"] == 404 else 400
             raise HTTPException(status_code=status_code, detail=result["EM"])
-        
+
         return ChatRoomDetailResponse(**result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -229,12 +229,12 @@ async def delete_room(
 ):
     """
     Xóa room và tất cả messages
-    
+
     Args:
         room_id: ID của room
         current_user: Current authenticated user
         service: ChatRoomService instance
-        
+
     Returns:
         Success message
     """
@@ -244,20 +244,19 @@ async def delete_room(
             room_id=str(room_id),
             user_id=user_id
         )
-        
+
         if result["EC"] != 0:
             status_code = 404 if result["EC"] == 404 else 400
             raise HTTPException(status_code=status_code, detail=result["EM"])
-        
+
         return {
             "EC": 0,
             "EM": "Room deleted successfully",
             "data": result["data"]
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error in delete_room endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-

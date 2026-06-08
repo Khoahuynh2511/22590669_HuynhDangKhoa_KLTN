@@ -7,11 +7,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from datetime import datetime
-from ...core.dependencies import get_current_user, get_current_admin, get_chat_room_service
+from ...core.dependencies import get_current_admin, get_chat_room_service
 from ...services.agent_support_admin import get_admin_agent
 from ...services.chat_room_service import ChatRoomService
-from ...schema.agent_schema import ConversationHistory, Message, MessageRole
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +53,7 @@ async def admin_query(
     try:
         user_id = str(current_user["user_id"])
         logger.info(f"🔍 Admin query from {user_id}: {request.message[:50]}...")
-        
+
         # 1. Handle Chat Room (Session)
         room_id = request.session_id
         if room_id:
@@ -64,7 +62,7 @@ async def admin_query(
             if check["EC"] != 0:
                 # Room invalid, create new
                 room_id = None
-        
+
         if not room_id:
             # Create new room
             title = request.message[:50] + "..." if len(request.message) > 50 else request.message
@@ -89,11 +87,11 @@ async def admin_query(
             user_id=user_id,
             session_id=room_id
         )
-        
+
         # 4. Save Agent Response
         agent_response = result.get("response")
         if agent_response:
-             chat_room_service.save_message(
+            chat_room_service.save_message(
                 room_id=room_id,
                 user_id=user_id,
                 role="assistant",
@@ -109,7 +107,7 @@ async def admin_query(
             query=request.message,
             session_id=room_id
         )
-        
+
     except Exception as e:
         logger.error(f"❌ Admin query error: {str(e)}")
         raise HTTPException(
@@ -160,4 +158,3 @@ async def delete_conversation(
     if result["EC"] != 0:
         raise HTTPException(status_code=500, detail=result["EM"])
     return {"success": True, "message": "Deleted successfully"}
-

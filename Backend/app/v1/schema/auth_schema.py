@@ -18,7 +18,7 @@ class RegisterRequest(BaseModel):
             }
         }
     )
-    
+
     full_name: str = Field(..., min_length=2, max_length=100, description="Full name of the user")
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., min_length=6, description="Password (minimum 6 characters)")
@@ -36,11 +36,12 @@ class LoginRequest(BaseModel):
             }
         }
     )
-    
+
     email: Optional[EmailStr] = Field(None, description="Email address (required if phone_number not provided)")
-    phone_number: Optional[str] = Field(None, max_length=20, description="Phone number (required if email not provided)")
+    phone_number: Optional[str] = Field(
+        None, max_length=20, description="Phone number (required if email not provided)")
     password: str = Field(..., description="Password")
-    
+
     @model_validator(mode='after')
     def check_email_or_phone(self):
         """Validate that at least one of email or phone_number is provided"""
@@ -58,7 +59,7 @@ class VerifyTokenRequest(BaseModel):
             }
         }
     )
-    
+
     token: str = Field(..., description="JWT access token")
 
 
@@ -92,7 +93,7 @@ class LoginResponse(BaseModel):
             }
         }
     )
-    
+
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     access_token: Optional[str] = None
@@ -114,7 +115,7 @@ class RegisterResponse(BaseModel):
             }
         }
     )
-    
+
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     user: Optional[dict] = None
@@ -137,7 +138,7 @@ class VerifyTokenResponse(BaseModel):
             }
         }
     )
-    
+
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     data: Optional[dict] = None
@@ -152,7 +153,7 @@ class GoogleLoginRequest(BaseModel):
             }
         }
     )
-    
+
     id_token: str = Field(..., description="Google ID token from client")
 
 
@@ -165,7 +166,7 @@ class GoogleCallbackRequest(BaseModel):
             }
         }
     )
-    
+
     code: str = Field(..., description="Authorization code from Google OAuth callback")
 
 
@@ -180,7 +181,7 @@ class GoogleAuthURLResponse(BaseModel):
             }
         }
     )
-    
+
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     auth_url: Optional[str] = None
@@ -199,7 +200,7 @@ class AdminRegisterRequest(BaseModel):
             }
         }
     )
-    
+
     full_name: str = Field(..., min_length=2, max_length=100, description="Full name of the admin")
     email: EmailStr = Field(..., description="Email address")
     password: str = Field(..., min_length=6, description="Password (minimum 6 characters)")
@@ -218,11 +219,12 @@ class AdminLoginRequest(BaseModel):
             }
         }
     )
-    
+
     email: Optional[EmailStr] = Field(None, description="Email address (required if phone_number not provided)")
-    phone_number: Optional[str] = Field(None, max_length=20, description="Phone number (required if email not provided)")
+    phone_number: Optional[str] = Field(
+        None, max_length=20, description="Phone number (required if email not provided)")
     password: str = Field(..., description="Password")
-    
+
     @model_validator(mode='after')
     def check_email_or_phone(self):
         """Validate that at least one of email or phone_number is provided"""

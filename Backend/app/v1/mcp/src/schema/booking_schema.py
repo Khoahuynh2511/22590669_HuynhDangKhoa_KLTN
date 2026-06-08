@@ -8,7 +8,11 @@ from typing import Optional
 
 class CreateBookingInput(BaseModel):
     """Input schema for create_booking tool"""
-    user_phone: str = Field(..., min_length=10, max_length=10, description="User phone number (Vietnamese format, exactly 10 digits, e.g., '0901234567'), you must ask user for this information")
+    user_phone: str = Field(
+        ...,
+        min_length=10,
+        max_length=10,
+        description="User phone number (Vietnamese format, exactly 10 digits, e.g., '0901234567'), you must ask user for this information")
     user_email: str = Field(
         ...,
         pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$",
@@ -21,8 +25,10 @@ class CreateBookingInput(BaseModel):
             "Use EXACT package_id from the internal context message; never invent IDs like 'pkg_1' or 'tour_1'."
         )
     )
-    number_of_people: int = Field(..., ge=1, le=50, description="Number of people (1-50), you must ask user for this information")
-    special_requests: Optional[str] = Field(default="", description="Special requests or dietary restrictions, you must ask user for this information")
+    number_of_people: int = Field(..., ge=1, le=50,
+                                  description="Number of people (1-50), you must ask user for this information")
+    special_requests: Optional[str] = Field(
+        default="", description="Special requests or dietary restrictions, you must ask user for this information")
     user_id: Optional[str] = Field(None, description="User ID if available (for authenticated users)")
 
     @validator("user_phone")
@@ -84,6 +90,13 @@ class CreatePaymentInput(BaseModel):
         default=None,
         description="Optional: URL frontend sẽ quay về sau thanh toán (append vào VNPAY_RETURN_URL)"
     )
+
+
+class CreateTransportPaymentInput(BaseModel):
+    """Input schema for create_transport_payment tool"""
+    booking_type: str = Field(..., description="Transport booking type: flight or train")
+    booking_id: str = Field(..., description="Transport booking ID returned by book_flight or book_train")
+    payment_method: str = Field(default="vnpay", description="Payment method")
 
 
 class ApplyPromotionCodeInput(BaseModel):

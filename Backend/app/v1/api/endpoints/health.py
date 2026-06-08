@@ -4,7 +4,6 @@ Health Check API Endpoints
 import logging
 from fastapi import APIRouter
 from datetime import datetime
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,7 @@ router = APIRouter()
 async def health_check():
     """
     Detailed health status check
-    
+
     Returns:
         Health status with component checks
     """
@@ -25,7 +24,7 @@ async def health_check():
         "version": "1.0.0",
         "components": {}
     }
-    
+
     # Check Supabase connection
     try:
         from ...core.supabase import get_supabase_client
@@ -45,7 +44,7 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e)
         }
-    
+
     # Check FalkorDB connection
     try:
         from ...core.falkor import falkor_graph
@@ -72,7 +71,7 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e)
         }
-    
+
     # Check Agent System
     try:
         from ...services.agent_services import supervisor_graph
@@ -91,16 +90,16 @@ async def health_check():
             "status": "unhealthy",
             "error": str(e)
         }
-    
+
     # Overall status
     all_healthy = all(
-        comp.get("status") == "healthy" 
+        comp.get("status") == "healthy"
         for comp in health_status["components"].values()
     )
-    
+
     if not all_healthy:
         health_status["status"] = "degraded"
-    
+
     return health_status
 
 
@@ -108,7 +107,7 @@ async def health_check():
 async def readiness_check():
     """
     Readiness check for Kubernetes/docker-compose
-    
+
     Returns:
         Simple ready/not ready status
     """
@@ -116,11 +115,11 @@ async def readiness_check():
         # Check if critical components are available
         from ...services.agent_services import supervisor_graph
         from ...core.supabase import get_supabase_client
-        
+
         # Basic checks
         has_agent = supervisor_graph is not None
-        has_supabase = get_supabase_client() is not None
-        
+        _has_supabase = get_supabase_client() is not None  # noqa: F841
+
         if has_agent:
             return {
                 "ready": True,
