@@ -6,8 +6,10 @@ import { TourService } from '../../services/tour.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Tour } from '../../shared/models/tour.model';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
+import { firstValueFrom } from 'rxjs';
 
 interface Hotel {
+  hotel_id?: string;
   name: string;
   rating: number;
   reviews: number;
@@ -16,7 +18,11 @@ interface Hotel {
   price: number;
   description: string;
   address: string;
-  amenities: any[]
+  amenities: any[];
+  available_rooms?: number;
+  discount?: number;
+  original_price?: number;
+  star_rating?: number;
 }
 
 interface RoomOption {
@@ -112,7 +118,7 @@ export class ProducDetailsComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     this.route.params.subscribe(async params => {
       const id = params['id'];
-      
+
       if (id) {
         this.isTourMode = true;
         this.currentTourId = id;
@@ -120,11 +126,21 @@ export class ProducDetailsComponent implements OnInit {
       } else {
         this.isTourMode = false;
         this.currentTourId = null;
-        this.route.queryParams.subscribe(res => {
-          let result = this.hotelService.filterHotels(res['param']);
-          if (result.length > 0) {
-            this.hotel.name = result[0].name;
-            this.hotel.location = result[0].location;
+        // Check for hotel_id query param first
+        this.route.queryParams.subscribe(async res => {
+          const hotelId = res['id'];
+          if (hotelId) {
+            await this.loadHotelDetails(hotelId);
+          } else {
+            // Fallback to name search
+            const hotelName = res['param'];
+            if (hotelName) {
+              let result = this.hotelService.filterHotels(hotelName);
+              if (result.length > 0) {
+                this.hotel.name = result[0].hotel_name;
+                this.hotel.location = result[0].location;
+              }
+            }
           }
         });
       }
@@ -136,9 +152,9 @@ export class ProducDetailsComponent implements OnInit {
       this.isLoadingTour = true;
       this.errorMessage = null;
       console.log('Loading tour details for ID:', tourId);
-      
+
       this.tour = await this.tourService.getTourById(tourId);
-      
+
       if (!this.tour) {
         this.errorMessage = 'Không tìm thấy tour với ID này. Tour có thể đã bị xóa hoặc không tồn tại.';
         console.error('Tour not found with ID:', tourId);
@@ -149,14 +165,53 @@ export class ProducDetailsComponent implements OnInit {
     } catch (error: any) {
       console.error('Error loading tour:', error);
       const errorMsg = error?.message || 'Lỗi khi tải thông tin tour. Vui lòng thử lại sau.';
-      
+
       if (errorMsg.includes('500') || errorMsg.includes('máy chủ')) {
         this.errorMessage = 'Lỗi máy chủ. Hệ thống đang gặp sự cố. Vui lòng thử lại sau vài phút hoặc liên hệ hỗ trợ nếu vấn đề vẫn tiếp tục.';
       } else {
         this.errorMessage = errorMsg;
       }
-      
+
       this.tour = null;
+    } finally {
+      this.isLoadingTour = false;
+    }
+  }
+
+  async loadHotelDetails(hotelId: string): Promise<void> {
+    try {
+      this.isLoadingTour = true;
+      this.errorMessage = null;
+      console.log('Loading hotel details for ID:', hotelId);
+
+      const response = await firstValueFrom(this.hotelService.getHotelById(hotelId));
+
+      if (response && response.EC === 0 && response.hotel) {
+        const apiHotel = response.hotel;
+        // Map API response to hotel interface
+        this.hotel = {
+          hotel_id: apiHotel.hotel_id,
+          name: apiHotel.hotel_name || '',
+          rating: apiHotel.review_score || 0,
+          reviews: apiHotel.review_count || 0,
+          location: apiHotel.location || '',
+          images: apiHotel.image_urls ? apiHotel.image_urls.split('|').filter((url: string) => url.trim()) : [],
+          price: apiHotel.price || 0,
+          description: apiHotel.description || '',
+          address: apiHotel.address || '',
+          amenities: apiHotel.amenities ? (Array.isArray(apiHotel.amenities) ? apiHotel.amenities : String(apiHotel.amenities).split(',').map((a: string) => a.trim())) : [],
+          available_rooms: apiHotel.available_rooms,
+          discount: apiHotel.discount || 0,
+          original_price: apiHotel.original_price || apiHotel.price || 0,
+          star_rating: apiHotel.star_rating || 0
+        };
+      } else {
+        this.errorMessage = 'Không tìm thấy khách sạn với ID này.';
+        console.error('Hotel not found with ID:', hotelId);
+      }
+    } catch (error: any) {
+      console.error('Error loading hotel:', error);
+      this.errorMessage = 'Lỗi khi tải thông tin khách sạn. Vui lòng thử lại sau.';
     } finally {
       this.isLoadingTour = false;
     }
@@ -349,6 +404,17 @@ export class ProducDetailsComponent implements OnInit {
     this.router.navigate(['/tours']);
   }
 
+  goBackToHotels(): void {
+    this.router.navigate(['/hotel']);
+  }
+
+  async retryLoadHotel(): Promise<void> {
+    const hotelId = this.route.snapshot.queryParams['id'];
+    if (hotelId) {
+      await this.loadHotelDetails(hotelId);
+    }
+  }
+
   getInfoCards(): Array<{type: string, icon: string, label: string, value: string}> {
     if (!this.tour) return [];
     
@@ -422,8 +488,16 @@ export class ProducDetailsComponent implements OnInit {
         value: this.tour.suitable_for
       });
     }
-    
+
     return cards;
+  }
+
+  getStarArray(): number[] {
+    return [1, 2, 3, 4, 5];
+  }
+
+  isFilledStar(index: number): boolean {
+    return index < Math.floor(this.hotel.star_rating || 0);
   }
 
 }

@@ -1,18 +1,81 @@
 
 <div class="card flex justify-center accordion-comp">
-  <p-accordion value="0">
+  <p-accordion [multiple]="true">
+    <!-- Loại chỗ ở -->
     <p-accordion-panel value="0">
-        <p-accordion-header>Bộ lọc phổ biến</p-accordion-header>
-        <p-accordion-content>
-          @for (item of checkboxs; track $index) {
-            <div class="flex gap-1">
-              <p-checkbox formControlName="city" value="New York" inputId="{{item.label}}" />
-              <label for="{{item.label}}" class="ml-2">{{ item.label }}</label>
-            </div>
-          }
-
-        </p-accordion-content>
+      <p-accordion-header>Loại chỗ ở</p-accordion-header>
+      <p-accordion-content>
+        @for (type of hotelTypes; track type.value) {
+          <div class="flex gap-1 mb-2">
+            <p-checkbox
+              [binary]="true"
+              [(ngModel)]="type.checked"
+              (ngModelChange)="toggleType(type)"
+              inputId="hotel-type-{{type.value}}"
+            />
+            <label for="hotel-type-{{type.value}}" class="ml-2">{{ type.label }}</label>
+          </div>
+        }
+      </p-accordion-content>
     </p-accordion-panel>
 
+    <!-- Đánh giá -->
+    <p-accordion-panel value="1">
+      <p-accordion-header>Đánh giá</p-accordion-header>
+      <p-accordion-content>
+        @for (rating of ratingOptions; track rating.value) {
+          <div class="mb-2">
+            <p-checkbox
+              [binary]="true"
+              [(ngModel)]="rating.checked"
+              (ngModelChange)="setMinRating(rating.value)"
+              inputId="rating-{{rating.value}}"
+            />
+            <label for="rating-{{rating.value}}" class="ml-2">{{ rating.label }}</label>
+          </div>
+        }
+      </p-accordion-content>
+    </p-accordion-panel>
+
+    <!-- Khoảng giá -->
+    <p-accordion-panel value="2">
+      <p-accordion-header>Khoảng giá</p-accordion-header>
+      <p-accordion-content>
+        <div class="price-filter">
+          <div class="mb-3">
+            <label for="min-price" class="block mb-1">Giá thấp nhất (VNĐ)</label>
+            <input
+              pInputText
+              type="number"
+              id="min-price"
+              [(ngModel)]="priceRange.min"
+              (ngModelChange)="onPriceChange()"
+              class="w-full"
+              placeholder="0"
+            />
+          </div>
+          <div class="mb-3">
+            <label for="max-price" class="block mb-1">Giá cao nhất (VNĐ)</label>
+            <input
+              pInputText
+              type="number"
+              id="max-price"
+              [(ngModel)]="priceRange.max"
+              (ngModelChange)="onPriceChange()"
+              class="w-full"
+              placeholder="10000000"
+            />
+          </div>
+          <button
+            pButton
+            pRipple
+            type="button"
+            label="Đặt lại"
+            class="p-button-outlined w-full"
+            (click)="resetFilters()"
+          >Đặt lại</button>
+        </div>
+      </p-accordion-content>
+    </p-accordion-panel>
   </p-accordion>
 </div>

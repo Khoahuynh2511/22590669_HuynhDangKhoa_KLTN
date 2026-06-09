@@ -6,7 +6,6 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, date
 from uuid import UUID
-from supabase import Client
 import openai
 import os
 import psycopg2
@@ -43,14 +42,9 @@ logger = logging.getLogger(__name__)
 class TourPackageService:
     """Service for tour package management"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize TourPackageService
-
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
+    def __init__(self):
+        """Initialize TourPackageService"""
+        self.db_url = settings.DATABASE_URL
         # Initialize OpenAI client for embeddings
         openai_api_key = os.getenv("OPENAI_API_KEY")
         if openai_api_key:
@@ -59,10 +53,10 @@ class TourPackageService:
         self.embedding_model = "text-embedding-3-small"
 
         # Initialize admin services
-        self.admin_settings = AdminSettingsService(supabase_client)
-        self.admin_featured_tours = AdminFeaturedToursService(supabase_client)
-        self.notification_service = NotificationService(supabase_client)
-        self.favorite_service = FavoriteTourService(supabase_client)
+        self.admin_settings = AdminSettingsService()
+        self.admin_featured_tours = AdminFeaturedToursService()
+        self.notification_service = NotificationService()
+        self.favorite_service = FavoriteTourService()
 
     def _pg_conn(self):
         return psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor)
@@ -195,25 +189,41 @@ class TourPackageService:
         try:
             now = datetime.now(timezone.utc).isoformat()
 
-            embedding_data = {
-                "package_id": package_id,
-                "embedding": embedding,
-                "created_at": now
-            }
-
             logger.info(f"Upserting embedding for package {package_id} (vector dimension: {len(embedding)})")
 
-            # Upsert (insert or update)
-            result = self.supabase.table('package_embeddings') \
-                .upsert(embedding_data) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # Check if embedding exists
+                    cur.execute(
+                        "SELECT package_id FROM package_embeddings WHERE package_id = %s",
+                        (package_id,)
+                    )
+                    exists = cur.fetchone()
 
-            if result.data:
-                logger.info(f"✓ Successfully upserted embedding for package {package_id}")
-                return True
-            else:
-                logger.warning(f"⚠ Upsert returned no data for package {package_id}")
-                return False
+                    if exists:
+                        # Update existing embedding
+                        cur.execute(
+                            """
+                            UPDATE package_embeddings
+                            SET embedding = %s, created_at = %s
+                            WHERE package_id = %s
+                            """,
+                            (embedding, now, package_id)
+                        )
+                    else:
+                        # Insert new embedding
+                        cur.execute(
+                            """
+                            INSERT INTO package_embeddings (package_id, embedding, created_at)
+                            VALUES (%s, %s, %s)
+                            """,
+                            (package_id, embedding, now)
+                        )
+
+                    conn.commit()
+
+            logger.info(f"✓ Successfully upserted embedding for package {package_id}")
+            return True
 
         except Exception as e:
             logger.error(f"✗ Error upserting embedding for package {package_id}: {str(e)}", exc_info=True)
@@ -230,10 +240,13 @@ class TourPackageService:
             True if successful, False otherwise
         """
         try:
-            _result = self.supabase.table('package_embeddings') \
-                .delete() \
-                .eq('package_id', package_id) \
-                .execute()  # noqa: F841
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM package_embeddings WHERE package_id = %s",
+                        (package_id,)
+                    )
+                    conn.commit()
 
             logger.info(f"Successfully deleted embedding for package {package_id}")
             return True
@@ -695,12 +708,26 @@ class TourPackageService:
             package_data['created_at'] = now
             package_data['updated_at'] = now
 
-            result = self.supabase.table('tour_packages') \
-                .insert(package_data) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # Build INSERT statement dynamically
+                    columns = list(package_data.keys())
+                    placeholders = [f"%s" for _ in columns]
+                    values = [package_data[col] for col in columns]
 
-            if result.data:
-                created_package = result.data[0]
+                    cur.execute(
+                        f"""
+                        INSERT INTO tour_packages ({', '.join(columns)})
+                        VALUES ({', '.join(placeholders)})
+                        RETURNING *
+                        """,
+                        values
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
+
+            if result:
+                created_package = dict(result)
                 package_id = created_package.get("package_id")
 
                 logger.info(f"Tour package created with ID: {package_id}. Starting embedding generation...")
@@ -773,42 +800,37 @@ class TourPackageService:
             # Add updated timestamp
             update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
 
-            result = self.supabase.table('tour_packages') \
-                .update(update_data) \
-                .eq('package_id', package_id) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # Build SET clause dynamically
+                    set_clause = ", ".join([f"{key} = %s" for key in update_data.keys()])
+                    values = list(update_data.values())
+                    values.append(package_id)
 
-            if result.data:
-                # Fetch full updated record to ensure all fields are present
-                full_result = self.supabase.table('tour_packages') \
-                    .select('*') \
-                    .eq('package_id', package_id) \
-                    .single() \
-                    .execute()
+                    cur.execute(
+                        f"UPDATE tour_packages SET {set_clause} WHERE package_id = %s RETURNING *",
+                        values
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
 
-                if full_result.data:
-                    updated_package = full_result.data
+            if result:
+                updated_package = dict(result)
 
-                    # Regenerate embedding if content fields were updated
-                    content_fields = ['package_name', 'destination', 'description', 'cuisine', 'suitable_for']
-                    if any(field in update_data for field in content_fields):
-                        embedding = await self._generate_embedding(updated_package)
-                        if embedding:
-                            await self._upsert_embedding(package_id, embedding)
-                        else:
-                            logger.warning(f"Failed to regenerate embedding for package {package_id}")
+                # Regenerate embedding if content fields were updated
+                content_fields = ['package_name', 'destination', 'description', 'cuisine', 'suitable_for']
+                if any(field in update_data for field in content_fields):
+                    embedding = await self._generate_embedding(updated_package)
+                    if embedding:
+                        await self._upsert_embedding(package_id, embedding)
+                    else:
+                        logger.warning(f"Failed to regenerate embedding for package {package_id}")
 
-                    return {
-                        "EC": 0,
-                        "EM": "Tour package updated successfully",
-                        "package": updated_package
-                    }
-                else:
-                    return {
-                        "EC": 2,
-                        "EM": "Failed to fetch updated tour package",
-                        "package": None
-                    }
+                return {
+                    "EC": 0,
+                    "EM": "Tour package updated successfully",
+                    "package": updated_package
+                }
             else:
                 return {
                     "EC": 2,
@@ -855,10 +877,13 @@ class TourPackageService:
             await self._delete_embedding(package_id)
 
             # Delete tour package
-            _result = self.supabase.table('tour_packages') \
-                .delete() \
-                .eq('package_id', package_id) \
-                .execute()  # noqa: F841
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM tour_packages WHERE package_id = %s",
+                        (package_id,)
+                    )
+                    conn.commit()
 
             return {
                 "EC": 0,
@@ -893,13 +918,26 @@ class TourPackageService:
                     package_data['created_at'] = now
                     package_data['updated_at'] = now
 
-                    # Insert package
-                    result = self.supabase.table('tour_packages') \
-                        .insert(package_data) \
-                        .execute()
+                    with self._pg_conn() as conn:
+                        with conn.cursor() as cur:
+                            # Build INSERT statement dynamically
+                            columns = list(package_data.keys())
+                            placeholders = [f"%s" for _ in columns]
+                            values = [package_data[col] for col in columns]
 
-                    if result.data:
-                        created_package = result.data[0]
+                            cur.execute(
+                                f"""
+                                INSERT INTO tour_packages ({', '.join(columns)})
+                                VALUES ({', '.join(placeholders)})
+                                RETURNING *
+                                """,
+                                values
+                            )
+                            result = cur.fetchone()
+                            conn.commit()
+
+                    if result:
+                        created_package = dict(result)
                         package_id = created_package.get("package_id")
 
                         # Generate and store embedding
@@ -1176,15 +1214,20 @@ class TourPackageService:
             now = datetime.now(timezone.utc).isoformat()
 
             # Query tours: is_active=True, available_slots > 0, end_date >= now, order by end_date ASC
-            query = self.supabase.table('tour_packages').select('*')
-            query = query.eq('is_active', True)
-            query = query.gt('available_slots', 0)
-            query = query.gte('end_date', now)  # Chỉ lấy tour chưa hết hạn
-            query = query.order('end_date', desc=False)  # Sắp xếp theo end_date tăng dần (gần hết hạn nhất trước)
-            query = query.limit(10)
-
-            result = query.execute()
-            expiring_tours = result.data if result.data else []
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT * FROM tour_packages
+                        WHERE is_active = TRUE
+                        AND available_slots > 0
+                        AND end_date >= %s
+                        ORDER BY end_date ASC
+                        LIMIT 10
+                        """,
+                        (now,)
+                    )
+                    expiring_tours = self._normalize_pg_rows(cur.fetchall())
 
             # Filter out excluded IDs
             if exclude_ids:
@@ -1350,7 +1393,7 @@ class TourPackageService:
         try:
             # Import BookingService here to avoid circular import
             from .booking_service import BookingService
-            booking_service = BookingService(self.supabase)
+            booking_service = BookingService()
 
             # 1. Get tour package details
             package_result = await self.get_package_by_id(package_id)
@@ -1361,25 +1404,41 @@ class TourPackageService:
             package_name = package.get('package_name', 'Unknown Tour')
 
             # 2. Set is_active = False
-            update_result = self.supabase.table('tour_packages') \
-                .update({"is_active": False, "updated_at": "now()"}) \
-                .eq('package_id', package_id) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE tour_packages
+                        SET is_active = FALSE, updated_at = NOW()
+                        WHERE package_id = %s
+                        RETURNING *
+                        """,
+                        (package_id,)
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
 
-            if not update_result.data:
+            if not result:
                 return {
                     "EC": 1,
                     "EM": "Failed to deactivate tour package"
                 }
 
             # 3. Get all related bookings (pending/confirmed)
-            bookings_result = self.supabase.table('bookings') \
-                .select('booking_id, user_id, status, number_of_people') \
-                .eq('package_id', package_id) \
-                .in_('status', ['pending', 'confirmed']) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT booking_id, user_id, status, number_of_people
+                        FROM bookings
+                        WHERE package_id = %s
+                        AND status IN ('pending', 'confirmed')
+                        """,
+                        (package_id,)
+                    )
+                    bookings = self._normalize_pg_rows(cur.fetchall())
 
-            if not bookings_result.data:
+            if not bookings:
                 logger.info(f"Tour {package_id} cancelled, no active bookings to cancel")
                 return {
                     "EC": 0,
@@ -1391,7 +1450,7 @@ class TourPackageService:
             cancelled_count = 0
             notification_count = 0
 
-            for booking in bookings_result.data:
+            for booking in bookings:
                 # Cancel booking
                 cancel_result = await booking_service.cancel_booking(
                     booking_id=booking['booking_id'],
@@ -1430,7 +1489,8 @@ class TourPackageService:
                 "EC": 0,
                 "EM": f"Tour cancelled successfully. {cancelled_count} bookings cancelled, {notification_count} users notified.",
                 "cancelled_bookings": cancelled_count,
-                "notifications_sent": notification_count}
+                "notifications_sent": notification_count
+            }
 
         except Exception as e:
             logger.error(f"Error cancelling tour {package_id}: {str(e)}")
@@ -1439,3 +1499,8 @@ class TourPackageService:
                 "EM": f"Error cancelling tour: {str(e)}",
                 "cancelled_bookings": 0
             }
+
+
+def get_tour_package_service() -> TourPackageService:
+    """Dependency to get TourPackageService instance"""
+    return TourPackageService()

@@ -21,7 +21,6 @@ from ...schema.booking_schema import (
     ResendOTPRequest
 )
 from ...services.booking_service import BookingService
-from ...core.supabase import get_supabase_client
 from ...core.dependencies import get_current_admin
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,7 @@ router = APIRouter()
 
 def get_booking_service():
     """Dependency to get BookingService instance"""
-    supabase = get_supabase_client()
-    return BookingService(supabase)
+    return BookingService()
 
 
 @router.get("/", response_model=BookingListResponse)
@@ -61,7 +59,7 @@ async def get_bookings(
         GET /api/v1/bookings?status=pending&limit=10
     """
     try:
-        result = await service.get_all_bookings(
+        result = service.get_all_bookings(
             user_id=user_id,
             status=status,
             limit=limit,
@@ -93,7 +91,7 @@ async def get_booking(
         GET /api/v1/bookings/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.get_booking_by_id(str(booking_id))
+        result = service.get_booking_by_id(str(booking_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -127,7 +125,7 @@ async def update_booking(
     try:
         update_data = booking.model_dump(exclude_unset=True)
 
-        result = await service.update_booking(str(booking_id), update_data)
+        result = service.update_booking(str(booking_id), update_data)
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -170,7 +168,7 @@ async def cancel_booking(
     """
     try:
         reason = cancel_request.reason if cancel_request else None
-        result = await service.cancel_booking(str(booking_id), reason=reason, cancelled_by="user")
+        result = service.cancel_booking(str(booking_id), reason=reason, cancelled_by="user")
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -211,7 +209,7 @@ async def delete_booking(
         DELETE /api/v1/bookings/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.delete_booking(str(booking_id))
+        result = service.delete_booking(str(booking_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -272,7 +270,7 @@ async def create_booking_with_otp(
         if not booking_data.get('user_id'):
             raise HTTPException(status_code=400, detail="user_id is required")
 
-        result = await service.create_booking_with_otp(booking_data)
+        result = service.create_booking_with_otp(booking_data)
 
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
@@ -338,7 +336,7 @@ async def create_booking_by_admin(
         if not booking_data.get('user_id'):
             raise HTTPException(status_code=400, detail="user_id is required")
 
-        result = await service.create_booking_by_admin(booking_data, admin_id)
+        result = service.create_booking_by_admin(booking_data, admin_id)
 
         if result["EC"] != 0:
             status_codes = {
@@ -394,7 +392,7 @@ async def verify_otp(
         }
     """
     try:
-        result = await service.verify_otp(
+        result = service.verify_otp(
             booking_id=str(verify_request.booking_id),
             otp_code=verify_request.otp_code
         )
@@ -442,7 +440,7 @@ async def resend_otp(
         }
     """
     try:
-        result = await service.resend_otp(
+        result = service.resend_otp(
             booking_id=str(resend_request.booking_id)
         )
 

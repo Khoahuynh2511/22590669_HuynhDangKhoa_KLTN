@@ -5,8 +5,9 @@ Business logic for user self-service profile operations
 import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
-from supabase import Client
-
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 from ..core.cloudinary_config import CloudinaryConfig
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,15 @@ logger = logging.getLogger(__name__)
 class UserProfileService:
     """Service for user profile self-service operations"""
 
-    def __init__(self, supabase: Client):
-        self.supabase = supabase
+    def __init__(self):
+        """Initialize UserProfileService"""
+        self.db_url = settings.DATABASE_URL
+
+    def _get_conn(self):
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+
+    def _normalize(self, rows):
+        return [dict(r) for r in rows]
 
     def get_my_profile(self, user_id: str) -> Dict[str, Any]:
         """
@@ -29,19 +37,26 @@ class UserProfileService:
             Dict with EC, EM, data keys
         """
         try:
-            # Query user from database
-            response = self.supabase.table("users").select(
-                "user_id, email, full_name, phone_number, profile_picture, role, is_active, created_at, updated_at"
-            ).eq("user_id", user_id).execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT user_id, email, full_name, phone as phone_number, avatar_url as profile_picture, role, is_active, created_at, updated_at
+                        FROM users
+                        WHERE user_id = %s
+                        """,
+                        (user_id,)
+                    )
+                    rows = self._normalize(cur.fetchall())
 
-            if not response.data or len(response.data) == 0:
+            if not rows or len(rows) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found",
                     "data": None
                 }
 
-            user = response.data[0]
+            user = rows[0]
 
             return {
                 "EC": 0,
@@ -96,7 +111,7 @@ class UserProfileService:
             if phone_number is not None:
                 update_data["phone_number"] = phone_number
             if profile_picture is not None:
-                update_data["profile_picture"] = profile_picture
+                update_data["avatar_url"] = profile_picture
 
             # Check if any fields to update
             if len(update_data) == 1:  # Only updated_at
@@ -107,9 +122,21 @@ class UserProfileService:
                 }
 
             # Update user profile
-            response = self.supabase.table("users").update(update_data).eq("user_id", user_id).execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Build SET clause dynamically
+                    set_clause = ", ".join([f"{key} = %s" for key in update_data.keys()])
+                    values = list(update_data.values())
+                    values.append(user_id)
 
-            if not response.data or len(response.data) == 0:
+                    cur.execute(
+                        f"UPDATE users SET {set_clause} WHERE user_id = %s RETURNING *",
+                        values
+                    )
+                    rows = self._normalize(cur.fetchall())
+                    conn.commit()
+
+            if not rows or len(rows) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found",
@@ -155,15 +182,21 @@ class UserProfileService:
                 "updated_at": datetime.utcnow().isoformat()
             }
 
-            response = (
-                self.supabase
-                .table("users")
-                .update(update_payload)
-                .eq("user_id", user_id)
-                .execute()
-            )
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE users
+                        SET avatar_url = %s, updated_at = %s
+                        WHERE user_id = %s
+                        RETURNING *
+                        """,
+                        (update_payload["profile_picture"], update_payload["updated_at"], user_id)
+                    )
+                    rows = self._normalize(cur.fetchall())
+                    conn.commit()
 
-            if not response.data or len(response.data) == 0:
+            if not rows or len(rows) == 0:
                 return {
                     "EC": 1,
                     "EM": "User not found",
@@ -201,15 +234,21 @@ class UserProfileService:
             import bcrypt
 
             # Get current user password hash
-            response = self.supabase.table("users").select("password_hash").eq("user_id", user_id).execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT password_hash FROM users WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    result = cur.fetchone()
 
-            if not response.data or len(response.data) == 0:
+            if not result:
                 return {
                     "EC": 1,
                     "EM": "User not found"
                 }
 
-            stored_password = response.data[0].get("password_hash")
+            stored_password = result.get('password_hash')
 
             # Verify current password
             if not bcrypt.checkpw(current_password.encode('utf-8'), stored_password.encode('utf-8')):
@@ -222,16 +261,17 @@ class UserProfileService:
             new_password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
             # Update password
-            update_response = self.supabase.table("users").update({
-                "password_hash": new_password_hash,
-                "updated_at": datetime.utcnow().isoformat()
-            }).eq("user_id", user_id).execute()
-
-            if not update_response.data or len(update_response.data) == 0:
-                return {
-                    "EC": 2,
-                    "EM": "Failed to update password"
-                }
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE users
+                        SET password_hash = %s, updated_at = %s
+                        WHERE user_id = %s
+                        """,
+                        (new_password_hash, datetime.utcnow().isoformat(), user_id)
+                    )
+                    conn.commit()
 
             return {
                 "EC": 0,
@@ -248,6 +288,4 @@ class UserProfileService:
 
 def get_user_profile_service() -> UserProfileService:
     """Dependency to get UserProfileService instance"""
-    from ..core.supabase import get_supabase_client
-    supabase = get_supabase_client()
-    return UserProfileService(supabase)
+    return UserProfileService()

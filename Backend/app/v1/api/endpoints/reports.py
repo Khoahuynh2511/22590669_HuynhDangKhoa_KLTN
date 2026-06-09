@@ -7,8 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from typing import Optional
 from datetime import date
 
-from app.v1.core.dependencies import get_supabase_client
-from app.v1.services.report_service import ReportService
+from app.v1.services.report_service import ReportService, get_report_service
 from app.v1.schema.report_schema import (
     RevenueReportResponse,
     PriceRangeStatsResponse,
@@ -40,7 +39,7 @@ async def get_revenue_report(
     start_date: Optional[date] = Query(None, description="Ngày bắt đầu (YYYY-MM-DD)"),
     end_date: Optional[date] = Query(None, description="Ngày kết thúc (YYYY-MM-DD)"),
     num_periods: int = Query(12, ge=1, le=52, description="Số chu kỳ hiển thị"),
-    supabase_client=Depends(get_supabase_client)
+    service: ReportService = Depends(get_report_service)
 ):
     """
     Get revenue report by week or month
@@ -51,8 +50,7 @@ async def get_revenue_report(
     """
     logger.info(f"Getting revenue report: period_type={period_type}, start_date={start_date}, end_date={end_date}")
 
-    service = ReportService(supabase_client)
-    result = await service.get_revenue_report(
+    result = service.get_revenue_report(
         period_type=period_type.value,
         start_date=start_date,
         end_date=end_date,
@@ -82,7 +80,7 @@ async def get_revenue_report(
 )
 async def get_people_stats_by_week(
     target_date: Optional[date] = Query(None, description="Ngày xác định tuần (YYYY-MM-DD)"),
-    supabase_client=Depends(get_supabase_client)
+    service: ReportService = Depends(get_report_service)
 ):
     """
     Get statistics of people traveling by price range for a specific week
@@ -93,8 +91,7 @@ async def get_people_stats_by_week(
     """
     logger.info(f"Getting people stats by week: target_date={target_date}")
 
-    service = ReportService(supabase_client)
-    result = await service.get_people_stats_by_price_range(
+    result = service.get_people_stats_by_price_range(
         period_type="week",
         target_date=target_date
     )
@@ -122,7 +119,7 @@ async def get_people_stats_by_week(
 )
 async def get_people_stats_by_month(
     target_date: Optional[date] = Query(None, description="Ngày xác định tháng (YYYY-MM-DD)"),
-    supabase_client=Depends(get_supabase_client)
+    service: ReportService = Depends(get_report_service)
 ):
     """
     Get statistics of people traveling by price range for a specific month
@@ -133,8 +130,7 @@ async def get_people_stats_by_month(
     """
     logger.info(f"Getting people stats by month: target_date={target_date}")
 
-    service = ReportService(supabase_client)
-    result = await service.get_people_stats_by_price_range(
+    result = service.get_people_stats_by_price_range(
         period_type="month",
         target_date=target_date
     )
@@ -163,7 +159,7 @@ async def get_people_stats_by_month(
 async def get_people_stats(
     period_type: ReportPeriod = Query(..., description="Loại chu kỳ: week hoặc month"),
     target_date: Optional[date] = Query(None, description="Ngày xác định chu kỳ (YYYY-MM-DD)"),
-    supabase_client=Depends(get_supabase_client)
+    service: ReportService = Depends(get_report_service)
 ):
     """
     Get statistics of people traveling by price range for a specific period
@@ -174,8 +170,7 @@ async def get_people_stats(
     """
     logger.info(f"Getting people stats: period_type={period_type}, target_date={target_date}")
 
-    service = ReportService(supabase_client)
-    result = await service.get_people_stats_by_price_range(
+    result = service.get_people_stats_by_price_range(
         period_type=period_type.value,
         target_date=target_date
     )

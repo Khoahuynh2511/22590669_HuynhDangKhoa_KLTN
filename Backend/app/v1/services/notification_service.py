@@ -4,7 +4,9 @@ Handles user notifications for bookings, tours, payments
 """
 import logging
 from typing import Dict, Any, Optional
-from supabase import Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +14,17 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     """Service for managing user notifications"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize NotificationService
+    def __init__(self):
+        """Initialize NotificationService"""
+        self.db_url = settings.DATABASE_URL
 
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
+    def _get_conn(self):
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
 
-    async def create_notification(
+    def _normalize(self, rows):
+        return [dict(r) for r in rows]
+
+    def create_notification(
         self,
         user_id: str,
         type: str,
@@ -43,20 +46,20 @@ class NotificationService:
             Dict with EC, EM, and data
         """
         try:
-            notification_data = {
-                "user_id": user_id,
-                "type": type,
-                "title": title,
-                "message": message,
-                "metadata": metadata or {},
-                "is_read": False
-            }
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO notifications (user_id, type, title, message, metadata, is_read)
+                        VALUES (%s, %s, %s, %s, %s, FALSE)
+                        RETURNING *
+                        """,
+                        (user_id, type, title, message, metadata or {})
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
 
-            result = self.supabase.table('notifications') \
-                .insert(notification_data) \
-                .execute()
-
-            if not result.data:
+            if not result:
                 return {
                     "EC": 1,
                     "EM": "Failed to create notification",
@@ -68,7 +71,7 @@ class NotificationService:
             return {
                 "EC": 0,
                 "EM": "Notification created successfully",
-                "data": result.data[0]
+                "data": dict(result)
             }
 
         except Exception as e:
@@ -79,7 +82,7 @@ class NotificationService:
                 "data": None
             }
 
-    async def get_user_notifications(
+    def get_user_notifications(
         self,
         user_id: str,
         unread_only: bool = False,
@@ -99,28 +102,46 @@ class NotificationService:
             Dict with EC, EM, data, and total
         """
         try:
-            query = self.supabase.table('notifications') \
-                .select('*', count='exact') \
-                .eq('user_id', user_id)
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Build query
+                    conditions = ["user_id = %s"]
+                    params = [user_id]
 
-            if unread_only:
-                query = query.eq('is_read', False)
+                    if unread_only:
+                        conditions.append("is_read = FALSE")
 
-            if limit:
-                query = query.limit(limit)
+                    where_clause = " AND ".join(conditions)
 
-            if offset:
-                query = query.offset(offset)
+                    # Get total count
+                    cur.execute(
+                        f"SELECT COUNT(*) as total FROM notifications WHERE {where_clause}",
+                        params
+                    )
+                    total_result = cur.fetchone()
+                    total = total_result.get('total', 0) if total_result else 0
 
-            query = query.order('created_at', desc=True)
+                    # Get notifications
+                    sql = f"""
+                        SELECT * FROM notifications
+                        WHERE {where_clause}
+                        ORDER BY created_at DESC
+                    """
+                    if limit:
+                        sql += " LIMIT %s"
+                        params.append(limit)
+                    if offset:
+                        sql += " OFFSET %s"
+                        params.append(offset)
 
-            result = query.execute()
+                    cur.execute(sql, params)
+                    notifications = self._normalize(cur.fetchall())
 
             return {
                 "EC": 0,
                 "EM": "Success",
-                "data": result.data,
-                "total": result.count
+                "data": notifications,
+                "total": total
             }
 
         except Exception as e:
@@ -132,7 +153,7 @@ class NotificationService:
                 "total": 0
             }
 
-    async def mark_as_read(self, notification_id: str) -> Dict[str, Any]:
+    def mark_as_read(self, notification_id: str) -> Dict[str, Any]:
         """
         Mark a notification as read
 
@@ -143,12 +164,16 @@ class NotificationService:
             Dict with EC and EM
         """
         try:
-            result = self.supabase.table('notifications') \
-                .update({"is_read": True}) \
-                .eq('notification_id', notification_id) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE notifications SET is_read = TRUE WHERE notification_id = %s RETURNING *",
+                        (notification_id,)
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
 
-            if not result.data:
+            if not result:
                 return {
                     "EC": 1,
                     "EM": "Notification not found"
@@ -166,7 +191,7 @@ class NotificationService:
                 "EM": f"Error: {str(e)}"
             }
 
-    async def mark_all_as_read(self, user_id: str) -> Dict[str, Any]:
+    def mark_all_as_read(self, user_id: str) -> Dict[str, Any]:
         """
         Mark all notifications as read for a user
 
@@ -177,13 +202,21 @@ class NotificationService:
             Dict with EC, EM, and updated count
         """
         try:
-            result = self.supabase.table('notifications') \
-                .update({"is_read": True}) \
-                .eq('user_id', user_id) \
-                .eq('is_read', False) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        UPDATE notifications
+                        SET is_read = TRUE
+                        WHERE user_id = %s AND is_read = FALSE
+                        RETURNING *
+                        """,
+                        (user_id,)
+                    )
+                    results = self._normalize(cur.fetchall())
+                    conn.commit()
 
-            updated_count = len(result.data) if result.data else 0
+            updated_count = len(results)
 
             return {
                 "EC": 0,
@@ -199,7 +232,7 @@ class NotificationService:
                 "updated": 0
             }
 
-    async def get_unread_count(self, user_id: str) -> Dict[str, Any]:
+    def get_unread_count(self, user_id: str) -> Dict[str, Any]:
         """
         Get count of unread notifications for a user
 
@@ -210,16 +243,19 @@ class NotificationService:
             Dict with EC, EM, and count
         """
         try:
-            result = self.supabase.table('notifications') \
-                .select('*', count='exact') \
-                .eq('user_id', user_id) \
-                .eq('is_read', False) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT COUNT(*) as count FROM notifications WHERE user_id = %s AND is_read = FALSE",
+                        (user_id,)
+                    )
+                    result = cur.fetchone()
+                    count = result.get('count', 0) if result else 0
 
             return {
                 "EC": 0,
                 "EM": "Success",
-                "count": result.count or 0
+                "count": count
             }
 
         except Exception as e:
@@ -229,3 +265,8 @@ class NotificationService:
                 "EM": f"Error: {str(e)}",
                 "count": 0
             }
+
+
+def get_notification_service() -> NotificationService:
+    """Dependency to get NotificationService instance"""
+    return NotificationService()

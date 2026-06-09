@@ -12,7 +12,6 @@ from ...schema.notification_schema import (
     NotificationUnreadCountResponse
 )
 from ...services.notification_service import NotificationService
-from ...core.supabase import get_supabase_client
 from ...core.dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -22,8 +21,7 @@ router = APIRouter()
 
 def get_notification_service():
     """Dependency to get NotificationService instance"""
-    supabase = get_supabase_client()
-    return NotificationService(supabase)
+    return NotificationService()
 
 
 @router.get("", response_model=NotificationListResponse)
@@ -50,7 +48,7 @@ async def get_notifications(
     try:
         user_id = current_user.get("user_id")
 
-        result = await service.get_user_notifications(
+        result = service.get_user_notifications(
             user_id=user_id,
             unread_only=unread_only,
             limit=limit,
@@ -82,7 +80,7 @@ async def get_unread_count(
     """
     try:
         user_id = current_user.get("user_id")
-        result = await service.get_unread_count(user_id)
+        result = service.get_unread_count(user_id)
 
         return NotificationUnreadCountResponse(**result)
 
@@ -108,7 +106,7 @@ async def mark_all_notifications_as_read(
     """
     try:
         user_id = current_user.get("user_id")
-        result = await service.mark_all_as_read(user_id)
+        result = service.mark_all_as_read(user_id)
 
         return NotificationMarkReadResponse(**result)
 
@@ -134,7 +132,7 @@ async def mark_notification_as_read(
         NotificationMarkReadResponse
     """
     try:
-        result = await service.mark_as_read(str(notification_id))
+        result = service.mark_as_read(str(notification_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])

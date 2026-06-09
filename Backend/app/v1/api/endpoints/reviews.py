@@ -31,14 +31,12 @@ router = APIRouter()
 
 def get_review_service():
     """Dependency to get ReviewService instance"""
-    supabase = get_supabase_client()
-    return ReviewService(supabase)
+    return ReviewService()
 
 
 def get_booking_management_service():
     """Dependency to get BookingManagementService instance"""
-    supabase = get_supabase_client()
-    return BookingManagementService(supabase)
+    return BookingManagementService()
 
 
 @router.get("", response_model=ReviewListResponse)
@@ -72,7 +70,7 @@ async def get_reviews(
         GET /api/v1/reviews?user_id=bcde5ff1-5fd7-49e0-8790-05463092d54e&is_approved=true
     """
     try:
-        result = await service.get_all_reviews(
+        result = service.get_all_reviews(
             package_id=package_id,
             user_id=user_id,
             is_approved=is_approved,
@@ -110,7 +108,7 @@ async def get_my_reviews(
         if not user_id:
             raise HTTPException(status_code=401, detail="User ID not found in token")
 
-        result = await service.get_all_reviews(user_id=str(user_id))
+        result = service.get_all_reviews(user_id=str(user_id))
         return ReviewListResponse(**result)
 
     except HTTPException:
@@ -133,7 +131,7 @@ async def get_my_reviewable_bookings(
         if not user_id:
             raise HTTPException(status_code=401, detail="User ID not found in token")
 
-        result = await service.get_user_bookings(
+        result = service.get_user_bookings(
             user_id=str(user_id),
             status="completed",
             limit=limit,
@@ -173,7 +171,7 @@ async def get_reviews_by_package(
         GET /api/v1/reviews/package/07e8c89e-90d4-4ebc-9302-384dc6cb2f0c
     """
     try:
-        result = await service.get_reviews_by_package(
+        result = service.get_reviews_by_package(
             package_id=str(package_id),
             is_approved=is_approved,
             limit=limit,
@@ -205,7 +203,7 @@ async def get_review_stats(
         GET /api/v1/reviews/package/07e8c89e-90d4-4ebc-9302-384dc6cb2f0c/stats
     """
     try:
-        result = await service.get_review_stats(str(package_id))
+        result = service.get_review_stats(str(package_id))
         return ReviewStatsResponse(**result)
 
     except Exception as e:
@@ -232,7 +230,7 @@ async def get_review(
         GET /api/v1/reviews/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.get_review_detail(str(review_id))
+        result = service.get_review_detail(str(review_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -278,7 +276,7 @@ async def create_review(
             raise HTTPException(status_code=401, detail="User ID not found in token")
 
         review_data = review.model_dump()
-        result = await service.create_review(review_data, str(user_id))
+        result = service.create_review(review_data, str(user_id))
 
         if result["EC"] != 0:
             status_code = 400
@@ -326,7 +324,7 @@ async def update_review(
         is_admin = user_role == "admin"
 
         update_data = review.model_dump(exclude_unset=True)
-        result = await service.update_review(
+        result = service.update_review(
             str(review_id),
             update_data,
             str(user_id),
@@ -377,7 +375,7 @@ async def delete_review(
         user_role = current_user.get("role", "user")
         is_admin = user_role == "admin"
 
-        result = await service.delete_review(
+        result = service.delete_review(
             str(review_id),
             str(user_id),
             is_admin=is_admin
@@ -428,7 +426,7 @@ async def get_pending_reviews(
         GET /api/v1/reviews/admin/pending?package_id=07e8c89e-90d4-4ebc-9302-384dc6cb2f0c
     """
     try:
-        result = await service.get_all_reviews(
+        result = service.get_all_reviews(
             package_id=package_id,
             is_approved=False,  # Only pending reviews
             limit=limit,
@@ -468,7 +466,7 @@ async def approve_review(
     """
     try:
         update_data = {"is_approved": request.is_approved}
-        result = await service.update_review(
+        result = service.update_review(
             str(review_id),
             update_data,
             user_id=None,  # Admin can update any review
@@ -522,7 +520,7 @@ async def get_all_reviews_admin(
         GET /api/v1/reviews/admin/all?is_approved=false
     """
     try:
-        result = await service.get_all_reviews(
+        result = service.get_all_reviews(
             package_id=package_id,
             user_id=user_id,
             is_approved=is_approved,

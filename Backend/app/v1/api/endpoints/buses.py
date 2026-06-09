@@ -1,15 +1,16 @@
 """
 Bus API Endpoints
 """
+import sys
+import os
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'mcp', 'src')))
+
 from mock_data.bus_data import BUS_STATIONS, BUS_TYPES, BUS_SEAT_TYPES
 from mock_data.generator import get_generator
 from fastapi import APIRouter, Query
 from typing import Optional
 from datetime import datetime, timezone, timedelta
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'mcp', 'src')))
 
 router = APIRouter()
 vietnam_tz = timezone(timedelta(hours=7))

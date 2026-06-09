@@ -6,8 +6,10 @@ import logging
 import random
 import string
 from typing import Optional, Dict, Any
-from datetime import datetime
-from supabase import Client
+from datetime import datetime, timedelta
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -15,8 +17,14 @@ logger = logging.getLogger(__name__)
 class PromotionService:
     """Service for managing promotions and tour-promotion relationships"""
 
-    def __init__(self, supabase_client: Client):
-        self.supabase = supabase_client
+    def __init__(self):
+        self.db_url = settings.DATABASE_URL
+
+    def _get_conn(self):
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+
+    def _normalize(self, rows):
+        return [dict(r) for r in rows]
 
     def _generate_promotion_code(self) -> str:
         """
@@ -28,7 +36,7 @@ class PromotionService:
         characters = string.ascii_uppercase + string.digits
         return ''.join(random.choice(characters) for _ in range(8))
 
-    async def create_promotion(self, promotion_data: Dict[str, Any]) -> Dict[str, Any]:
+    def create_promotion(self, promotion_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Tạo mới một promotion
 
@@ -54,21 +62,42 @@ class PromotionService:
                 promotion_data['code'] = self._generate_promotion_code()
 
             # Insert into database
-            result = self.supabase.table('promotions').insert(promotion_data).execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                columns = promotion_data.keys()
+                values = promotion_data.values()
+                placeholders = ', '.join(['%s'] * len(columns))
+                columns_str = ', '.join(columns)
+
+                query = f"""
+                    INSERT INTO promotions ({columns_str})
+                    VALUES ({placeholders})
+                    RETURNING *
+                """
+
+                cursor.execute(query, list(values))
+                result = cursor.fetchone()
+                conn.commit()
+
+                if not result:
+                    return {
+                        "EC": 1,
+                        "EM": "Failed to create promotion",
+                        "promotion": None
+                    }
+
+                # Convert UUID to string
+                result = dict(result)
+                if 'promotion_id' in result:
+                    result['promotion_id'] = str(result['promotion_id'])
+
+                logger.info(f"Created promotion: {result['promotion_id']}")
                 return {
-                    "EC": 1,
-                    "EM": "Failed to create promotion",
-                    "promotion": None
+                    "EC": 0,
+                    "EM": "Promotion created successfully",
+                    "promotion": result
                 }
-
-            logger.info(f"Created promotion: {result.data[0]['promotion_id']}")
-            return {
-                "EC": 0,
-                "EM": "Promotion created successfully",
-                "promotion": result.data[0]
-            }
 
         except Exception as e:
             logger.error(f"Error creating promotion: {str(e)}")
@@ -78,7 +107,7 @@ class PromotionService:
                 "promotion": None
             }
 
-    async def get_promotion_by_id(self, promotion_id: str) -> Dict[str, Any]:
+    def get_promotion_by_id(self, promotion_id: str) -> Dict[str, Any]:
         """
         Lấy thông tin chi tiết một promotion
 
@@ -89,23 +118,30 @@ class PromotionService:
             Dict với EC, EM và promotion data
         """
         try:
-            result = self.supabase.table('promotions')\
-                .select('*')\
-                .eq('promotion_id', promotion_id)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                query = "SELECT * FROM promotions WHERE promotion_id = %s"
+                cursor.execute(query, (promotion_id,))
+                result = cursor.fetchone()
+
+                if not result:
+                    return {
+                        "EC": 1,
+                        "EM": f"Promotion not found: {promotion_id}",
+                        "promotion": None
+                    }
+
+                # Convert UUID to string
+                result = dict(result)
+                if 'promotion_id' in result:
+                    result['promotion_id'] = str(result['promotion_id'])
+
                 return {
-                    "EC": 1,
-                    "EM": f"Promotion not found: {promotion_id}",
-                    "promotion": None
+                    "EC": 0,
+                    "EM": "Promotion found",
+                    "promotion": result
                 }
-
-            return {
-                "EC": 0,
-                "EM": "Promotion found",
-                "promotion": result.data[0]
-            }
 
         except Exception as e:
             logger.error(f"Error getting promotion: {str(e)}")
@@ -115,7 +151,7 @@ class PromotionService:
                 "promotion": None
             }
 
-    async def get_promotion_by_code(self, code: str) -> Dict[str, Any]:
+    def get_promotion_by_code(self, code: str) -> Dict[str, Any]:
         """
         Lấy thông tin chi tiết một promotion bằng code
 
@@ -126,23 +162,30 @@ class PromotionService:
             Dict với EC, EM và promotion data
         """
         try:
-            result = self.supabase.table('promotions')\
-                .select('*')\
-                .eq('code', code)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                query = "SELECT * FROM promotions WHERE code = %s"
+                cursor.execute(query, (code,))
+                result = cursor.fetchone()
+
+                if not result:
+                    return {
+                        "EC": 1,
+                        "EM": f"Promotion not found with code: {code}",
+                        "promotion": None
+                    }
+
+                # Convert UUID to string
+                result = dict(result)
+                if 'promotion_id' in result:
+                    result['promotion_id'] = str(result['promotion_id'])
+
                 return {
-                    "EC": 1,
-                    "EM": f"Promotion not found with code: {code}",
-                    "promotion": None
+                    "EC": 0,
+                    "EM": "Promotion found",
+                    "promotion": result
                 }
-
-            return {
-                "EC": 0,
-                "EM": "Promotion found",
-                "promotion": result.data[0]
-            }
 
         except Exception as e:
             logger.error(f"Error getting promotion by code: {str(e)}")
@@ -152,7 +195,7 @@ class PromotionService:
                 "promotion": None
             }
 
-    async def get_all_promotions(
+    def get_all_promotions(
         self,
         is_active: Optional[bool] = None,
         limit: Optional[int] = None,
@@ -170,26 +213,44 @@ class PromotionService:
             Dict với EC, EM, found và danh sách promotions
         """
         try:
-            query = self.supabase.table('promotions').select('*')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Apply filters
-            if is_active is not None:
-                query = query.eq('is_active', is_active)
+                # Build query with filters
+                conditions = []
+                params = []
 
-            # Apply pagination
-            if offset is not None:
-                query = query.range(offset, offset + (limit or 100) - 1)
-            elif limit is not None:
-                query = query.limit(limit)
+                if is_active is not None:
+                    conditions.append("is_active = %s")
+                    params.append(is_active)
 
-            result = query.execute()
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-            return {
-                "EC": 0,
-                "EM": "Promotions retrieved successfully",
-                "found": len(result.data),
-                "promotions": result.data
-            }
+                # Build pagination
+                limit_clause = ""
+                if limit is not None:
+                    limit_clause = f"LIMIT {limit}"
+                    if offset is not None:
+                        limit_clause += f" OFFSET {offset}"
+
+                query = f"SELECT * FROM promotions {where_clause} {limit_clause}"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+                # Convert UUIDs to strings
+                promotions = []
+                for row in results:
+                    row = dict(row)
+                    if 'promotion_id' in row:
+                        row['promotion_id'] = str(row['promotion_id'])
+                    promotions.append(row)
+
+                return {
+                    "EC": 0,
+                    "EM": "Promotions retrieved successfully",
+                    "found": len(promotions),
+                    "promotions": promotions
+                }
 
         except Exception as e:
             logger.error(f"Error getting promotions: {str(e)}")
@@ -200,7 +261,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def filter_promotions_by_discount(
+    def filter_promotions_by_discount(
         self,
         min_discount_value: Optional[float] = None,
         max_discount_value: Optional[float] = None,
@@ -212,29 +273,50 @@ class PromotionService:
         Lọc promotions theo khoảng discount_value
         """
         try:
-            query = self.supabase.table('promotions').select('*')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if min_discount_value is not None:
-                query = query.gte('discount_value', min_discount_value)
-            if max_discount_value is not None:
-                query = query.lte('discount_value', max_discount_value)
+                # Build query with filters
+                conditions = []
+                params = []
 
-            if is_active is not None:
-                query = query.eq('is_active', is_active)
+                if min_discount_value is not None:
+                    conditions.append("discount_value >= %s")
+                    params.append(min_discount_value)
+                if max_discount_value is not None:
+                    conditions.append("discount_value <= %s")
+                    params.append(max_discount_value)
+                if is_active is not None:
+                    conditions.append("is_active = %s")
+                    params.append(is_active)
 
-            if offset is not None:
-                query = query.range(offset, offset + (limit or 100) - 1)
-            elif limit is not None:
-                query = query.limit(limit)
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-            result = query.execute()
+                # Build pagination
+                limit_clause = ""
+                if limit is not None:
+                    limit_clause = f"LIMIT {limit}"
+                    if offset is not None:
+                        limit_clause += f" OFFSET {offset}"
 
-            return {
-                "EC": 0,
-                "EM": "Promotions filtered by discount_value successfully",
-                "found": len(result.data),
-                "promotions": result.data
-            }
+                query = f"SELECT * FROM promotions {where_clause} {limit_clause}"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+                # Convert UUIDs to strings
+                promotions = []
+                for row in results:
+                    row = dict(row)
+                    if 'promotion_id' in row:
+                        row['promotion_id'] = str(row['promotion_id'])
+                    promotions.append(row)
+
+                return {
+                    "EC": 0,
+                    "EM": "Promotions filtered by discount_value successfully",
+                    "found": len(promotions),
+                    "promotions": promotions
+                }
 
         except Exception as e:
             logger.error(f"Error filtering promotions by discount_value: {str(e)}")
@@ -245,7 +327,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def filter_promotions_by_date_range(
+    def filter_promotions_by_date_range(
         self,
         start_date: Optional[datetime],
         end_date: Optional[datetime],
@@ -261,53 +343,63 @@ class PromotionService:
         - Both: intersection of both conditions
         """
         try:
-            query = self.supabase.table('promotions').select('*')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Build day-range boundaries as ISO strings (Postgres will cast to timestamp)
-            if start_date is not None:
-                start_day = start_date.date()
-                start_lower = start_day.isoformat()  # YYYY-MM-DD 00:00 implicit
-                # next day for upper bound (exclusive)
-                from datetime import timedelta
-                start_upper = (start_day + timedelta(days=1)).isoformat()
-            else:
-                start_lower = start_upper = None
+                # Build day-range boundaries as ISO strings (Postgres will cast to timestamp)
+                conditions = []
+                params = []
 
-            if end_date is not None:
-                end_day = end_date.date()
-                end_lower = end_day.isoformat()
-                from datetime import timedelta
-                end_upper = (end_day + timedelta(days=1)).isoformat()
-            else:
-                end_lower = end_upper = None
+                if start_date is not None:
+                    start_day = start_date.date()
+                    start_lower = start_day.isoformat()  # YYYY-MM-DD 00:00 implicit
+                    # next day for upper bound (exclusive)
+                    start_upper = (start_day + timedelta(days=1)).isoformat()
+                    conditions.append("start_date >= %s")
+                    params.append(start_lower)
+                    conditions.append("start_date < %s")
+                    params.append(start_upper)
 
-            # Only start_date: match records whose start_date is within that day
-            if start_lower is not None and end_lower is None:
-                query = query.gte('start_date', start_lower).lt('start_date', start_upper)
-            # Only end_date: match records whose end_date is within that day
-            elif end_lower is not None and start_lower is None:
-                query = query.gte('end_date', end_lower).lt('end_date', end_upper)
-            # Both: require both dates to fall on the specified days
-            elif start_lower is not None and end_lower is not None:
-                query = query.gte('start_date', start_lower).lt('start_date', start_upper)
-                query = query.gte('end_date', end_lower).lt('end_date', end_upper)
+                if end_date is not None:
+                    end_day = end_date.date()
+                    end_lower = end_day.isoformat()
+                    end_upper = (end_day + timedelta(days=1)).isoformat()
+                    conditions.append("end_date >= %s")
+                    params.append(end_lower)
+                    conditions.append("end_date < %s")
+                    params.append(end_upper)
 
-            if is_active is not None:
-                query = query.eq('is_active', is_active)
+                if is_active is not None:
+                    conditions.append("is_active = %s")
+                    params.append(is_active)
 
-            if offset is not None:
-                query = query.range(offset, offset + (limit or 100) - 1)
-            elif limit is not None:
-                query = query.limit(limit)
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-            result = query.execute()
+                # Build pagination
+                limit_clause = ""
+                if limit is not None:
+                    limit_clause = f"LIMIT {limit}"
+                    if offset is not None:
+                        limit_clause += f" OFFSET {offset}"
 
-            return {
-                "EC": 0,
-                "EM": "Promotions filtered by date range successfully",
-                "found": len(result.data),
-                "promotions": result.data
-            }
+                query = f"SELECT * FROM promotions {where_clause} {limit_clause}"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+                # Convert UUIDs to strings
+                promotions = []
+                for row in results:
+                    row = dict(row)
+                    if 'promotion_id' in row:
+                        row['promotion_id'] = str(row['promotion_id'])
+                    promotions.append(row)
+
+                return {
+                    "EC": 0,
+                    "EM": "Promotions filtered by date range successfully",
+                    "found": len(promotions),
+                    "promotions": promotions
+                }
 
         except Exception as e:
             logger.error(f"Error filtering promotions by date range: {str(e)}")
@@ -318,7 +410,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def filter_promotions_by_quantity(
+    def filter_promotions_by_quantity(
         self,
         min_quantity: Optional[int] = None,
         max_quantity: Optional[int] = None,
@@ -330,29 +422,50 @@ class PromotionService:
         Lọc promotions theo khoảng quantity
         """
         try:
-            query = self.supabase.table('promotions').select('*')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if min_quantity is not None:
-                query = query.gte('quantity', min_quantity)
-            if max_quantity is not None:
-                query = query.lte('quantity', max_quantity)
+                # Build query with filters
+                conditions = []
+                params = []
 
-            if is_active is not None:
-                query = query.eq('is_active', is_active)
+                if min_quantity is not None:
+                    conditions.append("usage_limit >= %s")
+                    params.append(min_quantity)
+                if max_quantity is not None:
+                    conditions.append("usage_limit <= %s")
+                    params.append(max_quantity)
+                if is_active is not None:
+                    conditions.append("is_active = %s")
+                    params.append(is_active)
 
-            if offset is not None:
-                query = query.range(offset, offset + (limit or 100) - 1)
-            elif limit is not None:
-                query = query.limit(limit)
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-            result = query.execute()
+                # Build pagination
+                limit_clause = ""
+                if limit is not None:
+                    limit_clause = f"LIMIT {limit}"
+                    if offset is not None:
+                        limit_clause += f" OFFSET {offset}"
 
-            return {
-                "EC": 0,
-                "EM": "Promotions filtered by quantity successfully",
-                "found": len(result.data),
-                "promotions": result.data
-            }
+                query = f"SELECT * FROM promotions {where_clause} {limit_clause}"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+                # Convert UUIDs to strings
+                promotions = []
+                for row in results:
+                    row = dict(row)
+                    if 'promotion_id' in row:
+                        row['promotion_id'] = str(row['promotion_id'])
+                    promotions.append(row)
+
+                return {
+                    "EC": 0,
+                    "EM": "Promotions filtered by quantity successfully",
+                    "found": len(promotions),
+                    "promotions": promotions
+                }
 
         except Exception as e:
             logger.error(f"Error filtering promotions by quantity: {str(e)}")
@@ -363,7 +476,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def filter_promotions_by_used_count(
+    def filter_promotions_by_used_count(
         self,
         min_user_count: Optional[int] = None,
         max_user_count: Optional[int] = None,
@@ -375,29 +488,50 @@ class PromotionService:
         Lọc promotions theo khoảng used_count (user_count)
         """
         try:
-            query = self.supabase.table('promotions').select('*')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if min_user_count is not None:
-                query = query.gte('used_count', min_user_count)
-            if max_user_count is not None:
-                query = query.lte('used_count', max_user_count)
+                # Build query with filters
+                conditions = []
+                params = []
 
-            if is_active is not None:
-                query = query.eq('is_active', is_active)
+                if min_user_count is not None:
+                    conditions.append("used_count >= %s")
+                    params.append(min_user_count)
+                if max_user_count is not None:
+                    conditions.append("used_count <= %s")
+                    params.append(max_user_count)
+                if is_active is not None:
+                    conditions.append("is_active = %s")
+                    params.append(is_active)
 
-            if offset is not None:
-                query = query.range(offset, offset + (limit or 100) - 1)
-            elif limit is not None:
-                query = query.limit(limit)
+                where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
-            result = query.execute()
+                # Build pagination
+                limit_clause = ""
+                if limit is not None:
+                    limit_clause = f"LIMIT {limit}"
+                    if offset is not None:
+                        limit_clause += f" OFFSET {offset}"
 
-            return {
-                "EC": 0,
-                "EM": "Promotions filtered by user_count successfully",
-                "found": len(result.data),
-                "promotions": result.data
-            }
+                query = f"SELECT * FROM promotions {where_clause} {limit_clause}"
+                cursor.execute(query, params)
+                results = cursor.fetchall()
+
+                # Convert UUIDs to strings
+                promotions = []
+                for row in results:
+                    row = dict(row)
+                    if 'promotion_id' in row:
+                        row['promotion_id'] = str(row['promotion_id'])
+                    promotions.append(row)
+
+                return {
+                    "EC": 0,
+                    "EM": "Promotions filtered by user_count successfully",
+                    "found": len(promotions),
+                    "promotions": promotions
+                }
 
         except Exception as e:
             logger.error(f"Error filtering promotions by user_count: {str(e)}")
@@ -408,7 +542,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def update_promotion(self, promotion_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
+    def update_promotion(self, promotion_id: str, update_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Cập nhật thông tin promotion
 
@@ -427,24 +561,43 @@ class PromotionService:
                 update_data['end_date'] = update_data['end_date'].isoformat()
 
             # Update database
-            result = self.supabase.table('promotions')\
-                .update(update_data)\
-                .eq('promotion_id', promotion_id)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                # Build UPDATE query
+                set_clauses = [f"{key} = %s" for key in update_data.keys()]
+                set_clause = ', '.join(set_clauses)
+                params = list(update_data.values()) + [promotion_id]
+
+                query = f"""
+                    UPDATE promotions
+                    SET {set_clause}
+                    WHERE promotion_id = %s
+                    RETURNING *
+                """
+
+                cursor.execute(query, params)
+                result = cursor.fetchone()
+                conn.commit()
+
+                if not result:
+                    return {
+                        "EC": 1,
+                        "EM": f"Promotion not found: {promotion_id}",
+                        "promotion": None
+                    }
+
+                # Convert UUID to string
+                result = dict(result)
+                if 'promotion_id' in result:
+                    result['promotion_id'] = str(result['promotion_id'])
+
+                logger.info(f"Updated promotion: {promotion_id}")
                 return {
-                    "EC": 1,
-                    "EM": f"Promotion not found: {promotion_id}",
-                    "promotion": None
+                    "EC": 0,
+                    "EM": "Promotion updated successfully",
+                    "promotion": result
                 }
-
-            logger.info(f"Updated promotion: {promotion_id}")
-            return {
-                "EC": 0,
-                "EM": "Promotion updated successfully",
-                "promotion": result.data[0]
-            }
 
         except Exception as e:
             logger.error(f"Error updating promotion: {str(e)}")
@@ -454,7 +607,7 @@ class PromotionService:
                 "promotion": None
             }
 
-    async def delete_promotion(self, promotion_id: str) -> Dict[str, Any]:
+    def delete_promotion(self, promotion_id: str) -> Dict[str, Any]:
         """
         Xóa một promotion
 
@@ -465,22 +618,30 @@ class PromotionService:
             Dict với EC và EM
         """
         try:
-            result = self.supabase.table('promotions')\
-                .delete()\
-                .eq('promotion_id', promotion_id)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                query = """
+                    DELETE FROM promotions
+                    WHERE promotion_id = %s
+                    RETURNING promotion_id
+                """
+
+                cursor.execute(query, (promotion_id,))
+                result = cursor.fetchone()
+                conn.commit()
+
+                if not result:
+                    return {
+                        "EC": 1,
+                        "EM": f"Promotion not found: {promotion_id}"
+                    }
+
+                logger.info(f"Deleted promotion: {promotion_id}")
                 return {
-                    "EC": 1,
-                    "EM": f"Promotion not found: {promotion_id}"
+                    "EC": 0,
+                    "EM": "Promotion deleted successfully"
                 }
-
-            logger.info(f"Deleted promotion: {promotion_id}")
-            return {
-                "EC": 0,
-                "EM": "Promotion deleted successfully"
-            }
 
         except Exception as e:
             logger.error(f"Error deleting promotion: {str(e)}")
@@ -489,7 +650,7 @@ class PromotionService:
                 "EM": f"Error deleting promotion: {str(e)}"
             }
 
-    async def get_available_promotions(self) -> Dict[str, Any]:
+    def get_available_promotions(self) -> Dict[str, Any]:
         """
         Lấy tất cả mã khuyến mãi còn hạn và còn số lượng
         Áp dụng cho TẤT CẢ tour
@@ -502,43 +663,49 @@ class PromotionService:
             now = datetime.now()
 
             # Query all promotions
-            result = self.supabase.table('promotions')\
-                .select('*')\
-                .eq('is_active', True)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                query = "SELECT * FROM promotions WHERE is_active = %s"
+                cursor.execute(query, (True,))
+                results = cursor.fetchall()
+
+                if not results:
+                    return {
+                        "EC": 0,
+                        "EM": "No promotions available",
+                        "found": 0,
+                        "promotions": []
+                    }
+
+                # Filter promotions: còn hạn, còn số lượng
+                valid_promotions = []
+                for promo_dict in results:
+                    promo = dict(promo_dict)
+                    try:
+                        # Parse dates from database (remove timezone info for comparison)
+                        start_date = datetime.fromisoformat(promo['start_date'].replace('Z', '+00:00')).replace(tzinfo=None)
+                        end_date = datetime.fromisoformat(promo['end_date'].replace('Z', '+00:00')).replace(tzinfo=None)
+
+                        # Check if still valid
+                        is_valid_time = start_date <= now <= end_date
+                        has_quantity = promo['used_count'] < promo['usage_limit']
+
+                        if is_valid_time and has_quantity:
+                            # Convert UUID to string
+                            if 'promotion_id' in promo:
+                                promo['promotion_id'] = str(promo['promotion_id'])
+                            valid_promotions.append(promo)
+                    except Exception as date_error:
+                        logger.warning(f"Error parsing dates for promotion {promo.get('promotion_id')}: {str(date_error)}")
+                        continue
+
                 return {
                     "EC": 0,
-                    "EM": "No promotions available",
-                    "found": 0,
-                    "promotions": []
+                    "EM": "Promotions retrieved successfully",
+                    "found": len(valid_promotions),
+                    "promotions": valid_promotions
                 }
-
-            # Filter promotions: còn hạn, còn số lượng
-            valid_promotions = []
-            for promo in result.data:
-                try:
-                    # Parse dates from database (remove timezone info for comparison)
-                    start_date = datetime.fromisoformat(promo['start_date'].replace('Z', '+00:00')).replace(tzinfo=None)
-                    end_date = datetime.fromisoformat(promo['end_date'].replace('Z', '+00:00')).replace(tzinfo=None)
-
-                    # Check if still valid
-                    is_valid_time = start_date <= now <= end_date
-                    has_quantity = promo['used_count'] < promo['quantity']
-
-                    if is_valid_time and has_quantity:
-                        valid_promotions.append(promo)
-                except Exception as date_error:
-                    logger.warning(f"Error parsing dates for promotion {promo.get('promotion_id')}: {str(date_error)}")
-                    continue
-
-            return {
-                "EC": 0,
-                "EM": "Promotions retrieved successfully",
-                "found": len(valid_promotions),
-                "promotions": valid_promotions
-            }
 
         except Exception as e:
             logger.error(f"Error getting available promotions: {str(e)}")
@@ -549,7 +716,7 @@ class PromotionService:
                 "promotions": []
             }
 
-    async def apply_promotion_to_booking(
+    def apply_promotion_to_booking(
         self,
         promotion_id: str,
         original_price: float
@@ -566,7 +733,7 @@ class PromotionService:
         """
         try:
             # Get promotion details
-            promo_result = await self.get_promotion_by_id(promotion_id)
+            promo_result = self.get_promotion_by_id(promotion_id)
             if promo_result['EC'] != 0:
                 return {
                     "EC": 1,
@@ -602,7 +769,7 @@ class PromotionService:
                 }
 
             # Check if promotion has available quantity
-            if promo['used_count'] >= promo['quantity']:
+            if promo['used_count'] >= promo['usage_limit']:
                 return {
                     "EC": 1,
                     "EM": "Promotion has reached its usage limit",
@@ -623,13 +790,23 @@ class PromotionService:
 
             # Increment used_count
             new_used_count = promo['used_count'] + 1
-            update_result = self.supabase.table('promotions')\
-                .update({'used_count': new_used_count})\
-                .eq('promotion_id', promotion_id)\
-                .execute()
 
-            if not update_result.data:
-                logger.error(f"Failed to increment used_count for promotion {promotion_id}")
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
+
+                query = """
+                    UPDATE promotions
+                    SET used_count = %s
+                    WHERE promotion_id = %s
+                    RETURNING promotion_id
+                """
+
+                cursor.execute(query, (new_used_count, promotion_id))
+                result = cursor.fetchone()
+                conn.commit()
+
+                if not result:
+                    logger.error(f"Failed to increment used_count for promotion {promotion_id}")
 
             logger.info(
                 f"Applied promotion {promotion_id}: {original_price} -> {final_price} (discount: {discount_amount})")
@@ -648,3 +825,9 @@ class PromotionService:
                 "final_price": original_price,
                 "discount_amount": 0
             }
+
+
+# Dependency function
+def get_promotion_service() -> PromotionService:
+    """Dependency injection for PromotionService"""
+    return PromotionService()

@@ -22,7 +22,6 @@ from ...schema.tour_package_schema import (
     TourPackageSearchResponse
 )
 from ...services.tour_package_service import TourPackageService
-from ...core.supabase import get_supabase_client
 from ...core.dependencies import get_optional_current_user
 from typing import Optional as Opt
 
@@ -33,8 +32,7 @@ router = APIRouter()
 
 def get_tour_package_service():
     """Dependency to get TourPackageService instance"""
-    supabase = get_supabase_client()
-    return TourPackageService(supabase)
+    return TourPackageService()
 
 
 @router.post("/recommend", response_model=TourPackageSearchResponse)
@@ -66,7 +64,7 @@ async def recommend_tour_packages(
         }
     """
     try:
-        result = await service.recommend_packages(
+        result = service.recommend_packages(
             user_id=request.user_id,
             k=request.k
         )
@@ -110,7 +108,7 @@ async def search_tour_packages(
     """
     try:
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.search_packages(
+        result = service.search_packages(
             user_message=request.q,
             max_price=request.max_price,
             duration=request.duration,
@@ -153,7 +151,7 @@ async def get_tour_packages(
     """
     try:
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.get_all_packages(
+        result = service.get_all_packages(
             is_active=is_active,
             destination=destination,
             limit=limit,
@@ -202,7 +200,7 @@ async def filter_tours_by_month(
             raise HTTPException(status_code=400, detail="date_type phải là 'start_date' hoặc 'end_date'")
 
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.filter_packages_by_month(
+        result = service.filter_packages_by_month(
             month=month,
             year=year,
             date_type=date_type,
@@ -253,7 +251,7 @@ async def filter_tours_by_year(
             raise HTTPException(status_code=400, detail="date_type phải là 'start_date' hoặc 'end_date'")
 
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.filter_packages_by_year(
+        result = service.filter_packages_by_year(
             year=year,
             date_type=date_type,
             is_active=is_active,
@@ -302,7 +300,7 @@ async def filter_tours_by_date(
             raise HTTPException(status_code=400, detail="start_date phải nhỏ hơn hoặc bằng end_date")
 
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.filter_packages_by_date(
+        result = service.filter_packages_by_date(
             start_date=start_date,
             end_date=end_date,
             is_active=is_active,
@@ -390,7 +388,7 @@ async def filter_tours_by_price_range(
             )
 
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.filter_packages_by_price_range(
+        result = service.filter_packages_by_price_range(
             min_price=min_price,
             max_price=max_price,
             is_active=is_active,
@@ -428,7 +426,7 @@ async def get_tour_package(
     """
     try:
         user_id = current_user.get("user_id") if current_user else None
-        result = await service.get_package_by_id(str(package_id), user_id=user_id)
+        result = service.get_package_by_id(str(package_id), user_id=user_id)
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -539,7 +537,7 @@ async def create_tour_package(
         }
 
         # Create tour package
-        result = await service.create_package(package_data)
+        result = service.create_package(package_data)
 
         if result["EC"] != 0:
             # Rollback: Delete uploaded images
@@ -596,7 +594,7 @@ async def update_tour_package(
         if not update_data:
             raise HTTPException(status_code=400, detail="No data provided for update")
 
-        result = await service.update_package(str(package_id), update_data)
+        result = service.update_package(str(package_id), update_data)
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -638,7 +636,7 @@ async def manage_tour_images(
     """
     try:
         # Get existing package
-        package_result = await service.get_package_by_id(str(package_id))
+        package_result = service.get_package_by_id(str(package_id))
         if package_result["EC"] != 0:
             raise HTTPException(status_code=404, detail="Tour package not found")
 
@@ -687,7 +685,7 @@ async def manage_tour_images(
                 final_image_urls = "|".join(new_image_urls)
 
         # Update package with new image_urls
-        update_result = await service.update_package(
+        update_result = service.update_package(
             str(package_id),
             {"image_urls": final_image_urls}
         )
@@ -730,7 +728,7 @@ async def delete_tour_package(
         DELETE /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.delete_package(str(package_id))
+        result = service.delete_package(str(package_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -773,7 +771,7 @@ async def cancel_tour_package(
         POST /api/v1/tour-packages/123e4567-e89b-12d3-a456-426614174000/cancel?reason=Thiên tai
     """
     try:
-        result = await service.cancel_tour_package(
+        result = service.cancel_tour_package(
             package_id=str(package_id),
             reason=reason
         )
@@ -925,7 +923,7 @@ async def create_tour_packages_from_csv(
             )
 
         # Tạo packages qua service
-        result = await service.create_packages_bulk(packages_data)
+        result = service.create_packages_bulk(packages_data)
 
         # Thêm parsing errors vào kết quả
         if errors:

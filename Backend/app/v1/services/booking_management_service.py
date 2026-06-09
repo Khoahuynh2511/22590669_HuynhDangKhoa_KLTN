@@ -4,7 +4,9 @@ Service cho UC-USER-03: Quản lý Tour Đã Đăng Ký
 """
 import logging
 from typing import Optional, Dict, Any
-from supabase import Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -12,16 +14,19 @@ logger = logging.getLogger(__name__)
 class BookingManagementService:
     """Service for managing user bookings with tour package information"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize BookingManagementService
+    def __init__(self):
+        """Initialize BookingManagementService"""
+        self.db_url = settings.DATABASE_URL
 
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
+    def _get_conn(self):
+        """Get a new database connection"""
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
 
-    async def get_user_bookings(
+    def _normalize(self, rows):
+        """Convert RealDictRow to regular dict"""
+        return [dict(r) for r in rows]
+
+    def get_user_bookings(
         self,
         user_id: str,
         status: Optional[str] = None,
@@ -41,57 +46,78 @@ class BookingManagementService:
             Dict with EC, EM, data, and total
         """
         try:
-            # Join với tour_packages để lấy thông tin tour
-            query = self.supabase.table('bookings') .select(
-                'booking_id, package_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date, end_date)',
-                count='exact') .eq(
-                'user_id',
-                user_id)
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Apply status filter
-            if status:
-                query = query.eq('status', status)
+                # Build query with JOIN to tour_packages
+                query = """
+                    SELECT
+                        b.booking_id,
+                        b.package_id,
+                        b.number_of_people,
+                        b.total_amount,
+                        b.status,
+                        b.created_at,
+                        tp.package_name,
+                        tp.destination,
+                        tp.start_date,
+                        tp.end_date
+                    FROM bookings b
+                    LEFT JOIN tour_packages tp ON b.package_id = tp.package_id
+                    WHERE b.user_id = %s
+                """
+                params = [user_id]
 
-            # Apply pagination
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
+                # Apply status filter
+                if status:
+                    query += " AND b.status = %s"
+                    params.append(status)
 
-            # Order by created_at descending
-            query = query.order('created_at', desc=True)
+                # Get total count
+                count_query = "SELECT COUNT(*) as cnt FROM bookings b WHERE b.user_id = %s"
+                count_params = [user_id]
+                if status:
+                    count_query += " AND b.status = %s"
+                    count_params.append(status)
 
-            result = query.execute()
+                cursor.execute(count_query, tuple(count_params))
+                total = cursor.fetchone()['cnt']
 
-            # Format response data
-            formatted_data = []
-            for booking in result.data:
-                tour_pkg = booking.get('tour_packages', {})
-                # Handle case where tour_packages might be a list or dict
-                if isinstance(tour_pkg, list) and tour_pkg:
-                    tour_pkg = tour_pkg[0]
-                elif not isinstance(tour_pkg, dict):
-                    tour_pkg = {}
+                # Add ordering and pagination
+                query += " ORDER BY b.created_at DESC"
 
-                formatted_data.append({
-                    "booking_id": booking['booking_id'],
-                    "package_id": booking['package_id'],
-                    "tour_name": tour_pkg.get('package_name', 'Unknown Tour'),
-                    "destination": tour_pkg.get('destination', 'Unknown'),
-                    "start_date": tour_pkg.get('start_date'),
-                    "end_date": tour_pkg.get('end_date'),
-                    "number_of_people": booking['number_of_people'],
-                    "total_amount": float(booking['total_amount']),
-                    "status": booking['status'],
-                    "created_at": booking['created_at']
-                })
+                if limit:
+                    query += " LIMIT %s"
+                    params.append(limit)
+                if offset:
+                    query += " OFFSET %s"
+                    params.append(offset)
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data,
-                "total": result.count
-            }
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
+
+                # Format response data
+                formatted_data = []
+                for booking in rows:
+                    formatted_data.append({
+                        "booking_id": str(booking['booking_id']),
+                        "package_id": str(booking['package_id']) if booking['package_id'] else None,
+                        "tour_name": booking.get('package_name', 'Unknown Tour'),
+                        "destination": booking.get('destination', 'Unknown'),
+                        "start_date": booking.get('start_date'),
+                        "end_date": booking.get('end_date'),
+                        "number_of_people": booking['number_of_people'],
+                        "total_amount": float(booking['total_amount']),
+                        "status": booking['status'],
+                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                    })
+
+                return {
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data,
+                    "total": total
+                }
 
         except Exception as e:
             logger.error(f"Error getting user bookings: {str(e)}")
@@ -102,7 +128,7 @@ class BookingManagementService:
                 "total": 0
             }
 
-    async def get_user_booking_detail(
+    def get_user_booking_detail(
         self,
         booking_id: str,
         user_id: str
@@ -118,62 +144,71 @@ class BookingManagementService:
             Dict with EC, EM, and data
         """
         try:
-            # Join với tour_packages để lấy đầy đủ thông tin tour
-            result = self.supabase.table('bookings')\
-                .select('*, tour_packages(*)', count='exact')\
-                .eq('booking_id', booking_id)\
-                .eq('user_id', user_id)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                # Query with JOIN to tour_packages
+                query = """
+                    SELECT
+                        b.*,
+                        tp.package_id,
+                        tp.package_name,
+                        tp.destination,
+                        tp.description,
+                        tp.duration_days,
+                        tp.start_date,
+                        tp.end_date,
+                        tp.price,
+                        tp.image_urls
+                    FROM bookings b
+                    LEFT JOIN tour_packages tp ON b.package_id = tp.package_id
+                    WHERE b.booking_id = %s AND b.user_id = %s
+                """
+
+                cursor.execute(query, (booking_id, user_id))
+                row = cursor.fetchone()
+
+                if not row:
+                    return {
+                        "EC": 1,
+                        "EM": "Booking not found or access denied",
+                        "data": None
+                    }
+
+                # Format tour package info
+                tour_package_info = None
+                if row.get('package_id'):
+                    tour_package_info = {
+                        "package_id": str(row['package_id']),
+                        "package_name": row.get('package_name'),
+                        "destination": row.get('destination'),
+                        "description": row.get('description'),
+                        "duration_days": row.get('duration_days'),
+                        "start_date": row.get('start_date'),
+                        "end_date": row.get('end_date'),
+                        "price": float(row.get('price', 0)) if row.get('price') else 0,
+                        "image_urls": row.get('image_urls')
+                    }
+
+                # Format booking detail
+                formatted_data = {
+                    "booking_id": str(row['booking_id']),
+                    "status": row['status'],
+                    "number_of_people": row['number_of_people'],
+                    "total_amount": float(row['total_amount']),
+                    "contact_name": row['contact_name'],
+                    "contact_phone": row['contact_phone'],
+                    "special_requests": row.get('special_requests'),
+                    "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                    "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
+                    "tour_package": tour_package_info
+                }
+
                 return {
-                    "EC": 1,
-                    "EM": "Booking not found or access denied",
-                    "data": None
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data
                 }
-
-            booking = result.data[0]
-            tour_pkg = booking.get('tour_packages', {})
-            # Handle case where tour_packages might be a list or dict
-            if isinstance(tour_pkg, list) and tour_pkg:
-                tour_pkg = tour_pkg[0]
-            elif not isinstance(tour_pkg, dict):
-                tour_pkg = {}
-
-            # Format tour package info
-            tour_package_info = None
-            if tour_pkg:
-                tour_package_info = {
-                    "package_id": tour_pkg.get('package_id'),
-                    "package_name": tour_pkg.get('package_name'),
-                    "destination": tour_pkg.get('destination'),
-                    "description": tour_pkg.get('description'),
-                    "duration_days": tour_pkg.get('duration_days'),
-                    "start_date": tour_pkg.get('start_date'),
-                    "end_date": tour_pkg.get('end_date'),
-                    "price": float(tour_pkg.get('price', 0)),
-                    "image_urls": tour_pkg.get('image_urls')
-                }
-
-            # Format booking detail
-            formatted_data = {
-                "booking_id": booking['booking_id'],
-                "status": booking['status'],
-                "number_of_people": booking['number_of_people'],
-                "total_amount": float(booking['total_amount']),
-                "contact_name": booking['contact_name'],
-                "contact_phone": booking['contact_phone'],
-                "special_requests": booking.get('special_requests'),
-                "created_at": booking['created_at'],
-                "updated_at": booking['updated_at'],
-                "tour_package": tour_package_info
-            }
-
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data
-            }
 
         except Exception as e:
             logger.error(f"Error getting booking detail {booking_id}: {str(e)}")
@@ -183,7 +218,7 @@ class BookingManagementService:
                 "data": None
             }
 
-    async def get_all_bookings_admin(
+    def get_all_bookings_admin(
         self,
         status: Optional[str] = None,
         limit: Optional[int] = None,
@@ -201,73 +236,96 @@ class BookingManagementService:
             Dict with EC, EM, data, and total
         """
         try:
-            # Join với tour_packages và users để lấy đầy đủ thông tin
-            # Note: Supabase join syntax requires foreign key relationship
-            query = self.supabase.table('bookings') .select(
-                'booking_id, user_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)',
-                count='exact')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Apply status filter
-            if status:
-                query = query.eq('status', status)
+                # Build query with JOIN to tour_packages
+                query = """
+                    SELECT
+                        b.booking_id,
+                        b.user_id,
+                        b.number_of_people,
+                        b.total_amount,
+                        b.status,
+                        b.created_at,
+                        tp.package_name,
+                        tp.destination,
+                        tp.start_date
+                    FROM bookings b
+                    LEFT JOIN tour_packages tp ON b.package_id = tp.package_id
+                    WHERE 1=1
+                """
+                params = []
 
-            # Apply pagination
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
+                # Apply status filter
+                if status:
+                    query += " AND b.status = %s"
+                    params.append(status)
 
-            # Order by created_at descending
-            query = query.order('created_at', desc=True)
+                # Get total count
+                count_query = "SELECT COUNT(*) as cnt FROM bookings b WHERE 1=1"
+                count_params = []
+                if status:
+                    count_query += " AND b.status = %s"
+                    count_params.append(status)
 
-            result = query.execute()
+                cursor.execute(count_query, tuple(count_params))
+                total = cursor.fetchone()['cnt']
 
-            # Format response data
-            formatted_data = []
-            for booking in result.data:
-                tour_pkg = booking.get('tour_packages', {})
-                if isinstance(tour_pkg, list) and tour_pkg:
-                    tour_pkg = tour_pkg[0]
-                elif not isinstance(tour_pkg, dict):
-                    tour_pkg = {}
+                # Add ordering and pagination
+                query += " ORDER BY b.created_at DESC"
 
-                # Get user info separately if needed
-                user_id = booking.get('user_id')
-                user_email = None
-                user_full_name = None
-                if user_id:
-                    try:
-                        user_result = self.supabase.table('users')\
-                            .select('email, full_name')\
-                            .eq('user_id', user_id)\
-                            .execute()
-                        if user_result.data:
-                            user_info = user_result.data[0]
-                            user_email = user_info.get('email')
-                            user_full_name = user_info.get('full_name')
-                    except Exception as e:
-                        logger.warning(f"Could not fetch user info for {user_id}: {str(e)}")
+                if limit:
+                    query += " LIMIT %s"
+                    params.append(limit)
+                if offset:
+                    query += " OFFSET %s"
+                    params.append(offset)
 
-                formatted_data.append({
-                    "booking_id": booking['booking_id'],
-                    "user_id": user_id,
-                    "user_email": user_email,
-                    "user_full_name": user_full_name,
-                    "tour_name": tour_pkg.get('package_name', 'Unknown Tour'),
-                    "destination": tour_pkg.get('destination', 'Unknown'),
-                    "start_date": tour_pkg.get('start_date'),
-                    "number_of_people": booking['number_of_people'],
-                    "total_amount": float(booking['total_amount']),
-                    "status": booking['status'],
-                    "created_at": booking['created_at']
-                })
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data,
-                "total": result.count
-            }
+                # Format response data with user info
+                formatted_data = []
+                for booking in rows:
+                    user_id = booking['user_id']
+                    user_email = None
+                    user_full_name = None
+
+                    # Get user info separately
+                    if user_id:
+                        try:
+                            cursor.execute(
+                                "SELECT email, full_name FROM users WHERE user_id = %s",
+                                (user_id,)
+                            )
+                            user_row = cursor.fetchone()
+                            if user_row:
+                                user_email = user_row.get('email')
+                                user_full_name = user_row.get('full_name')
+                        except Exception as e:
+                            logger.warning(f"Could not fetch user info for {user_id}: {str(e)}")
+
+                    formatted_data.append({
+                        "booking_id": str(booking['booking_id']),
+                        "user_id": str(user_id) if user_id else None,
+                        "user_email": user_email,
+                        "user_full_name": user_full_name,
+                        "tour_name": booking.get('package_name', 'Unknown Tour'),
+                        "destination": booking.get('destination', 'Unknown'),
+                        "start_date": booking.get('start_date'),
+                        "number_of_people": booking['number_of_people'],
+                        "total_amount": float(booking['total_amount']),
+                        "status": booking['status'],
+                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                    })
+
+                return {
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data,
+                    "total": total
+                }
 
         except Exception as e:
             logger.error(f"Error getting all bookings admin: {str(e)}")
@@ -278,7 +336,7 @@ class BookingManagementService:
                 "total": 0
             }
 
-    async def get_user_bookings_admin(
+    def get_user_bookings_admin(
         self,
         user_id: str,
         status: Optional[str] = None,
@@ -298,55 +356,75 @@ class BookingManagementService:
             Dict with EC, EM, data, and total
         """
         try:
-            # Join với tour_packages để lấy thông tin tour
-            query = self.supabase.table('bookings') .select(
-                'booking_id, number_of_people, total_amount, status, created_at, tour_packages(package_name, destination, start_date)',
-                count='exact') .eq(
-                'user_id',
-                user_id)
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Apply status filter
-            if status:
-                query = query.eq('status', status)
+                # Build query with JOIN to tour_packages
+                query = """
+                    SELECT
+                        b.booking_id,
+                        b.number_of_people,
+                        b.total_amount,
+                        b.status,
+                        b.created_at,
+                        tp.package_name,
+                        tp.destination,
+                        tp.start_date
+                    FROM bookings b
+                    LEFT JOIN tour_packages tp ON b.package_id = tp.package_id
+                    WHERE b.user_id = %s
+                """
+                params = [user_id]
 
-            # Apply pagination
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
+                # Apply status filter
+                if status:
+                    query += " AND b.status = %s"
+                    params.append(status)
 
-            # Order by created_at descending
-            query = query.order('created_at', desc=True)
+                # Get total count
+                count_query = "SELECT COUNT(*) as cnt FROM bookings b WHERE b.user_id = %s"
+                count_params = [user_id]
+                if status:
+                    count_query += " AND b.status = %s"
+                    count_params.append(status)
 
-            result = query.execute()
+                cursor.execute(count_query, tuple(count_params))
+                total = cursor.fetchone()['cnt']
 
-            # Format response data
-            formatted_data = []
-            for booking in result.data:
-                tour_pkg = booking.get('tour_packages', {})
-                if isinstance(tour_pkg, list) and tour_pkg:
-                    tour_pkg = tour_pkg[0]
-                elif not isinstance(tour_pkg, dict):
-                    tour_pkg = {}
+                # Add ordering and pagination
+                query += " ORDER BY b.created_at DESC"
 
-                formatted_data.append({
-                    "booking_id": booking['booking_id'],
-                    "user_id": user_id,  # Include user_id for admin
-                    "tour_name": tour_pkg.get('package_name', 'Unknown Tour'),
-                    "destination": tour_pkg.get('destination', 'Unknown'),
-                    "start_date": tour_pkg.get('start_date'),
-                    "number_of_people": booking['number_of_people'],
-                    "total_amount": float(booking['total_amount']),
-                    "status": booking['status'],
-                    "created_at": booking['created_at']
-                })
+                if limit:
+                    query += " LIMIT %s"
+                    params.append(limit)
+                if offset:
+                    query += " OFFSET %s"
+                    params.append(offset)
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data,
-                "total": result.count
-            }
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
+
+                # Format response data
+                formatted_data = []
+                for booking in rows:
+                    formatted_data.append({
+                        "booking_id": str(booking['booking_id']),
+                        "user_id": user_id,  # Include user_id for admin
+                        "tour_name": booking.get('package_name', 'Unknown Tour'),
+                        "destination": booking.get('destination', 'Unknown'),
+                        "start_date": booking.get('start_date'),
+                        "number_of_people": booking['number_of_people'],
+                        "total_amount": float(booking['total_amount']),
+                        "status": booking['status'],
+                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                    })
+
+                return {
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data,
+                    "total": total
+                }
 
         except Exception as e:
             logger.error(f"Error getting user bookings admin: {str(e)}")
@@ -357,7 +435,7 @@ class BookingManagementService:
                 "total": 0
             }
 
-    async def get_booking_detail_admin(
+    def get_booking_detail_admin(
         self,
         booking_id: str
     ) -> Dict[str, Any]:
@@ -371,60 +449,71 @@ class BookingManagementService:
             Dict with EC, EM, and data
         """
         try:
-            # Join với tour_packages để lấy đầy đủ thông tin tour
-            result = self.supabase.table('bookings')\
-                .select('*, tour_packages(*)', count='exact')\
-                .eq('booking_id', booking_id)\
-                .execute()
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            if not result.data:
+                # Query with JOIN to tour_packages
+                query = """
+                    SELECT
+                        b.*,
+                        tp.package_id,
+                        tp.package_name,
+                        tp.destination,
+                        tp.description,
+                        tp.duration_days,
+                        tp.start_date,
+                        tp.end_date,
+                        tp.price,
+                        tp.image_urls
+                    FROM bookings b
+                    LEFT JOIN tour_packages tp ON b.package_id = tp.package_id
+                    WHERE b.booking_id = %s
+                """
+
+                cursor.execute(query, (booking_id,))
+                row = cursor.fetchone()
+
+                if not row:
+                    return {
+                        "EC": 1,
+                        "EM": "Booking not found",
+                        "data": None
+                    }
+
+                # Format tour package info
+                tour_package_info = None
+                if row.get('package_id'):
+                    tour_package_info = {
+                        "package_id": str(row['package_id']),
+                        "package_name": row.get('package_name'),
+                        "destination": row.get('destination'),
+                        "description": row.get('description'),
+                        "duration_days": row.get('duration_days'),
+                        "start_date": row.get('start_date'),
+                        "end_date": row.get('end_date'),
+                        "price": float(row.get('price', 0)) if row.get('price') else 0,
+                        "image_urls": row.get('image_urls')
+                    }
+
+                # Format booking detail
+                formatted_data = {
+                    "booking_id": str(row['booking_id']),
+                    "status": row['status'],
+                    "number_of_people": row['number_of_people'],
+                    "total_amount": float(row['total_amount']),
+                    "contact_name": row['contact_name'],
+                    "contact_phone": row['contact_phone'],
+                    "special_requests": row.get('special_requests'),
+                    "created_at": row['created_at'].isoformat() if row['created_at'] else None,
+                    "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
+                    "tour_package": tour_package_info
+                }
+
                 return {
-                    "EC": 1,
-                    "EM": "Booking not found",
-                    "data": None
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data
                 }
-
-            booking = result.data[0]
-            tour_pkg = booking.get('tour_packages', {})
-            if isinstance(tour_pkg, list) and tour_pkg:
-                tour_pkg = tour_pkg[0]
-            elif not isinstance(tour_pkg, dict):
-                tour_pkg = {}
-
-            # Format tour package info
-            tour_package_info = None
-            if tour_pkg:
-                tour_package_info = {
-                    "package_id": tour_pkg.get('package_id'),
-                    "package_name": tour_pkg.get('package_name'),
-                    "destination": tour_pkg.get('destination'),
-                    "description": tour_pkg.get('description'),
-                    "duration_days": tour_pkg.get('duration_days'),
-                    "start_date": tour_pkg.get('start_date'),
-                    "end_date": tour_pkg.get('end_date'),
-                    "price": float(tour_pkg.get('price', 0)),
-                    "image_urls": tour_pkg.get('image_urls')
-                }
-
-            # Format booking detail
-            formatted_data = {
-                "booking_id": booking['booking_id'],
-                "status": booking['status'],
-                "number_of_people": booking['number_of_people'],
-                "total_amount": float(booking['total_amount']),
-                "contact_name": booking['contact_name'],
-                "contact_phone": booking['contact_phone'],
-                "special_requests": booking.get('special_requests'),
-                "created_at": booking['created_at'],
-                "updated_at": booking['updated_at'],
-                "tour_package": tour_package_info
-            }
-
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data
-            }
 
         except Exception as e:
             logger.error(f"Error getting booking detail admin {booking_id}: {str(e)}")
@@ -434,7 +523,7 @@ class BookingManagementService:
                 "data": None
             }
 
-    async def get_all_cancellations_admin(
+    def get_all_cancellations_admin(
         self,
         cancelled_by: Optional[str] = None,
         limit: Optional[int] = 100,
@@ -452,88 +541,126 @@ class BookingManagementService:
             Dict with EC, EM, data, and total
         """
         try:
-            # Query booking_cancellations with joins
-            query = self.supabase.table('booking_cancellations')\
-                .select('*', count='exact')
+            with self._get_conn() as conn:
+                cursor = conn.cursor()
 
-            # Apply filter
-            if cancelled_by:
-                query = query.eq('cancelled_by', cancelled_by)
+                # Build query - JOIN with bookings and tour_packages for full info
+                query = """
+                    SELECT
+                        bc.cancellation_id,
+                        bc.booking_id,
+                        bc.reason,
+                        bc.cancelled_by,
+                        bc.refund_amount,
+                        bc.refund_status,
+                        bc.created_at,
+                        b.user_id,
+                        b.package_id,
+                        b.number_of_people,
+                        b.total_amount,
+                        b.contact_name,
+                        b.contact_phone,
+                        b.contact_email,
+                        b.special_requests,
+                        b.status as booking_status,
+                        b.created_at as booking_created_at
+                    FROM booking_cancellations bc
+                    LEFT JOIN bookings b ON bc.booking_id = b.booking_id
+                    WHERE 1=1
+                """
+                params = []
 
-            # Apply pagination
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
+                # Note: cancelled_by in DB is a UUID reference to users, not a role string
+                # Skip this filter as it's incompatible with current schema
+                # if cancelled_by:
+                #     query += " AND bc.cancelled_by = %s"
+                #     params.append(cancelled_by)
 
-            # Order by cancelled_at descending
-            query = query.order('cancelled_at', desc=True)
+                # Get total count
+                count_query = "SELECT COUNT(*) as cnt FROM booking_cancellations WHERE 1=1"
+                count_params = []
 
-            result = query.execute()
+                cursor.execute(count_query, tuple(count_params))
+                total = cursor.fetchone()['cnt']
 
-            # Format response data with additional info
-            formatted_data = []
-            for cancel in result.data:
-                # Get tour info
-                tour_name = "Unknown Tour"
-                if cancel.get('package_id'):
-                    try:
-                        tour_result = self.supabase.table('tour_packages')\
-                            .select('package_name, destination')\
-                            .eq('package_id', cancel['package_id'])\
-                            .execute()
-                        if tour_result.data:
-                            tour_info = tour_result.data[0]
-                            tour_name = tour_info.get('package_name', 'Unknown Tour')
-                    except Exception as e:
-                        logger.warning(f"Could not fetch tour info for {cancel.get('package_id')}: {str(e)}")
+                # Add ordering and pagination
+                query += " ORDER BY bc.created_at DESC"
 
-                # Get user info
-                user_email = None
-                user_full_name = None
-                if cancel.get('user_id'):
-                    try:
-                        user_result = self.supabase.table('users')\
-                            .select('email, full_name')\
-                            .eq('user_id', cancel['user_id'])\
-                            .execute()
-                        if user_result.data:
-                            user_info = user_result.data[0]
-                            user_email = user_info.get('email')
-                            user_full_name = user_info.get('full_name')
-                    except Exception as e:
-                        logger.warning(f"Could not fetch user info for {cancel.get('user_id')}: {str(e)}")
+                if limit:
+                    query += " LIMIT %s"
+                    params.append(limit)
+                if offset:
+                    query += " OFFSET %s"
+                    params.append(offset)
 
-                formatted_data.append({
-                    "cancellation_id": cancel.get('cancellation_id'),
-                    "booking_id": cancel.get('booking_id'),
-                    "user_id": cancel.get('user_id'),
-                    "user_email": user_email,
-                    "user_full_name": user_full_name,
-                    "package_id": cancel.get('package_id'),
-                    "tour_name": tour_name,
-                    # Booking snapshot
-                    "number_of_people": cancel.get('number_of_people'),
-                    "total_amount": float(cancel.get('total_amount', 0)) if cancel.get('total_amount') else 0,
-                    "contact_name": cancel.get('contact_name'),
-                    "contact_phone": cancel.get('contact_phone'),
-                    "contact_email": cancel.get('contact_email'),
-                    "special_requests": cancel.get('special_requests'),
-                    "previous_status": cancel.get('previous_status'),
-                    "booking_created_at": cancel.get('booking_created_at'),
-                    # Cancellation info
-                    "reason": cancel.get('reason'),
-                    "cancelled_at": cancel.get('cancelled_at'),
-                    "cancelled_by": cancel.get('cancelled_by'),
-                    "created_at": cancel.get('created_at')
-                })
+                cursor.execute(query, tuple(params))
+                rows = cursor.fetchall()
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": formatted_data,
-                "total": result.count
-            }
+                # Format response data with additional info
+                formatted_data = []
+                for cancel in rows:
+                    # Get tour info
+                    tour_name = "Unknown Tour"
+                    if cancel.get('package_id'):
+                        try:
+                            cursor.execute(
+                                "SELECT package_name, destination FROM tour_packages WHERE package_id = %s",
+                                (cancel['package_id'],)
+                            )
+                            tour_row = cursor.fetchone()
+                            if tour_row:
+                                tour_name = tour_row.get('package_name', 'Unknown Tour')
+                        except Exception as e:
+                            logger.warning(f"Could not fetch tour info for {cancel.get('package_id')}: {str(e)}")
+
+                    # Get user info
+                    user_email = None
+                    user_full_name = None
+                    if cancel.get('user_id'):
+                        try:
+                            cursor.execute(
+                                "SELECT email, full_name FROM users WHERE user_id = %s",
+                                (cancel['user_id'],)
+                            )
+                            user_row = cursor.fetchone()
+                            if user_row:
+                                user_email = user_row.get('email')
+                                user_full_name = user_row.get('full_name')
+                        except Exception as e:
+                            logger.warning(f"Could not fetch user info for {cancel.get('user_id')}: {str(e)}")
+
+                    formatted_data.append({
+                        "cancellation_id": str(cancel.get('cancellation_id')) if cancel.get('cancellation_id') else None,
+                        "booking_id": str(cancel.get('booking_id')) if cancel.get('booking_id') else None,
+                        "user_id": str(cancel.get('user_id')) if cancel.get('user_id') else None,
+                        "user_email": user_email,
+                        "user_full_name": user_full_name,
+                        "package_id": str(cancel.get('package_id')) if cancel.get('package_id') else None,
+                        "tour_name": tour_name,
+                        # Booking snapshot (from JOIN with bookings)
+                        "number_of_people": cancel.get('number_of_people'),
+                        "total_amount": float(cancel.get('total_amount', 0)) if cancel.get('total_amount') else 0,
+                        "contact_name": cancel.get('contact_name'),
+                        "contact_phone": cancel.get('contact_phone'),
+                        "contact_email": cancel.get('contact_email'),
+                        "special_requests": cancel.get('special_requests'),
+                        "previous_status": cancel.get('booking_status'),
+                        "booking_created_at": cancel.get('booking_created_at'),
+                        # Cancellation info
+                        "reason": cancel.get('reason'),
+                        "cancelled_at": cancel.get('created_at'),
+                        "cancelled_by": str(cancel.get('cancelled_by')) if cancel.get('cancelled_by') else None,
+                        "refund_amount": float(cancel.get('refund_amount', 0)) if cancel.get('refund_amount') else 0,
+                        "refund_status": cancel.get('refund_status'),
+                        "created_at": cancel.get('created_at')
+                    })
+
+                return {
+                    "EC": 0,
+                    "EM": "Success",
+                    "data": formatted_data,
+                    "total": total
+                }
 
         except Exception as e:
             logger.error(f"Error getting all cancellations admin: {str(e)}")
@@ -543,3 +670,9 @@ class BookingManagementService:
                 "data": None,
                 "total": 0
             }
+
+
+# Dependency function
+def get_booking_management_service():
+    """Dependency function to get BookingManagementService instance"""
+    return BookingManagementService()

@@ -5,7 +5,9 @@ Handles featured tour packages management
 import logging
 from typing import List, Dict, Any
 from uuid import UUID
-from supabase import Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +15,15 @@ logger = logging.getLogger(__name__)
 class AdminFeaturedToursService:
     """Service for managing featured tours"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize AdminFeaturedToursService
+    def __init__(self):
+        """Initialize AdminFeaturedToursService"""
+        self.db_url = settings.DATABASE_URL
 
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
+    def _get_conn(self):
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+
+    def _normalize(self, rows):
+        return [dict(r) for r in rows]
 
     def get_featured_tours(self) -> List[Dict[str, Any]]:
         """
@@ -30,13 +33,16 @@ class AdminFeaturedToursService:
             List of featured tour packages
         """
         try:
-            query = self.supabase.table('tour_packages').select('*')
-            query = query.eq('is_featured', True)
-            query = query.eq('is_active', True)
-            query = query.order('created_at', desc=True)
-
-            result = query.execute()
-            featured_tours = result.data if result.data else []
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT * FROM tour_packages
+                        WHERE is_featured = TRUE AND is_active = TRUE
+                        ORDER BY created_at DESC
+                        """
+                    )
+                    featured_tours = self._normalize(cur.fetchall())
 
             logger.info(f"📌 Found {len(featured_tours)} featured tours")
             return featured_tours
@@ -56,33 +62,42 @@ class AdminFeaturedToursService:
             Dict with success status and message
         """
         try:
-            # Step 1: Validate all IDs exist and are active
-            valid_ids = []
-            for pkg_id in tour_package_ids:
-                result = self.supabase.table('tour_packages').select(
-                    'package_id, is_active').eq('package_id', str(pkg_id)).execute()
-                if result.data and len(result.data) > 0:
-                    if result.data[0].get('is_active'):
-                        valid_ids.append(str(pkg_id))
-                    else:
-                        logger.warning(f"Package {pkg_id} is inactive, skipping")
-                else:
-                    logger.warning(f"Package {pkg_id} not found, skipping")
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Step 1: Validate all IDs exist and are active
+                    valid_ids = []
+                    for pkg_id in tour_package_ids:
+                        cur.execute(
+                            "SELECT package_id, is_active FROM tour_packages WHERE package_id = %s",
+                            (str(pkg_id),)
+                        )
+                        result = cur.fetchone()
+                        if result:
+                            if result.get('is_active'):
+                                valid_ids.append(str(pkg_id))
+                            else:
+                                logger.warning(f"Package {pkg_id} is inactive, skipping")
+                        else:
+                            logger.warning(f"Package {pkg_id} not found, skipping")
 
-            if not valid_ids:
-                return {
-                    "success": False,
-                    "message": "No valid package IDs provided",
-                    "updated": 0
-                }
+                    if not valid_ids:
+                        return {
+                            "success": False,
+                            "message": "No valid package IDs provided",
+                            "updated": 0
+                        }
 
-            # Step 2: Set is_featured=FALSE for all
-            self.supabase.table('tour_packages').update({'is_featured': False}).neq(
-                'package_id', '00000000-0000-0000-0000-000000000000').execute()
+                    # Step 2: Set is_featured=FALSE for all
+                    cur.execute("UPDATE tour_packages SET is_featured = FALSE")
 
-            # Step 3: Set is_featured=TRUE for specified IDs
-            for pkg_id in valid_ids:
-                self.supabase.table('tour_packages').update({'is_featured': True}).eq('package_id', pkg_id).execute()
+                    # Step 3: Set is_featured=TRUE for specified IDs
+                    for pkg_id in valid_ids:
+                        cur.execute(
+                            "UPDATE tour_packages SET is_featured = TRUE WHERE package_id = %s",
+                            (pkg_id,)
+                        )
+
+                    conn.commit()
 
             logger.info(f"✅ Updated {len(valid_ids)} featured tours")
 
@@ -101,3 +116,8 @@ class AdminFeaturedToursService:
                 "message": f"Error updating featured tours: {str(e)}",
                 "updated": 0
             }
+
+
+def get_admin_featured_tours_service() -> AdminFeaturedToursService:
+    """Dependency to get AdminFeaturedToursService instance"""
+    return AdminFeaturedToursService()

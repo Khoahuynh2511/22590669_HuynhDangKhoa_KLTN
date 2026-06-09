@@ -18,14 +18,14 @@ logger = logging.getLogger(__name__)
 class AuthService:
     """Authentication service for user management"""
 
-    def __init__(self, supabase_client: Client):
+    def __init__(self, supabase_client: Client = None):
         """
         Initialize AuthService
 
         Args:
-            supabase_client: Supabase client instance
+            supabase_client: Supabase client instance (deprecated, ignored for backward compatibility)
         """
-        self.supabase = supabase_client
+        # supabase_client parameter kept for backward compatibility but no longer used
         self.jwt_secret = settings.JWT_SECRET
         self.jwt_expire = settings.JWT_EXPIRE
         self.salt_rounds = 10
@@ -296,16 +296,19 @@ class AuthService:
             User role ('user' or 'admin') or None if user doesn't exist
         """
         try:
-            result = self.supabase.table('users') \
-                .select('role') \
-                .eq('user_id', user_id) \
-                .execute()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT role FROM users WHERE user_id = %s",
+                        (user_id,)
+                    )
+                    row = cur.fetchone()
 
-            if not result.data:
+            if not row:
                 logger.warning(f"User {user_id} not found")
                 return None
 
-            role = result.data[0].get('role', 'user')
+            role = row.get('role', 'user')
             return role
 
         except Exception as e:
@@ -367,8 +370,6 @@ class AuthService:
         """
         try:
             # Check if admin secret key is required and valid
-            # Có thể check từ config hoặc environment variable
-            from ..core.config import settings
             required_secret = getattr(settings, 'ADMIN_SECRET_KEY', None)
 
             if required_secret and admin_secret_key != required_secret:
@@ -377,55 +378,42 @@ class AuthService:
                     "EM": "Invalid admin secret key"
                 }
 
-            # Check if user already exists
-            existing_user = self.supabase.table('users') \
-                .select("*") \
-                .eq('email', email) \
-                .execute()
-
-            if existing_user.data:
-                return {
-                    "EC": 2,
-                    "EM": "Email already exists"
-                }
-
             # Hash password
             hashed_password = self._hash_password(password)
 
-            # Create admin user in database
-            user_data = {
-                "full_name": full_name,
-                "email": email,
-                "password_hash": hashed_password,
-                "phone_number": phone_number,
-                "is_activate": True,
-                "login_type": "TRADITIONAL",
-                "security_2fa_enabled": False,
-                "role": "admin",  # Set role as admin
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat()
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # Check if user already exists
+                    cur.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+                    if cur.fetchone():
+                        return {
+                            "EC": 2,
+                            "EM": "Email already exists"
+                        }
+
+                    # Create admin user in database
+                    cur.execute(
+                        """
+                        INSERT INTO users (full_name, email, password_hash, phone, is_active, role)
+                        VALUES (%s, %s, %s, %s, true, 'admin')
+                        RETURNING user_id, email, full_name, phone, role
+                        """,
+                        (full_name, email, hashed_password, phone_number),
+                    )
+                    user = self._normalize_user(cur.fetchone())
+                    conn.commit()
+
+            return {
+                "EC": 0,
+                "EM": "Admin registered successfully",
+                "user": {
+                    "user_id": user["user_id"],
+                    "email": user["email"],
+                    "full_name": user["full_name"],
+                    "phone_number": user.get("phone_number"),
+                    "role": user.get("role", "admin")
+                }
             }
-
-            result = self.supabase.table('users').insert(user_data).execute()
-
-            if result.data:
-                user = result.data[0]
-                return {
-                    "EC": 0,
-                    "EM": "Admin registered successfully",
-                    "user": {
-                        "user_id": user["user_id"],
-                        "email": user["email"],
-                        "full_name": user["full_name"],
-                        "phone_number": user.get("phone_number"),
-                        "role": user.get("role", "admin")
-                    }
-                }
-            else:
-                return {
-                    "EC": 3,
-                    "EM": "Failed to create admin user"
-                }
 
         except Exception as e:
             logger.error(f"Error registering admin: {str(e)}")
@@ -460,23 +448,22 @@ class AuthService:
                     "EM": "Either email or phone_number must be provided"
                 }
 
-            # Fetch user by email or phone_number
-            query = self.supabase.table('users').select("*")
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # Fetch user by email or phone_number
+                    if email:
+                        cur.execute("SELECT * FROM users WHERE email = %s", (email,))
+                    else:
+                        cur.execute("SELECT * FROM users WHERE phone = %s", (phone_number,))
+                    row = cur.fetchone()
 
-            if email:
-                query = query.eq('email', email)
-            else:
-                query = query.eq('phone_number', phone_number)
-
-            result = query.execute()
-
-            if not result.data:
+            if not row:
                 return {
                     "EC": 2,
                     "EM": "Email/Phone/Password is incorrect"
                 }
 
-            user = result.data[0]
+            user = self._normalize_user(row)
 
             # Check if user has password (TRADITIONAL login)
             if not user.get('password_hash'):

@@ -14,7 +14,6 @@ from ...schema.booking_schema import (
     AdminBookingDetailResponse
 )
 from ...services.booking_management_service import BookingManagementService
-from ...core.supabase import get_supabase_client
 from ...core.dependencies import get_current_user, get_current_admin
 
 logger = logging.getLogger(__name__)
@@ -24,8 +23,7 @@ router = APIRouter()
 
 def get_booking_management_service():
     """Dependency to get BookingManagementService instance"""
-    supabase = get_supabase_client()
-    return BookingManagementService(supabase)
+    return BookingManagementService()
 
 
 # ============================================
@@ -60,7 +58,7 @@ async def get_my_bookings(
     try:
         user_id = current_user["user_id"]
 
-        result = await service.get_user_bookings(
+        result = service.get_user_bookings(
             user_id=user_id,
             status=status,
             limit=limit,
@@ -97,7 +95,7 @@ async def get_my_booking_detail(
     try:
         user_id = current_user["user_id"]
 
-        result = await service.get_user_booking_detail(
+        result = service.get_user_booking_detail(
             booking_id=str(booking_id),
             user_id=user_id
         )
@@ -146,7 +144,7 @@ async def get_all_bookings_admin(
         GET /api/v1/bookings/admin/all?status=confirmed&limit=20
     """
     try:
-        result = await service.get_all_bookings_admin(
+        result = service.get_all_bookings_admin(
             status=status,
             limit=limit,
             offset=offset
@@ -186,7 +184,7 @@ async def get_user_bookings_admin(
         GET /api/v1/bookings/admin/user/123e4567-e89b-12d3-a456-426614174000?status=confirmed
     """
     try:
-        result = await service.get_user_bookings_admin(
+        result = service.get_user_bookings_admin(
             user_id=str(user_id),
             status=status,
             limit=limit,
@@ -215,7 +213,7 @@ async def get_booking_cancellations_admin(
         List of booking cancellations with tour and user info
     """
     try:
-        result = await service.get_all_cancellations_admin(
+        result = service.get_all_cancellations_admin(
             cancelled_by=cancelled_by,
             limit=limit,
             offset=offset
@@ -251,7 +249,7 @@ async def get_booking_detail_admin(
         GET /api/v1/bookings/admin/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.get_booking_detail_admin(
+        result = service.get_booking_detail_admin(
             booking_id=str(booking_id)
         )
 

@@ -1,45 +1,57 @@
 <div class="bg-gray-100 min-h-screen hotel-pages">
 
+  <!-- Sticky Search Bar -->
   <div class="sticky top-0 flex-1 p-4 bg-white shadow-lg z-10 flex justify-center items-center">
     <div class="container mx-auto px-6">
-
-      <!-- <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
-        <div>
-          <input type="text" placeholder="Medan (KNO)" class="w-full p-2 border input-1 bg-white" />
-        </div>
-        <div>
-          <input type="text" placeholder="Surabaya (SUB)" class="w-full p-2 border input-2 bg-white" />
-        </div>
-        <div >
-          <div class="wrapper-input relative">
-            <input type="text" placeholder="Surabaya (SUB)" class="w-full p-2 border input-3 bg-white" />
-            <button class="absolute bg-blue-500 text-white btn-search absolute right-0 h-full p-2">Cari Hotel</button>
-
-          </div>
-        </div>
-      </div> -->
-
-      <app-search-bar (onSearch)="getSearchVal($event)" ></app-search-bar>
-
+      <app-search-bar (onSearch)="getSearchVal($event)"></app-search-bar>
     </div>
   </div>
 
   <div class="container mx-auto p-6 flex flex-row gap-4 pt-12">
 
-    <!-- <div class="pt-12"></div> -->
-
+    <!-- Sidebar Filters -->
     <div class="wrapper-comp flex flex-col gap-4 pt-12">
-      <app-accordion-filter></app-accordion-filter>
-      <app-accordion-filter></app-accordion-filter>
-      <app-accordion-filter></app-accordion-filter>
-      <app-accordion-filter></app-accordion-filter>
+      <app-accordion-filter (filterChange)="onFilterChange($event)"></app-accordion-filter>
     </div>
 
-    <div class="wrapper-comp flex flex-col gap-4 pt-12">
-      @for (item of hotels; track $index) {
-        <app-hotel-card [hotel]="item" ></app-hotel-card>
+    <!-- Hotel List -->
+    <div class="wrapper-comp flex flex-col gap-4 pt-12 flex-1">
+
+      <!-- Loading State -->
+      @if (isLoading) {
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="loading-spinner mb-4"></div>
+          <p class="text-gray-500 text-lg">Đang tải danh sách khách sạn...</p>
+        </div>
       }
 
+      <!-- Empty State -->
+      @if (!isLoading && hotels.length === 0) {
+        <div class="flex flex-col items-center justify-center py-20">
+          <div class="empty-icon mb-4">
+            <i class="fas fa-hotel text-gray-300" style="font-size: 64px;"></i>
+          </div>
+          <h3 class="text-xl font-semibold text-gray-600 mb-2">Không tìm thấy khách sạn</h3>
+          <p class="text-gray-400 mb-6">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
+          <button
+            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
+            (click)="resetAllFilters()">
+            <i class="fas fa-redo mr-2"></i>Đặt lại bộ lọc
+          </button>
+        </div>
+      }
+
+      <!-- Hotel Cards -->
+      @for (item of hotels; track item.hotel_id) {
+        <app-hotel-card [hotel]="item"></app-hotel-card>
+      }
+
+      <!-- Results count -->
+      @if (!isLoading && hotels.length > 0) {
+        <div class="text-center text-gray-400 text-sm py-4">
+          Hiển thị {{ hotels.length }} khách sạn
+        </div>
+      }
     </div>
 
   </div>

@@ -18,7 +18,6 @@ from ...schema.promotion_schema import (
     TourPromotionsResponse
 )
 from ...services.promotion_service import PromotionService
-from ...core.supabase import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +26,7 @@ router = APIRouter()
 
 def get_promotion_service():
     """Dependency to get PromotionService instance"""
-    supabase = get_supabase_client()
-    return PromotionService(supabase)
+    return PromotionService()
 
 
 @router.post("/", response_model=PromotionCreateResponse, status_code=201)
@@ -59,7 +57,7 @@ async def create_promotion(
     """
     try:
         promotion_data = promotion.model_dump()
-        result = await service.create_promotion(promotion_data)
+        result = service.create_promotion(promotion_data)
 
         if result["EC"] != 0:
             raise HTTPException(status_code=400, detail=result["EM"])
@@ -87,7 +85,7 @@ async def get_promotions(
         GET /api/v1/promotions?is_active=true&limit=10
     """
     try:
-        result = await service.get_all_promotions(
+        result = service.get_all_promotions(
             is_active=is_active,
             limit=limit,
             offset=offset
@@ -117,7 +115,7 @@ async def filter_promotions_by_discount(
             raise HTTPException(status_code=400,
                                 detail="Cần ít nhất một trong min_discount_value hoặc max_discount_value")
 
-        result = await service.filter_promotions_by_discount(
+        result = service.filter_promotions_by_discount(
             min_discount_value=min_discount_value,
             max_discount_value=max_discount_value,
             is_active=is_active,
@@ -154,7 +152,7 @@ async def filter_promotions_by_date_range(
         if start_date and end_date and start_date > end_date:
             raise HTTPException(status_code=400, detail="start_date phải nhỏ hơn hoặc bằng end_date")
 
-        result = await service.filter_promotions_by_date_range(
+        result = service.filter_promotions_by_date_range(
             start_date=start_date,
             end_date=end_date,
             is_active=is_active,
@@ -186,7 +184,7 @@ async def filter_promotions_by_quantity(
         if min_quantity is None and max_quantity is None:
             raise HTTPException(status_code=400, detail="Cần ít nhất một trong min_quantity hoặc max_quantity")
 
-        result = await service.filter_promotions_by_quantity(
+        result = service.filter_promotions_by_quantity(
             min_quantity=min_quantity,
             max_quantity=max_quantity,
             is_active=is_active,
@@ -218,7 +216,7 @@ async def filter_promotions_by_user_count(
         if min_user_count is None and max_user_count is None:
             raise HTTPException(status_code=400, detail="Cần ít nhất một trong min_user_count hoặc max_user_count")
 
-        result = await service.filter_promotions_by_used_count(
+        result = service.filter_promotions_by_used_count(
             min_user_count=min_user_count,
             max_user_count=max_user_count,
             is_active=is_active,
@@ -247,7 +245,7 @@ async def get_available_promotions(
         GET /api/v1/promotions/available
     """
     try:
-        result = await service.get_available_promotions()
+        result = service.get_available_promotions()
         return TourPromotionsResponse(**result)
 
     except Exception as e:
@@ -267,7 +265,7 @@ async def get_promotion(
         GET /api/v1/promotions/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.get_promotion_by_id(str(promotion_id))
+        result = service.get_promotion_by_id(str(promotion_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -293,7 +291,7 @@ async def get_promotion_by_code(
         GET /api/v1/promotions/code/ABC12345
     """
     try:
-        result = await service.get_promotion_by_code(code)
+        result = service.get_promotion_by_code(code)
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -326,7 +324,7 @@ async def update_promotion(
     """
     try:
         update_data = promotion.model_dump(exclude_unset=True)
-        result = await service.update_promotion(str(promotion_id), update_data)
+        result = service.update_promotion(str(promotion_id), update_data)
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])
@@ -354,7 +352,7 @@ async def delete_promotion(
         DELETE /api/v1/promotions/123e4567-e89b-12d3-a456-426614174000
     """
     try:
-        result = await service.delete_promotion(str(promotion_id))
+        result = service.delete_promotion(str(promotion_id))
 
         if result["EC"] == 1:
             raise HTTPException(status_code=404, detail=result["EM"])

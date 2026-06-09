@@ -426,6 +426,257 @@
   </div>
 </div>
 
+<!-- Hotel Loading State -->
+<div *ngIf="!isTourMode && isLoadingTour" class="container mx-auto px-6 py-20 text-center">
+  <div class="spinner mx-auto mb-4"></div>
+  <p class="text-gray-600">Đang tải thông tin khách sạn...</p>
+</div>
+
+<!-- Hotel Error State -->
+<div *ngIf="!isTourMode && !isLoadingTour && errorMessage" class="container mx-auto px-6 py-20">
+  <div class="bg-red-50 border border-red-200 rounded-lg p-8 text-center max-w-2xl mx-auto">
+    <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
+    <h2 class="text-2xl font-bold text-red-700 mb-3">Không tải được thông tin khách sạn</h2>
+    <p class="text-gray-700 mb-6 text-lg">{{ errorMessage }}</p>
+    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <button
+        class="bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg py-3 px-8 transition shadow-md hover:shadow-lg"
+        (click)="retryLoadHotel()">
+        <i class="fas fa-redo mr-2"></i>
+        Thử lại
+      </button>
+      <button
+        class="bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg py-3 px-8 transition shadow-md hover:shadow-lg"
+        (click)="goBackToHotels()">
+        <i class="fas fa-arrow-left mr-2"></i>
+        Quay lại danh sách
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Hotel Details Section -->
+<div *ngIf="!isTourMode && hotel && !isLoadingTour" class="container mx-auto px-6 pb-6 bg-white hotel-details-wrapper">
+  <!-- Hotel Images -->
+  <div class="tour-images-section fade-in-up" *ngIf="hotel.images && hotel.images.length > 0">
+    <div class="main-image-wrapper">
+      <img [src]="hotel.images[0]" [alt]="hotel.name" class="main-image" (click)="openImage(hotel.images[0])">
+      <div class="image-overlay"></div>
+    </div>
+    <div class="gallery-grid" *ngIf="hotel.images.length > 1">
+      <div class="gallery-item" *ngFor="let img of hotel.images.slice(1, 5); let i = index" [style.animation-delay]="(i + 1) * 0.1 + 's'">
+        <img [src]="img" [alt]="hotel.name" class="gallery-image" (click)="openImage(img)">
+        <div class="gallery-overlay"></div>
+      </div>
+    </div>
+  </div>
+  <div class="empty-images fade-in" *ngIf="!hotel.images || hotel.images.length === 0">
+    <div class="empty-image-placeholder">
+      <p class="empty-text">Không có hình ảnh</p>
+    </div>
+  </div>
+
+  <!-- Hotel Header -->
+  <div class="tour-header-section fade-in-up delay-1">
+    <div class="tour-title-section">
+      <h1 class="tour-title">{{ hotel.name }}</h1>
+      <div class="tour-meta-info">
+        <div class="meta-item">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>{{ hotel.location }}</span>
+        </div>
+        <div class="meta-item" *ngIf="hotel.star_rating">
+          <i class="fas fa-star" style="color: #f59e0b;"></i>
+          <span>{{ hotel.star_rating }} sao</span>
+        </div>
+        <div class="meta-item" *ngIf="hotel.rating">
+          <i class="fas fa-star"></i>
+          <span>{{ hotel.rating }}</span>
+          <span class="reviews-count" *ngIf="hotel.reviews">({{ hotel.reviews }} reviews)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tour-price-section">
+      <div class="price-wrapper">
+        <p class="price-label">Giá bắt đầu từ</p>
+        <div class="price-display">
+          <p class="current-price">{{ formatPrice(hotel.price) }}</p>
+          <p class="original-price" *ngIf="hotel.discount && hotel.original_price">
+            {{ formatPrice(hotel.original_price) }}
+          </p>
+        </div>
+        <p class="duration-text" *ngIf="hotel.available_rooms !== undefined">Còn {{ hotel.available_rooms }} phòng</p>
+      </div>
+      <button class="book-button" (click)="scrollToRoomDetails()">
+        <span>Đặt phòng ngay</span>
+        <i class="fas fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Hotel Info Cards -->
+  <div class="info-cards-grid fade-in-up delay-2">
+    <div class="info-card" *ngIf="hotel.star_rating">
+      <div class="info-card-content">
+        <div class="info-icon-wrapper icon-rating">
+          <i class="fas fa-star"></i>
+        </div>
+        <div class="info-text">
+          <p class="info-label">Tiêu chuẩn</p>
+          <p class="info-value">{{ hotel.star_rating }} sao</p>
+        </div>
+      </div>
+      <div class="info-card-hover-effect"></div>
+    </div>
+
+    <div class="info-card" *ngIf="hotel.rating">
+      <div class="info-card-content">
+        <div class="info-icon-wrapper icon-rating">
+          <i class="fas fa-thumbs-up"></i>
+        </div>
+        <div class="info-text">
+          <p class="info-label">Đánh giá</p>
+          <p class="info-value">{{ hotel.rating }}/10</p>
+        </div>
+      </div>
+      <div class="info-card-hover-effect"></div>
+    </div>
+
+    <div class="info-card" *ngIf="hotel.available_rooms !== undefined">
+      <div class="info-card-content">
+        <div class="info-icon-wrapper icon-slots">
+          <i class="fas fa-bed"></i>
+        </div>
+        <div class="info-text">
+          <p class="info-label">Phòng trống</p>
+          <p class="info-value">{{ hotel.available_rooms }} phòng</p>
+        </div>
+      </div>
+      <div class="info-card-hover-effect"></div>
+    </div>
+
+    <div class="info-card" *ngIf="hotel.discount">
+      <div class="info-card-content">
+        <div class="info-icon-wrapper icon-discount">
+          <i class="fas fa-tag"></i>
+        </div>
+        <div class="info-text">
+          <p class="info-label">Giảm giá</p>
+          <p class="info-value">-{{ hotel.discount }}%</p>
+        </div>
+      </div>
+      <div class="info-card-hover-effect"></div>
+    </div>
+  </div>
+
+  <!-- Hotel Description -->
+  <div class="tour-description-section mb-8">
+    <div class="description-header mb-6">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="header-icon">
+          <i class="fas fa-info-circle"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-gray-900">Giới thiệu khách sạn</h2>
+      </div>
+      <div class="header-divider"></div>
+    </div>
+
+    <div class="description-content" *ngIf="hotel.description">
+      <div class="description-text-wrapper">
+        <div class="description-text">{{ hotel.description }}</div>
+      </div>
+    </div>
+
+    <div class="description-empty" *ngIf="!hotel.description">
+      <i class="fas fa-file-alt"></i>
+      <p>Chưa có mô tả cho khách sạn này</p>
+    </div>
+  </div>
+
+  <!-- Hotel Amenities -->
+  <div class="amenities-section fade-in-up delay-3" *ngIf="hotel.amenities && hotel.amenities.length > 0">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-concierge-bell"></i>
+        Tiện nghi
+      </h2>
+      <div class="services-grid">
+        <div *ngFor="let amenity of hotel.amenities; let i = index" class="service-item" [style.animation-delay]="i * 0.05 + 's'">
+          <i class="fas fa-check"></i>
+          <span>{{ amenity }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Address -->
+  <div class="address-section fade-in-up delay-4" *ngIf="hotel.address">
+    <div class="section-card">
+      <h2 class="section-title">
+        <i class="fas fa-map-marker-alt"></i>
+        Địa chỉ
+      </h2>
+      <p class="address-text">{{ hotel.address }}</p>
+    </div>
+  </div>
+
+  <!-- Booking Sidebar -->
+  <div class="booking-sidebar fade-in-up delay-5">
+    <div class="booking-card">
+      <h3 class="booking-title">Đặt phòng</h3>
+
+      <div class="price-summary">
+        <div class="price-item">
+          <span class="price-label">Giá gốc:</span>
+          <span class="price-value" *ngIf="hotel.original_price">{{ formatPrice(hotel.original_price) }}</span>
+          <span class="price-value" *ngIf="!hotel.original_price">{{ formatPrice(hotel.price) }}</span>
+        </div>
+
+        <div class="price-item discount" *ngIf="hotel.discount">
+          <span class="price-label">Giảm giá ({{ hotel.discount }}%):</span>
+          <span class="price-value">-{{ formatPrice((hotel.original_price || 0) * (hotel.discount || 0) / 100) }}</span>
+        </div>
+
+        <div class="price-divider"></div>
+
+        <div class="price-item total">
+          <span class="price-label">Tổng cộng:</span>
+          <span class="price-value">{{ formatPrice(hotel.price) }}</span>
+        </div>
+      </div>
+
+      <div class="room-availability" *ngIf="hotel.available_rooms !== undefined">
+        <p class="availability-text">
+          <i class="fas fa-bed"></i>
+          Còn {{ hotel.available_rooms }} phòng trống
+        </p>
+      </div>
+
+      <button class="book-button-full" (click)="scrollToRoomDetails()">
+        <i class="fas fa-calendar-check"></i>
+        Đặt phòng ngay
+      </button>
+
+      <div class="booking-policies">
+        <p class="policy-item">
+          <i class="fas fa-check-circle"></i>
+          Miễn phí hủy trong 24h
+        </p>
+        <p class="policy-item">
+          <i class="fas fa-check-circle"></i>
+          Không cần thanh toán trước
+        </p>
+        <p class="policy-item">
+          <i class="fas fa-check-circle"></i>
+          Giá tốt nhất đảm bảo
+        </p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
 
 
 

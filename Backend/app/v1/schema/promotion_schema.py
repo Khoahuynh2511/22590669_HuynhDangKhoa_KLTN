@@ -9,7 +9,6 @@ from datetime import datetime
 
 class PromotionCreate(BaseModel):
     """Schema for creating a new promotion"""
-    name: str = Field(..., description="Tên khuyến mãi (VD: Sale hè 2024)")
     description: Optional[str] = Field(None, description="Mô tả chi tiết khuyến mãi")
     discount_type: Literal["PERCENTAGE",
                            "FIXED_AMOUNT"] = Field(...,
@@ -17,20 +16,19 @@ class PromotionCreate(BaseModel):
     discount_value: float = Field(..., gt=0, description="Giá trị giảm (VD: 10 nếu %, 500000 nếu tiền)")
     start_date: datetime = Field(..., description="Ngày bắt đầu áp dụng")
     end_date: datetime = Field(..., description="Ngày hết hạn")
-    quantity: int = Field(default=5, ge=1, description="Số lượng mã ban đầu")
+    usage_limit: int = Field(default=5, ge=1, description="Số lượng mã ban đầu")
     is_active: bool = Field(default=True, description="Trạng thái kích hoạt")
     # code sẽ được tự động tạo bởi service, không cần truyền vào
 
 
 class PromotionUpdate(BaseModel):
     """Schema for updating a promotion"""
-    name: Optional[str] = Field(None, description="Tên khuyến mãi")
     description: Optional[str] = Field(None, description="Mô tả chi tiết")
     discount_type: Optional[Literal["PERCENTAGE", "FIXED_AMOUNT"]] = Field(None, description="Loại giảm giá")
     discount_value: Optional[float] = Field(None, gt=0, description="Giá trị giảm")
     start_date: Optional[datetime] = Field(None, description="Ngày bắt đầu")
     end_date: Optional[datetime] = Field(None, description="Ngày hết hạn")
-    quantity: Optional[int] = Field(None, ge=1, description="Số lượng mã")
+    usage_limit: Optional[int] = Field(None, ge=1, description="Số lượng mã")
     is_active: Optional[bool] = Field(None, description="Trạng thái kích hoạt")
     code: Optional[str] = Field(None, description="Mã khuyến mãi (8 ký tự)")
 
@@ -38,13 +36,12 @@ class PromotionUpdate(BaseModel):
 class PromotionResponse(BaseModel):
     """Schema for promotion response"""
     promotion_id: UUID
-    name: str
     description: Optional[str]
     discount_type: str
     discount_value: float
     start_date: datetime
     end_date: datetime
-    quantity: int
+    usage_limit: int
     used_count: int
     is_active: bool
     code: str

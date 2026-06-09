@@ -5,7 +5,9 @@ Handles analytics and reporting for bookings and tours
 import logging
 from datetime import datetime, timedelta, date
 from typing import Optional, Dict, Any
-from supabase import Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -13,14 +15,17 @@ logger = logging.getLogger(__name__)
 class ReportService:
     """Service for generating reports and analytics"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize ReportService
+    def __init__(self):
+        """Initialize ReportService"""
+        self.db_url = settings.DATABASE_URL
 
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
+    def _get_conn(self):
+        """Get a new database connection with RealDictCursor"""
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+
+    def _normalize(self, rows):
+        """Convert RealDictRows to list of dicts and handle UUID conversion"""
+        return [{k: str(v) if hasattr(v, 'hex') else v for k, v in dict(r).items()} for r in rows]
 
     def _get_price_range_category(self, price: float) -> str:
         """
@@ -97,7 +102,7 @@ class ReportService:
 
         return (month_start, month_end)
 
-    async def get_revenue_report(
+    def get_revenue_report(
         self,
         period_type: str,
         start_date: Optional[date] = None,
@@ -134,19 +139,26 @@ class ReportService:
                     start_date = date(year, month, 1)
 
             # Fetch all bookings in the date range (exclude cancelled only)
-            response = self.supabase.table('bookings')\
-                .select('booking_id, total_amount, created_at, status')\
-                .gte('created_at', start_date.isoformat())\
-                .lte('created_at', end_date.isoformat())\
-                .neq('status', 'cancelled')\
-                .execute()
-
-            bookings = response.data if response.data else []
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT booking_id, total_amount, created_at, status
+                        FROM bookings
+                        WHERE created_at >= %s
+                        AND created_at <= %s
+                        AND status != 'cancelled'
+                        ORDER BY created_at
+                    """, (start_date, end_date))
+                    bookings = self._normalize(cur.fetchall())
 
             # Group by period
             periods = {}
             for booking in bookings:
-                created_at = datetime.fromisoformat(booking['created_at'].replace('Z', '+00:00')).date()
+                raw_created = booking['created_at']
+                if isinstance(raw_created, str):
+                    created_at = datetime.fromisoformat(raw_created.replace('Z', '+00:00')).date()
+                else:
+                    created_at = raw_created.date() if hasattr(raw_created, 'date') else raw_created
 
                 if period_type == "week":
                     period_start, period_end = self._get_week_boundaries(created_at)
@@ -193,7 +205,7 @@ class ReportService:
                 "total_bookings": 0
             }
 
-    async def get_people_stats_by_price_range(
+    def get_people_stats_by_price_range(
         self,
         period_type: str,
         target_date: Optional[date] = None
@@ -221,18 +233,33 @@ class ReportService:
 
             # Fetch bookings with tour package info
             # Note: period_end needs to include the entire day (23:59:59)
-            period_end_inclusive = f"{period_end.isoformat()}T23:59:59.999999"
+            period_end_inclusive = datetime.combine(period_end, datetime.max.time())
 
-            logger.info(f"Querying bookings from {period_start.isoformat()} to {period_end_inclusive}")
+            logger.info(f"Querying bookings from {period_start.isoformat()} to {period_end_inclusive.isoformat()}")
 
-            response = self.supabase.table('bookings')\
-                .select('booking_id, package_id, number_of_people, total_amount, created_at, status, tour_packages(package_id, package_name, destination, price)')\
-                .gte('created_at', period_start.isoformat())\
-                .lte('created_at', period_end_inclusive)\
-                .neq('status', 'cancelled')\
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        SELECT
+                            b.booking_id,
+                            b.package_id,
+                            b.number_of_people,
+                            b.total_amount,
+                            b.created_at,
+                            b.status,
+                            tp.package_id as tour_package_id,
+                            tp.package_name,
+                            tp.destination,
+                            tp.price
+                        FROM bookings b
+                        INNER JOIN tour_packages tp ON b.package_id = tp.package_id
+                        WHERE b.created_at >= %s
+                        AND b.created_at <= %s
+                        AND b.status != 'cancelled'
+                        ORDER BY b.created_at
+                    """, (period_start, period_end_inclusive))
+                    bookings = self._normalize(cur.fetchall())
 
-            bookings = response.data if response.data else []
             logger.info(f"Found {len(bookings)} bookings in period")
 
             # Initialize stats for each price range
@@ -256,13 +283,12 @@ class ReportService:
 
             # Process bookings
             for booking in bookings:
-                if not booking.get('tour_packages'):
-                    logger.warning(f"Booking {booking.get('booking_id')} has no tour_packages data")
+                if not booking.get('tour_package_id'):
+                    logger.warning(f"Booking {booking.get('booking_id')} has no tour package data")
                     continue
 
-                package = booking['tour_packages']
-                price = float(package['price'])
-                package_id = str(package['package_id'])
+                price = float(booking['price'])
+                package_id = str(booking['tour_package_id'])
 
                 # Determine price range
                 price_range = self._get_price_range_category(price)
@@ -316,3 +342,8 @@ class ReportService:
                 "total_people_all_ranges": 0,
                 "total_bookings_all_ranges": 0
             }
+
+
+def get_report_service():
+    """Dependency function to get ReportService instance"""
+    return ReportService()
