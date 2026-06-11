@@ -13,25 +13,9 @@
         <p class="text-blue-200 text-sm">So sánh giá từ nhiều hãng bay — Đặt vé dễ dàng, nhanh chóng</p>
       </div>
 
-      <!-- Trip Type Toggle -->
-      <div class="flex justify-center gap-3 mb-6">
-        <button type="button"
-          (click)="tripType = 'round-trip'"
-          [ngClass]="tripType === 'round-trip' ? 'bg-white text-blue-700 shadow-md' : 'bg-white/10 text-white'"
-          class="px-5 py-2 rounded-full font-medium transition-all border border-white/30 text-sm">
-          Kh&#7913; h&#7891;i
-        </button>
-        <button type="button"
-          (click)="tripType = 'one-way'"
-          [ngClass]="tripType === 'one-way' ? 'bg-white text-blue-700 shadow-md' : 'bg-white/10 text-white'"
-          class="px-5 py-2 rounded-full font-medium transition-all border border-white/30 text-sm">
-          M&#7897;t chi&#7873;u
-        </button>
-      </div>
-
       <!-- Search Form -->
       <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-5xl mx-auto">
-        <div class="ticket-search-form" [class.ticket-search-form--wide]="tripType === 'round-trip'">
+        <div class="ticket-search-form">
           <div class="ticket-search-field">
             <label class="ticket-search-label">Sân bay đi</label>
             <select [(ngModel)]="departure" class="ticket-search-select">
@@ -59,16 +43,20 @@
           </div>
 
           <div class="ticket-search-field">
-            <label class="ticket-search-label">Ngày đi</label>
-            <input type="date" [(ngModel)]="departureDate" class="ticket-search-input" />
-          </div>
-
-          @if (tripType === 'round-trip') {
-            <div class="ticket-search-field">
-              <label class="ticket-search-label">Ngày về</label>
-              <input type="date" [(ngModel)]="returnDate" class="ticket-search-input" />
+            <label class="ticket-search-label">Ngày đi <span class="ticket-search-required">*</span></label>
+            <div class="ticket-search-date">
+              <input type="date"
+                [(ngModel)]="departureDate"
+                [min]="minDate"
+                required
+                class="ticket-search-input"
+                [class.ticket-search-input--error]="dateFieldError === 'departure'"
+                (ngModelChange)="dateFieldError = ''" />
+              <span class="ticket-search-date-trigger" aria-hidden="true">
+                <i class="far fa-calendar-alt"></i>
+              </span>
             </div>
-          }
+          </div>
 
           <div class="ticket-search-field">
             <label class="ticket-search-label">Hành khách</label>

@@ -25,15 +25,18 @@
         <span class="font-medium">Số người:</span> {{ numberOfPeople }} người
       </p>
       <p class="text-gray-600 text-sm">
-        <span class="font-medium">Giá mỗi người:</span> {{ formatPrice(tourPackage.price) }}
+        <span class="font-medium">Giá mỗi người:</span> {{ formatPrice(resolvedUnitPrice) }}
       </p>
     </div>
 
     <!-- Total Price -->
-    <div class="border-t border-gray-200 pt-4">
+    <div class="border-t border-gray-200 pt-4 space-y-2">
+      <div class="flex justify-between items-center text-sm text-gray-600">
+        <span>{{ numberOfPeople }} người x {{ formatPrice(resolvedUnitPrice) }}</span>
+      </div>
       <div class="flex justify-between items-center">
         <span class="text-gray-600">Tổng giá:</span>
-        <p class="text-xl font-bold text-orange-500">{{ formatPrice(tourPackage.price * numberOfPeople) }}</p>
+        <p class="text-xl font-bold text-orange-500">{{ formatPrice(totalPrice) }}</p>
       </div>
     </div>
   </div>

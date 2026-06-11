@@ -5,7 +5,8 @@ Handles OTP generation, storage, email sending, and verification
 import logging
 import random
 import json
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone, timedelta
+from typing import Optional, Dict, Any, Tuple
 import redis
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
@@ -340,3 +341,10 @@ def get_otp_service() -> OTPService:
     if _otp_service is None:
         _otp_service = OTPService()
     return _otp_service
+
+
+def get_otp_db_timestamps() -> Tuple[datetime, datetime]:
+    """Return created_at and expires_at for otp_verifications inserts."""
+    created_at = datetime.now(timezone.utc)
+    expires_at = created_at + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+    return created_at, expires_at

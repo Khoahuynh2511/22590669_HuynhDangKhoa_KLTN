@@ -25,7 +25,6 @@ from dotenv import load_dotenv
 load_dotenv(project_root / ".env")
 
 import psycopg2
-from psycopg2.extras import execute_values
 
 from scripts.activity_seed_extra import EXTRA_ACTIVITIES
 
@@ -639,7 +638,7 @@ def seed_activities(conn):
     print(f"Total skipped (already exists): {total_skipped}")
 
     # Summary
-    print(f"\nSummary by destination:")
+    print("\nSummary by destination:")
     for dest in sorted(all_activities.keys()):
         cur.execute(
             "SELECT COUNT(*) FROM activity_packages WHERE destination = %s AND is_active = TRUE",

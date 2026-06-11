@@ -4,7 +4,6 @@ Qwen2.5-32B for complex tool calling on A100 40GB with vLLM
 import json
 import os
 import subprocess
-from typing import Any
 
 import aiohttp
 import modal

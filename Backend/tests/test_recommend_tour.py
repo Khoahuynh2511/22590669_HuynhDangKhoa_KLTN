@@ -3,7 +3,7 @@ Unit tests for Tour Package Recommend Endpoint
 Tests for recommendation functionality based on expiring tours and user preferences from Mem0
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from fastapi import HTTPException
 from datetime import datetime, timezone, timedelta
 import logging

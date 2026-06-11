@@ -4,7 +4,6 @@ Pydantic models for trip planning API requests and responses.
 """
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 
 
 class TripPlanRequest(BaseModel):

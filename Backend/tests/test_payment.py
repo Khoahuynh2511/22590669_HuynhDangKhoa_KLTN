@@ -2,7 +2,7 @@
 Test cases for Payment Service and VNPay Integration
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, Mock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 from datetime import datetime, timezone
 import hmac
@@ -966,7 +966,7 @@ class TestPaymentEndpoints:
         """Test GET /my-payments endpoint successfully"""
         from app.v1.api.endpoints.payments import get_my_payments
         
-        user_id = mock_current_user["user_id"]
+        mock_current_user["user_id"]
         booking_id = str(uuid4())
         
         # Mock bookings query

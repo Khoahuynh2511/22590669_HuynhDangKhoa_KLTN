@@ -443,14 +443,20 @@ export class TourService {
 
   async searchTourPackages(request: TourPackageSearchRequest): Promise<TourPackageSearchResponse> {
     try {
-      console.log('Searching tour packages with hybrid search:', request);
+      const payload: TourPackageSearchRequest = {
+        ...request,
+        q: request.q?.trim() || 'tour du lich',
+        limit: Math.max(1, Math.min(50, request.limit ?? 10))
+      };
+
+      console.log('Searching tour packages with hybrid search:', payload);
       
       const response = await fetch(`${this.apiBaseUrl}/tour-packages/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify(payload)
       });
       
       if (!response.ok) {

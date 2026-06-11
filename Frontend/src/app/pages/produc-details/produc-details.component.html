@@ -275,7 +275,7 @@
       <!-- Sticky Booking Sidebar -->
       <aside class="tour-booking-sidebar">
         <div class="booking-card">
-          <p class="booking-label">Giá bắt đầu từ</p>
+          <p class="booking-label">Giá mỗi người</p>
           <div class="booking-price-row">
             <span class="booking-price">{{ formatPrice(getDiscountedPrice(tour)) }}</span>
             <span class="booking-original" *ngIf="tour.discount && tour.original_price">
@@ -284,7 +284,32 @@
           </div>
           <p class="booking-duration">cho {{ tour.duration_days }} ngày</p>
 
-          <button type="button" class="booking-btn" (click)="onBookTour()" [disabled]="tour.is_active === false">
+          <div class="booking-people-field">
+            <label class="booking-people-label" for="bookingPeople">Số lượng khách</label>
+            <div class="booking-people-stepper">
+              <button type="button" class="stepper-btn" (click)="decreaseBookingPeople()" [disabled]="bookingPeople <= 1">-</button>
+              <input
+                id="bookingPeople"
+                type="number"
+                class="stepper-input"
+                [ngModel]="bookingPeople"
+                (ngModelChange)="onBookingPeopleChange($event)"
+                min="1"
+                [max]="tour.available_slots || 999" />
+              <button type="button" class="stepper-btn" (click)="increaseBookingPeople()" [disabled]="!canIncreaseBookingPeople()">+</button>
+            </div>
+            @if (tour.available_slots !== undefined) {
+              <p class="booking-slots">Còn {{ tour.available_slots }} chỗ</p>
+            }
+          </div>
+
+          <div class="booking-total-row">
+            <span class="booking-total-label">Tổng tạm tính</span>
+            <span class="booking-total-value">{{ formatPrice(getBookingTotalPrice()) }}</span>
+          </div>
+          <p class="booking-total-note">{{ bookingPeople }} người x {{ formatPrice(getDiscountedPrice(tour)) }}</p>
+
+          <button type="button" class="booking-btn" (click)="onBookTour()" [disabled]="tour.is_active === false || tour.available_slots === 0">
             Đặt tour ngay
           </button>
 

@@ -6,12 +6,12 @@ Uses Render PostgreSQL via psycopg2
 import logging
 import random
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
-from .otp_service import get_otp_service
+from .otp_service import get_otp_service, get_otp_db_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class FlightBookingService:
 
                     # Generate and store OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
 
                     try:
                         cur.execute(
@@ -102,7 +102,7 @@ class FlightBookingService:
                                (booking_id, otp_code, email, is_verified, expires_at, created_at)
                                VALUES (%s, %s, %s, FALSE, %s, %s)
                                RETURNING otp_id""",
-                            (booking_id, otp_code, passenger_email, expires_at, now)
+                            (booking_id, otp_code, passenger_email, otp_expires_at, otp_created_at)
                         )
                         if not cur.fetchone():
                             conn.rollback()
@@ -247,14 +247,12 @@ class FlightBookingService:
 
                     # Generate new OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    now = datetime.now(timezone.utc).isoformat()
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
-
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
                     cur.execute(
                         """INSERT INTO otp_verifications
                            (booking_id, otp_code, email, is_verified, expires_at, created_at)
                            VALUES (%s, %s, %s, FALSE, %s, %s)""",
-                        (booking_id, otp_code, passenger_email, expires_at, now)
+                        (booking_id, otp_code, passenger_email, otp_expires_at, otp_created_at)
                     )
 
                     # Get flight name for email

@@ -8,7 +8,6 @@ from psycopg2.extras import RealDictCursor
 from fastapi import UploadFile
 from app.v1.core.config import settings
 from app.v1.core.cloudinary_config import CloudinaryConfig
-import json
 import logging
 
 

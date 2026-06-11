@@ -228,8 +228,8 @@ BEGIN
     otp_generated := LPAD((RANDOM() * 999999)::INTEGER::TEXT, 6, '0');
 
     -- Create OTP
-    INSERT INTO otp_verifications (booking_id, user_id, otp_code, phone_number)
-    VALUES (new_booking_id, user_id_val, otp_generated, user_phone);
+    INSERT INTO otp_verifications (booking_id, user_id, otp_code, phone_number, expires_at)
+    VALUES (new_booking_id, user_id_val, otp_generated, user_phone, CURRENT_TIMESTAMP + INTERVAL '5 minutes');
 
     -- Update slots
     UPDATE tour_packages SET available_slots = available_slots - num_people WHERE package_id = package_id_param;

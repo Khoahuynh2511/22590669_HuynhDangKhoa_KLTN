@@ -40,6 +40,30 @@ export interface MyFlightBooking {
   created_at: string;
 }
 
+export interface FlightBookingDetail {
+  booking_id: string;
+  status: string;
+  passenger_name: string;
+  passenger_phone: string;
+  passenger_email: string | null;
+  seat_class: string;
+  num_passengers: number;
+  total_price: number;
+  created_at: string;
+  updated_at: string;
+  flight: {
+    flight_id: string;
+    flight_number: string;
+    airline: { name: string; logo_url: string };
+    departure_airport: string;
+    arrival_airport: string;
+    departure_time: string;
+    arrival_time: string;
+    duration_minutes: number;
+    aircraft: string;
+  } | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -86,6 +110,13 @@ export class FlightBookingService {
   getMyBookings(): Observable<{ EC: number; EM: string; data: MyFlightBooking[]; total: number }> {
     return this.http.get<{ EC: number; EM: string; data: MyFlightBooking[]; total: number }>(
       `${this.apiBaseUrl}/my-bookings`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getBookingDetail(bookingId: string): Observable<{ EC: number; EM: string; data: FlightBookingDetail }> {
+    return this.http.get<{ EC: number; EM: string; data: FlightBookingDetail }>(
+      `${this.apiBaseUrl}/my-bookings/${bookingId}`,
       { headers: this.getHeaders() }
     );
   }

@@ -8,6 +8,11 @@ import { AuthStateService } from '../../services/auth-state.service';
 import { PromotionService, Promotion } from '../../services/promotion.service';
 import { OtpPopupComponent } from '../../shared/otp-popup/otp-popup.component';
 import { CommonModule } from '@angular/common';
+import {
+  calculateTourSubtotal,
+  clampTourPeopleCount,
+  getTourUnitPrice
+} from '../../shared/utils/tour-price.util';
 
 @Component({
   selector: 'app-booking-pages',
@@ -50,6 +55,7 @@ export class BookingPagesComponent implements OnInit {
   selectedPromotion: Promotion | null = null;
   isLoadingPromotions = false;
   discountAmount = 0;
+  unitPrice = 0;
 
   priceBreakdown: PriceBreakdown = {
     roomDescription: '',
@@ -76,6 +82,14 @@ export class BookingPagesComponent implements OnInit {
       }
     });
 
+    this.route.queryParams.subscribe(queryParams => {
+      const people = parseInt(queryParams['people'], 10);
+      if (!Number.isNaN(people) && people >= 1) {
+        this.numberOfPeople = people;
+        this.updatePriceBreakdown();
+      }
+    });
+
     this.authStateService.currentUser$.subscribe(user => {
       this.currentUser = user;
       if (user) {
@@ -94,6 +108,10 @@ export class BookingPagesComponent implements OnInit {
       const response = await this.tourService.getTourPackageById(this.packageId);
       if (response.EC === 0 && response.package) {
         this.tourPackage = response.package;
+        this.numberOfPeople = clampTourPeopleCount(
+          this.numberOfPeople,
+          this.tourPackage.available_slots
+        );
         this.updatePriceBreakdown();
       } else {
         this.errorMessage = response.EM || 'Không thể tải thông tin tour';
@@ -108,10 +126,9 @@ export class BookingPagesComponent implements OnInit {
 
   updatePriceBreakdown(): void {
     if (this.tourPackage) {
-      const basePrice = this.tourPackage.price || 0;
-      const totalPrice = basePrice * this.numberOfPeople;
+      this.unitPrice = getTourUnitPrice(this.tourPackage);
+      const totalPrice = calculateTourSubtotal(this.tourPackage, this.numberOfPeople);
 
-      // Calculate discount if promotion is applied
       let finalPrice = totalPrice;
       if (this.selectedPromotion) {
         if (this.selectedPromotion.discount_type === 'PERCENTAGE') {
@@ -131,6 +148,21 @@ export class BookingPagesComponent implements OnInit {
         totalPrice: finalPrice,
       };
     }
+  }
+
+  decreaseNumberOfPeople(): void {
+    this.onNumberOfPeopleChange(this.numberOfPeople - 1);
+  }
+
+  increaseNumberOfPeople(): void {
+    this.onNumberOfPeopleChange(this.numberOfPeople + 1);
+  }
+
+  canIncreaseNumberOfPeople(): boolean {
+    if (!this.tourPackage?.available_slots) {
+      return true;
+    }
+    return this.numberOfPeople < this.tourPackage.available_slots;
   }
 
   loadAvailablePromotions(): void {
@@ -160,42 +192,15 @@ export class BookingPagesComponent implements OnInit {
   }
 
   onNumberOfPeopleInput(event: any): void {
-    let value = parseInt(event.target.value, 10);
-    
-    // Handle empty or invalid input
-    if (isNaN(value) || value < 1) {
-      value = 1;
-    }
-    
-    // Enforce max value (available slots)
-    if (this.tourPackage?.available_slots !== undefined && this.tourPackage.available_slots > 0) {
-      if (value > this.tourPackage.available_slots) {
-        value = this.tourPackage.available_slots;
-      }
-    }
-    
-    // Update the value immediately
-    this.numberOfPeople = value;
-    event.target.value = value;
-    this.cdr.detectChanges();
-    
-    this.updatePriceBreakdown();
+    const value = parseInt(event.target.value, 10);
+    this.onNumberOfPeopleChange(Number.isNaN(value) ? 1 : value);
+    event.target.value = this.numberOfPeople;
   }
 
-  onNumberOfPeopleChange(): void {
-    // Enforce min value (1)
-    if (this.numberOfPeople < 1) {
-      this.numberOfPeople = 1;
-    }
-    
-    // Enforce max value (available slots)
-    if (this.tourPackage?.available_slots !== undefined && this.tourPackage.available_slots > 0) {
-      if (this.numberOfPeople > this.tourPackage.available_slots) {
-        this.numberOfPeople = this.tourPackage.available_slots;
-      }
-    }
-    
+  onNumberOfPeopleChange(value: number): void {
+    this.numberOfPeople = clampTourPeopleCount(value, this.tourPackage?.available_slots);
     this.updatePriceBreakdown();
+    this.cdr.detectChanges();
   }
 
   onPhoneNumberInput(event: any): void {

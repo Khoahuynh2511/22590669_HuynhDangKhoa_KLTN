@@ -4,7 +4,6 @@ Following hotel_booking_schema.py pattern
 """
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
-from datetime import datetime
 
 
 class TrainBookingCreate(BaseModel):

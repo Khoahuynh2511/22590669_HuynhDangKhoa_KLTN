@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { TrainService, Train, TrainStation } from '../../services/train.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { paginateSlice } from '../../shared/utils/pagination.util';
+import { getMinSearchDate, validateSearchDepartureDate } from '../../shared/utils/date-search.util';
 
 export type { Train };
 
@@ -39,6 +40,8 @@ export class TrainsComponent implements OnInit {
   totalResults = 0;
 
   sortBy: 'price' | 'departure' | 'duration' = 'price';
+  minDate = getMinSearchDate();
+  dateFieldError: 'departure' | '' = '';
 
   popularRoutes = [
     { from: 'HNO', to: 'SGO', fromCity: 'Hà Nội', toCity: 'TP. Hồ Chí Minh', duration: '33h', price: 800000 },
@@ -76,13 +79,22 @@ export class TrainsComponent implements OnInit {
       return;
     }
 
+    const departureDateError = validateSearchDepartureDate(this.departureDate);
+    if (departureDateError) {
+      this.errorMessage = departureDateError;
+      this.dateFieldError = 'departure';
+      this.hasSearched = true;
+      return;
+    }
+
     this.isSearching = true;
     this.hasSearched = true;
     this.errorMessage = '';
+    this.dateFieldError = '';
     this.currentPage = 1;
 
     try {
-      const res = await this.trainService.searchTrains(this.departure, this.destination, this.departureDate || undefined, 20);
+      const res = await this.trainService.searchTrains(this.departure, this.destination, this.departureDate, 20);
       if (res.EC === 0 && res.data) {
         this.allSearchResults = res.data.trains;
         this.totalResults = res.data.total ?? res.data.trains.length;
@@ -128,6 +140,9 @@ export class TrainsComponent implements OnInit {
   selectRoute(route: any) {
     this.departure = route.from;
     this.destination = route.to;
+    if (!this.departureDate) {
+      this.departureDate = this.minDate;
+    }
     this.onSearch();
   }
 

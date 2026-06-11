@@ -1,4 +1,3 @@
-import re
 
 # ==== FIX 1: review_service.py - is_approved -> status ====
 with open('app/v1/services/review_service.py', 'r', encoding='utf-8') as f:

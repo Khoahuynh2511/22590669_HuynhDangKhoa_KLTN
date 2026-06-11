@@ -4,14 +4,11 @@ Interactive booking collection và management
 """
 from fastmcp import FastMCP
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime
 import logging
-import random
 from app.v1.core.supabase import get_supabase_client
-from app.v1.services.otp_service import get_otp_service
 from app.v1.services.payment_service import PaymentService
 from app.v1.services.booking_service import BookingService
-from app.v1.core.config import settings
 from app.v1.services.agent_services.utils.ui_generator import generate_payment_button_html
 from pydantic import ValidationError
 from app.v1.mcp.src.schema import (

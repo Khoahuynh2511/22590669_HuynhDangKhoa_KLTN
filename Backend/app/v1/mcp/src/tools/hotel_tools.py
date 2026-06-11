@@ -5,7 +5,7 @@ Su du lieu tu PostgreSQL database
 
 from fastmcp import FastMCP
 from typing import Dict, Any, Optional
-from datetime import datetime, date
+from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.v1.core.config import settings
@@ -77,7 +77,7 @@ class HotelMCPService:
                     hotels = [dict(row) for row in cur.fetchall()]
 
             if not hotels:
-                return f"Khong tim thay khach san" + (f" tai {location}" if location else "") + "."
+                return "Khong tim thay khach san" + (f" tai {location}" if location else "") + "."
 
             loc_text = f" tai {location}" if location else ""
             result = f"\U0001f3e8 KET QUA TIM KIEM KHACH SAN{loc_text}\n"
@@ -172,7 +172,7 @@ class HotelMCPService:
                         (num_rooms, hotel_id))
                     conn.commit()
 
-            result = f"✅ DAT PHONG THANH CONG!\n"
+            result = "✅ DAT PHONG THANH CONG!\n"
             result += "=" * 40 + "\n"
             result += f"\U0001f4cb Ma dat phong: {booking_id}\n"
             result += f"\U0001f3e8 Khach san: {hotel['hotel_name']}\n"
@@ -185,7 +185,7 @@ class HotelMCPService:
             result += f"\U0001f6cf  So phong: {num_rooms}\n"
             result += f"\U0001f465 So khach: {num_guests}\n"
             result += f"\U0001f4b0 Tong tien: {total_price:,.0f} VND ({nights} dem x {num_rooms} phong)\n\n"
-            result += f"⏰ Trang thai: Cho thanh toan\n"
+            result += "⏰ Trang thai: Cho thanh toan\n"
             result += "=" * 40
             return result
 
@@ -207,7 +207,7 @@ class HotelMCPService:
             result += "=" * 40 + "\n\n"
             for loc in locations:
                 result += f"   • {loc}\n"
-            result += f"\n\U0001f4a1 Su dung search_hotels(location='...') de tim kiem"
+            result += "\n\U0001f4a1 Su dung search_hotels(location='...') de tim kiem"
             return result
 
         except Exception as e:

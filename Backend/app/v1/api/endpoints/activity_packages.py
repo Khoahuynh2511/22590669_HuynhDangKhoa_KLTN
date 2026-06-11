@@ -4,7 +4,7 @@ CRUD for activity packages (modular itinerary building blocks).
 """
 import logging
 from fastapi import APIRouter, HTTPException, Query
-from typing import Optional, List
+from typing import Optional
 
 from ...core.supabase import get_supabase_client
 

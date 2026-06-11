@@ -3,11 +3,9 @@ Unit tests for Tour Package Images API Endpoint
 Tests for POST /api/v1/tour-packages/{package_id}/images endpoint
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from fastapi import UploadFile
-from fastapi.exceptions import HTTPException
 from uuid import uuid4
-import io
 import logging
 
 from app.v1.services.tour_package_service import TourPackageService
@@ -163,7 +161,7 @@ async def test_upload_images_append_to_existing(tour_service, sample_package, mo
 async def test_upload_images_replace_existing(tour_service, sample_package, mock_upload_file):
     """Test replacing all existing images (replace_existing=True)"""
     service, mock_table = tour_service
-    package_id = sample_package["package_id"]
+    sample_package["package_id"]
 
     # Upload new images to replace old ones
     images = [
@@ -295,7 +293,7 @@ async def test_upload_images_package_not_found(tour_service, mock_upload_file):
     service, mock_table = tour_service
     package_id = str(uuid4())
 
-    images = [mock_upload_file("img.jpg", "image/jpeg")]
+    [mock_upload_file("img.jpg", "image/jpeg")]
 
     # Mock package not found
     with patch.object(service, 'get_package_by_id', return_value={
@@ -368,7 +366,7 @@ async def test_upload_images_invalid_file_type(tour_service, mock_upload_file):
 async def test_upload_images_cloudinary_upload_fails(tour_service, sample_package, mock_upload_file):
     """Test handling when Cloudinary upload fails"""
     service, mock_table = tour_service
-    package_id = sample_package["package_id"]
+    sample_package["package_id"]
 
     images = [mock_upload_file("img.jpg", "image/jpeg")]
 
@@ -393,7 +391,7 @@ async def test_upload_images_update_package_fails_rollback(tour_service, sample_
     service, mock_table = tour_service
     package_id = sample_package["package_id"]
 
-    images = [mock_upload_file("img.jpg", "image/jpeg")]
+    [mock_upload_file("img.jpg", "image/jpeg")]
     new_urls = ["https://cloudinary.com/new_img.jpg"]
 
     with patch.object(service, 'get_package_by_id', return_value={
@@ -426,7 +424,7 @@ async def test_upload_images_update_package_fails_rollback(tour_service, sample_
 async def test_upload_images_empty_list(tour_service, sample_package):
     """Test uploading with empty image list"""
     service, mock_table = tour_service
-    package_id = sample_package["package_id"]
+    sample_package["package_id"]
 
     images = []
 
@@ -632,7 +630,7 @@ async def test_upload_images_large_files(tour_service, mock_upload_file):
 async def test_replace_existing_images_with_different_count(tour_service, sample_package, mock_upload_file):
     """Test replacing 2 existing images with 5 new images"""
     service, mock_table = tour_service
-    package_id = sample_package["package_id"]
+    sample_package["package_id"]
 
     # Package has 2 images, replace with 5
     assert len(sample_package["image_urls"].split("|")) == 2
@@ -659,7 +657,7 @@ async def test_replace_existing_images_with_different_count(tour_service, sample
 async def test_concurrent_image_uploads(tour_service, sample_package, mock_upload_file):
     """Test handling concurrent image uploads to same package"""
     service, mock_table = tour_service
-    package_id = sample_package["package_id"]
+    sample_package["package_id"]
 
     # Simulate two concurrent upload requests
     images1 = [mock_upload_file("concurrent1.jpg", "image/jpeg")]

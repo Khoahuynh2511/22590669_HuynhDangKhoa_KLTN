@@ -3,18 +3,15 @@ Unit tests for Tour Package Service and Endpoints
 Tests for all CRUD operations and edge cases
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, date, timezone
-from uuid import uuid4, UUID
+from uuid import uuid4
 import logging
-import csv
-import io
 
 from app.v1.services.tour_package_service import TourPackageService
 from app.v1.schema.tour_package_schema import (
     TourPackageCreate,
     TourPackageUpdate,
-    TourPackageResponse,
     TourPackageBulkCreateResponse
 )
 
@@ -1345,7 +1342,7 @@ async def test_add_favorite_status_not_favorited(tour_service, sample_tour_respo
     service, mock_table = tour_service
     
     user_id = str(uuid4())
-    package_id = sample_tour_response["package_id"]
+    sample_tour_response["package_id"]
     
     # Mock favorites query - empty (not favorited)
     mock_favorites_execute = Mock()

@@ -41,6 +41,30 @@ export interface MyBusBooking {
   created_at: string;
 }
 
+export interface BusBookingDetail {
+  booking_id: string;
+  status: string;
+  passenger_name: string;
+  passenger_phone: string;
+  passenger_email: string | null;
+  seat_type: string;
+  num_passengers: number;
+  total_price: number;
+  created_at: string;
+  updated_at: string;
+  bus: {
+    bus_id: string;
+    bus_number: string;
+    bus_type: { name: string };
+    company: { name: string };
+    departure_station: string;
+    arrival_station: string;
+    departure_time: string;
+    arrival_time: string;
+    duration_hours: number;
+  } | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -87,6 +111,13 @@ export class BusBookingService {
   getMyBookings(): Observable<{ EC: number; EM: string; data: MyBusBooking[]; total: number }> {
     return this.http.get<{ EC: number; EM: string; data: MyBusBooking[]; total: number }>(
       `${this.apiBaseUrl}/my-bookings`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getBookingDetail(bookingId: string): Observable<{ EC: number; EM: string; data: BusBookingDetail }> {
+    return this.http.get<{ EC: number; EM: string; data: BusBookingDetail }>(
+      `${this.apiBaseUrl}/my-bookings/${bookingId}`,
       { headers: this.getHeaders() }
     );
   }

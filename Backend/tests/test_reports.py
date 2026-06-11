@@ -2,9 +2,8 @@
 Test Report APIs
 """
 import pytest
-from datetime import date, timedelta
-from httpx import AsyncClient
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import date
+from unittest.mock import MagicMock
 
 
 @pytest.fixture

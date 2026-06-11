@@ -30,6 +30,21 @@
   visibility: hidden;
 }
 
+.ticket-search-required {
+  color: #ef4444;
+}
+
+.ticket-search-input--error,
+.ticket-search-select--error {
+  border-color: #fca5a5;
+  background: #fef2f2;
+
+  &:focus {
+    border-color: #f87171;
+    box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+  }
+}
+
 .ticket-search-input,
 .ticket-search-select {
   width: 100%;
@@ -49,6 +64,51 @@
     background: #fff;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
   }
+}
+
+.ticket-search-date {
+  position: relative;
+
+  .ticket-search-input {
+    padding-right: 44px;
+
+    &::-webkit-calendar-picker-indicator {
+      opacity: 0;
+      position: absolute;
+      right: 0;
+      width: 44px;
+      height: 100%;
+      cursor: pointer;
+    }
+  }
+}
+
+.ticket-search-date-trigger {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  pointer-events: none;
+
+  i {
+    font-size: 15px;
+    line-height: 1;
+  }
+}
+
+.ticket-search-date:focus-within .ticket-search-date-trigger {
+  color: #3b82f6;
 }
 
 .ticket-search-swap {

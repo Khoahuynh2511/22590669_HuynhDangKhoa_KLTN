@@ -5,6 +5,10 @@ import { Router } from '@angular/router';
 import { FlightService, Airport, Flight } from '../../services/flight.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { paginateSlice } from '../../shared/utils/pagination.util';
+import {
+  getMinSearchDate,
+  validateSearchDepartureDate
+} from '../../shared/utils/date-search.util';
 
 @Component({
   selector: 'app-flights',
@@ -14,11 +18,9 @@ import { paginateSlice } from '../../shared/utils/pagination.util';
   styleUrl: './flights.component.scss'
 })
 export class FlightsComponent implements OnInit {
-  tripType: 'one-way' | 'round-trip' = 'round-trip';
   departure = '';
   destination = '';
   departureDate = '';
-  returnDate = '';
   passengers = 1;
 
   airports: Airport[] = [];
@@ -33,6 +35,8 @@ export class FlightsComponent implements OnInit {
   totalResults = 0;
 
   sortBy: 'price' | 'departure' | 'duration' = 'price';
+  minDate = getMinSearchDate();
+  dateFieldError: 'departure' | '' = '';
 
   Math = Math;
 
@@ -74,16 +78,25 @@ export class FlightsComponent implements OnInit {
       return;
     }
 
+    const departureDateError = validateSearchDepartureDate(this.departureDate);
+    if (departureDateError) {
+      this.errorMessage = departureDateError;
+      this.dateFieldError = 'departure';
+      this.hasSearched = true;
+      return;
+    }
+
     this.isSearching = true;
     this.hasSearched = true;
     this.errorMessage = '';
+    this.dateFieldError = '';
     this.currentPage = 1;
 
     try {
       const res = await this.flightService.searchFlights(
         this.departure,
         this.destination,
-        this.departureDate || undefined,
+        this.departureDate,
         20
       );
       if (res.EC === 0 && res.data) {
@@ -131,6 +144,9 @@ export class FlightsComponent implements OnInit {
   selectRoute(route: any) {
     this.departure = route.from;
     this.destination = route.to;
+    if (!this.departureDate) {
+      this.departureDate = this.minDate;
+    }
     this.onSearch();
   }
 

@@ -351,18 +351,24 @@ class TourPackageService:
                 params.append(f"%{destination}%")
 
             where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
-            sql = f"SELECT * FROM tour_packages {where_clause} ORDER BY created_at DESC"
+            count_sql = f"SELECT COUNT(*) AS total FROM tour_packages {where_clause}"
+            list_sql = f"SELECT * FROM tour_packages {where_clause} ORDER BY created_at DESC"
 
+            list_params = list(params)
             if limit:
-                sql += " LIMIT %s"
-                params.append(limit)
+                list_sql += " LIMIT %s"
+                list_params.append(limit)
             if offset:
-                sql += " OFFSET %s"
-                params.append(offset)
+                list_sql += " OFFSET %s"
+                list_params.append(offset)
 
             with self._pg_conn() as conn:
                 with conn.cursor() as cur:
-                    cur.execute(sql, params)
+                    cur.execute(count_sql, params)
+                    count_row = cur.fetchone()
+                    total = int(count_row["total"] if isinstance(count_row, dict) else count_row[0])
+
+                    cur.execute(list_sql, list_params)
                     packages = self._normalize_pg_rows(cur.fetchall())
 
             packages_with_favorite = await self._add_favorite_status(packages, user_id)
@@ -370,7 +376,7 @@ class TourPackageService:
             return {
                 "EC": 0,
                 "EM": "Successfully retrieved tour packages",
-                "total": len(packages_with_favorite),
+                "total": total,
                 "packages": packages_with_favorite
             }
 
@@ -712,7 +718,7 @@ class TourPackageService:
                 with conn.cursor() as cur:
                     # Build INSERT statement dynamically
                     columns = list(package_data.keys())
-                    placeholders = [f"%s" for _ in columns]
+                    placeholders = ["%s" for _ in columns]
                     values = [package_data[col] for col in columns]
 
                     cur.execute(
@@ -922,7 +928,7 @@ class TourPackageService:
                         with conn.cursor() as cur:
                             # Build INSERT statement dynamically
                             columns = list(package_data.keys())
-                            placeholders = [f"%s" for _ in columns]
+                            placeholders = ["%s" for _ in columns]
                             values = [package_data[col] for col in columns]
 
                             cur.execute(

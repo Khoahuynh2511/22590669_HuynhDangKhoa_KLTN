@@ -20,7 +20,6 @@ from ...schema.review_schema import (
 )
 from ...services.review_service import ReviewService
 from ...services.booking_management_service import BookingManagementService
-from ...core.supabase import get_supabase_client
 from ...core.dependencies import get_current_user, get_current_admin
 from ...schema.booking_schema import MyBookingListResponse
 

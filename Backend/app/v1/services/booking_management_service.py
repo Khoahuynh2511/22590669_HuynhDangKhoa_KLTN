@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
+from ..core.datetime_utils import to_json_value
 
 logger = logging.getLogger(__name__)
 
@@ -104,12 +105,12 @@ class BookingManagementService:
                         "package_id": str(booking['package_id']) if booking['package_id'] else None,
                         "tour_name": booking.get('package_name', 'Unknown Tour'),
                         "destination": booking.get('destination', 'Unknown'),
-                        "start_date": booking.get('start_date'),
-                        "end_date": booking.get('end_date'),
+                        "start_date": to_json_value(booking.get('start_date')),
+                        "end_date": to_json_value(booking.get('end_date')),
                         "number_of_people": booking['number_of_people'],
                         "total_amount": float(booking['total_amount']),
                         "status": booking['status'],
-                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                        "created_at": to_json_value(booking.get('created_at'))
                     })
 
                 return {
@@ -184,8 +185,8 @@ class BookingManagementService:
                         "destination": row.get('destination'),
                         "description": row.get('description'),
                         "duration_days": row.get('duration_days'),
-                        "start_date": row.get('start_date'),
-                        "end_date": row.get('end_date'),
+                        "start_date": to_json_value(row.get('start_date')),
+                        "end_date": to_json_value(row.get('end_date')),
                         "price": float(row.get('price', 0)) if row.get('price') else 0,
                         "image_urls": row.get('image_urls')
                     }
@@ -199,8 +200,8 @@ class BookingManagementService:
                     "contact_name": row['contact_name'],
                     "contact_phone": row['contact_phone'],
                     "special_requests": row.get('special_requests'),
-                    "created_at": row['created_at'].isoformat() if row['created_at'] else None,
-                    "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
+                    "created_at": to_json_value(row.get('created_at')),
+                    "updated_at": to_json_value(row.get('updated_at')),
                     "tour_package": tour_package_info
                 }
 
@@ -313,11 +314,11 @@ class BookingManagementService:
                         "user_full_name": user_full_name,
                         "tour_name": booking.get('package_name', 'Unknown Tour'),
                         "destination": booking.get('destination', 'Unknown'),
-                        "start_date": booking.get('start_date'),
+                        "start_date": to_json_value(booking.get('start_date')),
                         "number_of_people": booking['number_of_people'],
                         "total_amount": float(booking['total_amount']),
                         "status": booking['status'],
-                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                        "created_at": to_json_value(booking.get('created_at'))
                     })
 
                 return {
@@ -412,11 +413,11 @@ class BookingManagementService:
                         "user_id": user_id,  # Include user_id for admin
                         "tour_name": booking.get('package_name', 'Unknown Tour'),
                         "destination": booking.get('destination', 'Unknown'),
-                        "start_date": booking.get('start_date'),
+                        "start_date": to_json_value(booking.get('start_date')),
                         "number_of_people": booking['number_of_people'],
                         "total_amount": float(booking['total_amount']),
                         "status": booking['status'],
-                        "created_at": booking['created_at'].isoformat() if booking['created_at'] else None
+                        "created_at": to_json_value(booking.get('created_at'))
                     })
 
                 return {
@@ -489,8 +490,8 @@ class BookingManagementService:
                         "destination": row.get('destination'),
                         "description": row.get('description'),
                         "duration_days": row.get('duration_days'),
-                        "start_date": row.get('start_date'),
-                        "end_date": row.get('end_date'),
+                        "start_date": to_json_value(row.get('start_date')),
+                        "end_date": to_json_value(row.get('end_date')),
                         "price": float(row.get('price', 0)) if row.get('price') else 0,
                         "image_urls": row.get('image_urls')
                     }
@@ -504,8 +505,8 @@ class BookingManagementService:
                     "contact_name": row['contact_name'],
                     "contact_phone": row['contact_phone'],
                     "special_requests": row.get('special_requests'),
-                    "created_at": row['created_at'].isoformat() if row['created_at'] else None,
-                    "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
+                    "created_at": to_json_value(row.get('created_at')),
+                    "updated_at": to_json_value(row.get('updated_at')),
                     "tour_package": tour_package_info
                 }
 
@@ -645,14 +646,14 @@ class BookingManagementService:
                         "contact_email": cancel.get('contact_email'),
                         "special_requests": cancel.get('special_requests'),
                         "previous_status": cancel.get('booking_status'),
-                        "booking_created_at": cancel.get('booking_created_at'),
+                        "booking_created_at": to_json_value(cancel.get('booking_created_at')),
                         # Cancellation info
                         "reason": cancel.get('reason'),
-                        "cancelled_at": cancel.get('created_at'),
+                        "cancelled_at": to_json_value(cancel.get('created_at')),
                         "cancelled_by": str(cancel.get('cancelled_by')) if cancel.get('cancelled_by') else None,
                         "refund_amount": float(cancel.get('refund_amount', 0)) if cancel.get('refund_amount') else 0,
                         "refund_status": cancel.get('refund_status'),
-                        "created_at": cancel.get('created_at')
+                        "created_at": to_json_value(cancel.get('created_at'))
                     })
 
                 return {

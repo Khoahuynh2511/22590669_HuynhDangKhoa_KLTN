@@ -3,7 +3,7 @@ Unit tests for Authentication Service and Endpoints
 Tests for registration and login functionality
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
@@ -17,7 +17,6 @@ from app.v1.schema.auth_schema import (
     VerifyTokenRequest,
     RegisterResponse,
     LoginResponse,
-    VerifyTokenResponse,
     AdminRegisterRequest,
     AdminLoginRequest
 )
@@ -44,7 +43,6 @@ def mock_supabase_client():
 @pytest.fixture
 def auth_service(mock_supabase_client):
     """Create AuthService instance with mocked Supabase client"""
-    from app.v1.core.config import settings
     client, _ = mock_supabase_client
     # Use real settings from .env instead of hardcoded values
     service = AuthService(client)
@@ -1450,7 +1448,6 @@ class TestAdminAuthEndpoints:
     async def test_register_admin_endpoint_success(self, mock_supabase_client):
         """Test POST /admin/register endpoint - success"""
         logger.info("🧪 TEST: Admin Register Endpoint - Success")
-        from app.v1.api.endpoints.auth import register_admin
         from app.v1.services.auth_service import AuthService
         
         client, mock_table = mock_supabase_client
@@ -1493,7 +1490,6 @@ class TestAdminAuthEndpoints:
     async def test_register_admin_endpoint_email_exists(self, mock_supabase_client):
         """Test POST /admin/register endpoint - email exists"""
         logger.info("🧪 TEST: Admin Register Endpoint - Email Exists")
-        from app.v1.api.endpoints.auth import register_admin
         from app.v1.services.auth_service import AuthService
         
         client, mock_table = mock_supabase_client
@@ -1524,7 +1520,6 @@ class TestAdminAuthEndpoints:
     async def test_login_admin_endpoint_success(self, mock_supabase_client):
         """Test POST /admin/login endpoint - success"""
         logger.info("🧪 TEST: Admin Login Endpoint - Success")
-        from app.v1.api.endpoints.auth import login_admin
         from app.v1.services.auth_service import AuthService
         
         client, mock_table = mock_supabase_client
@@ -1563,7 +1558,6 @@ class TestAdminAuthEndpoints:
     async def test_login_admin_endpoint_not_admin(self, mock_supabase_client):
         """Test POST /admin/login endpoint - user is not admin"""
         logger.info("🧪 TEST: Admin Login Endpoint - Not Admin")
-        from app.v1.api.endpoints.auth import login_admin
         from app.v1.services.auth_service import AuthService
         
         client, mock_table = mock_supabase_client
@@ -1600,7 +1594,6 @@ class TestAdminAuthEndpoints:
     async def test_login_admin_endpoint_wrong_credentials(self, mock_supabase_client):
         """Test POST /admin/login endpoint - wrong credentials"""
         logger.info("🧪 TEST: Admin Login Endpoint - Wrong Credentials")
-        from app.v1.api.endpoints.auth import login_admin
         from app.v1.services.auth_service import AuthService
         
         client, mock_table = mock_supabase_client

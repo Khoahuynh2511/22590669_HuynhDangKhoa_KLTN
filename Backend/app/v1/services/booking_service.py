@@ -10,7 +10,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
 from .promotion_service import PromotionService
-from .otp_service import get_otp_service
+from .otp_service import get_otp_service, get_otp_db_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -744,6 +744,7 @@ class BookingService:
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
                     # 5. Store OTP in database
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
                     otp_data = {
                         "booking_id": booking_id,
                         "otp_code": otp_code,
@@ -752,9 +753,16 @@ class BookingService:
 
                     try:
                         cur.execute(
-                            """INSERT INTO otp_verifications (booking_id, otp_code, email)
-                               VALUES (%s, %s, %s)""",
-                            (otp_data['booking_id'], otp_data['otp_code'], otp_data['email'])
+                            """INSERT INTO otp_verifications
+                               (booking_id, otp_code, email, is_verified, expires_at, created_at)
+                               VALUES (%s, %s, %s, FALSE, %s, %s)""",
+                            (
+                                otp_data['booking_id'],
+                                otp_data['otp_code'],
+                                otp_data['email'],
+                                otp_expires_at,
+                                otp_created_at
+                            )
                         )
                         conn.commit()
                     except Exception as e:
@@ -1171,7 +1179,6 @@ class BookingService:
                             "data": None
                         }
 
-                    contact_phone = booking['contact_phone']
                     contact_email = booking.get('contact_email')
 
                     # 2. Validate email exists
@@ -1189,17 +1196,24 @@ class BookingService:
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
                     # 5. Store new OTP (with email)
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
                     otp_data = {
                         "booking_id": booking_id,
                         "otp_code": otp_code,
                         "email": contact_email,
-                        "created_at": datetime.now(timezone.utc)
                     }
 
                     cur.execute(
-                        """INSERT INTO otp_verifications (booking_id, otp_code, email, created_at)
-                           VALUES (%s, %s, %s, %s)""",
-                        (otp_data['booking_id'], otp_data['otp_code'], otp_data['email'], otp_data['created_at'])
+                        """INSERT INTO otp_verifications
+                           (booking_id, otp_code, email, is_verified, expires_at, created_at)
+                           VALUES (%s, %s, %s, FALSE, %s, %s)""",
+                        (
+                            otp_data['booking_id'],
+                            otp_data['otp_code'],
+                            otp_data['email'],
+                            otp_expires_at,
+                            otp_created_at
+                        )
                     )
                     conn.commit()
 

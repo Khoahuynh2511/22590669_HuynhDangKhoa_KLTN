@@ -2,7 +2,7 @@
 Hotel Service - Public CRUD cho khach san
 Su dung psycopg2 truc tiep
 """
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.v1.core.config import settings

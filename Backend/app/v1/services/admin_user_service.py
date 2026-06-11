@@ -8,7 +8,6 @@ import bcrypt
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone
 
 from ..core.config import settings
 
@@ -97,7 +96,7 @@ class AdminUserService:
                     }
                     order = order_map.get(sort, "b.created_at DESC")
 
-                    data_sql = f"""
+                    data_sql = """
                         SELECT b.booking_id, b.user_id, b.package_id, b.number_of_people,
                                b.total_amount, b.status, b.created_at,
                                tp.package_name, tp.start_date, tp.end_date

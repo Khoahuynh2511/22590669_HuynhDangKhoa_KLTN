@@ -301,7 +301,7 @@ async def test_update_promotion_success(promotion_service, mock_supabase, sample
     assert result["EC"] == 0
     assert result["EM"] == "Promotion updated successfully"
     assert result["promotion"]["discount_value"] == 20
-    assert result["promotion"]["is_active"] == False
+    assert not result["promotion"]["is_active"]
 
 
 @pytest.mark.asyncio

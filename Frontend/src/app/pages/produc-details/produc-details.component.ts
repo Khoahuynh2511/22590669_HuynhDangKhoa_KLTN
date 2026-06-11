@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HotelService } from '../../services/hotel.service';
 import { TourService } from '../../services/tour.service';
@@ -11,6 +12,11 @@ import {
   splitDescriptionByDays as splitDescriptionByDaysUtil,
   truncateDescription
 } from '../../shared/utils/text-format.util';
+import {
+  calculateTourSubtotal,
+  clampTourPeopleCount,
+  getTourUnitPrice
+} from '../../shared/utils/tour-price.util';
 import { firstValueFrom } from 'rxjs';
 
 interface Hotel {
@@ -49,7 +55,7 @@ interface Room {
 
 @Component({
   selector: 'app-produc-details',
-  imports: [CommonModule, TourCardComponent],
+  imports: [CommonModule, FormsModule, TourCardComponent],
   templateUrl: './produc-details.component.html',
   styleUrl: './produc-details.component.scss'
 })
@@ -63,6 +69,7 @@ export class ProducDetailsComponent implements OnInit {
   currentTourId: string | null = null;
   isDescriptionExpanded = false;
   descriptionMaxLength = 500;
+  bookingPeople = 1;
 
   hotel: Hotel = {
     name: 'Bukit Vipassana Hotel',
@@ -167,6 +174,8 @@ export class ProducDetailsComponent implements OnInit {
         return;
       }
 
+      this.bookingPeople = clampTourPeopleCount(this.bookingPeople, this.tour.available_slots);
+
       await this.loadRelatedTours();
     } catch (error: any) {
       console.error('Error loading tour:', error);
@@ -269,10 +278,33 @@ export class ProducDetailsComponent implements OnInit {
   }
 
   getDiscountedPrice(tour: Tour): number {
-    if (tour.discount && tour.original_price) {
-      return tour.original_price * (1 - tour.discount / 100);
+    return getTourUnitPrice(tour);
+  }
+
+  getBookingTotalPrice(): number {
+    if (!this.tour) {
+      return 0;
     }
-    return tour.price;
+    return calculateTourSubtotal(this.tour, this.bookingPeople);
+  }
+
+  onBookingPeopleChange(value: number): void {
+    this.bookingPeople = clampTourPeopleCount(value, this.tour?.available_slots);
+  }
+
+  decreaseBookingPeople(): void {
+    this.onBookingPeopleChange(this.bookingPeople - 1);
+  }
+
+  increaseBookingPeople(): void {
+    this.onBookingPeopleChange(this.bookingPeople + 1);
+  }
+
+  canIncreaseBookingPeople(): boolean {
+    if (!this.tour?.available_slots) {
+      return true;
+    }
+    return this.bookingPeople < this.tour.available_slots;
   }
 
   formatDate(dateString: string | undefined): string {
@@ -361,7 +393,9 @@ export class ProducDetailsComponent implements OnInit {
 
   onBookTour(): void {
     if (this.tour) {
-      this.router.navigate(['/booking', this.tour.package_id]);
+      this.router.navigate(['/booking', this.tour.package_id], {
+        queryParams: { people: this.bookingPeople }
+      });
     }
   }
 

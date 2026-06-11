@@ -1,9 +1,43 @@
 .booking-pages {
-  padding-top: 100px; // Account for fixed header height
+  padding-top: calc(var(--app-header-offset, 140px) + 16px);
 
   input {
     background-color: white;
     color: black;
+  }
+
+  .people-stepper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .stepper-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  }
+
+  .stepper-input {
+    flex: 1;
+    min-width: 0;
+    height: 40px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 600;
   }
 
   .m-w31 {

@@ -6,12 +6,13 @@ Uses Render PostgreSQL via psycopg2
 import logging
 import random
 import uuid
-from datetime import datetime, timezone, timedelta, date
-from typing import Optional, Dict, Any
+from datetime import datetime, timezone, date
+from typing import Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
-from .otp_service import get_otp_service
+from ..core.datetime_utils import to_json_value
+from .otp_service import get_otp_service, get_otp_db_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class HotelBookingService:
 
                     # Generate and store OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
 
                     try:
                         cur.execute(
@@ -103,7 +104,7 @@ class HotelBookingService:
                                (booking_id, otp_code, email, is_verified, expires_at, created_at)
                                VALUES (%s, %s, %s, FALSE, %s, %s)
                                RETURNING otp_id""",
-                            (booking_id, otp_code, guest_email, expires_at, now)
+                            (booking_id, otp_code, guest_email, otp_expires_at, otp_created_at)
                         )
                         if not cur.fetchone():
                             conn.rollback()
@@ -257,14 +258,12 @@ class HotelBookingService:
 
                     # Generate new OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    now = datetime.now(timezone.utc).isoformat()
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
-
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
                     cur.execute(
                         """INSERT INTO otp_verifications
                            (booking_id, otp_code, email, is_verified, expires_at, created_at)
                            VALUES (%s, %s, %s, FALSE, %s, %s)""",
-                        (booking_id, otp_code, guest_email, expires_at, now)
+                        (booking_id, otp_code, guest_email, otp_expires_at, otp_created_at)
                     )
 
                     conn.commit()
@@ -310,14 +309,14 @@ class HotelBookingService:
                             "booking_id": row['booking_id'],
                             "hotel_name": row.get('hotel_name', 'N/A'),
                             "location": row.get('location', ''),
-                            "check_in": row['check_in'],
-                            "check_out": row['check_out'],
+                            "check_in": to_json_value(row.get('check_in')),
+                            "check_out": to_json_value(row.get('check_out')),
                             "num_rooms": row['num_rooms'],
                             "num_guests": row['num_guests'],
                             "total_price": float(row['total_price']),
                             "status": row['status'],
                             "image_urls": row.get('image_urls'),
-                            "created_at": row['created_at']
+                            "created_at": to_json_value(row.get('created_at'))
                         })
 
             return {"EC": 0, "EM": "Success", "data": bookings, "total": len(bookings)}

@@ -847,7 +847,7 @@ async def test_get_user_bookings_empty_tour_package_list(booking_management_serv
 async def test_get_user_booking_detail_wrong_user(booking_management_service, mock_supabase):
     """Test getting booking detail with wrong user_id (should return not found)"""
     booking_id = str(uuid4())
-    correct_user_id = str(uuid4())
+    str(uuid4())
     wrong_user_id = str(uuid4())
     
     # Mock returns empty because user_id doesn't match

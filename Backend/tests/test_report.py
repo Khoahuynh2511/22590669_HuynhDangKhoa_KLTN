@@ -1,8 +1,6 @@
 """
 Test Report Service
 """
-import pytest
-from datetime import date
 
 
 def test_price_range_logic_explanation():

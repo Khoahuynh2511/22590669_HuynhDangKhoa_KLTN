@@ -40,6 +40,29 @@ export interface MyTrainBooking {
   created_at: string;
 }
 
+export interface TrainBookingDetail {
+  booking_id: string;
+  status: string;
+  passenger_name: string;
+  passenger_phone: string;
+  passenger_email: string | null;
+  seat_type: string;
+  num_passengers: number;
+  total_price: number;
+  created_at: string;
+  updated_at: string;
+  train: {
+    train_id: string;
+    train_number: string;
+    train_type: { name: string };
+    departure_station: string;
+    arrival_station: string;
+    departure_time: string;
+    arrival_time: string;
+    duration_hours: number;
+  } | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -86,6 +109,13 @@ export class TrainBookingService {
   getMyBookings(): Observable<{ EC: number; EM: string; data: MyTrainBooking[]; total: number }> {
     return this.http.get<{ EC: number; EM: string; data: MyTrainBooking[]; total: number }>(
       `${this.apiBaseUrl}/my-bookings`,
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getBookingDetail(bookingId: string): Observable<{ EC: number; EM: string; data: TrainBookingDetail }> {
+    return this.http.get<{ EC: number; EM: string; data: TrainBookingDetail }>(
+      `${this.apiBaseUrl}/my-bookings/${bookingId}`,
       { headers: this.getHeaders() }
     );
   }

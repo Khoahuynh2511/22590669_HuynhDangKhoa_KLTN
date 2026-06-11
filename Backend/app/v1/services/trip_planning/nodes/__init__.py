@@ -1,4 +1,4 @@
-"""
+﻿"""
 Trip Planning Nodes
 Node functions for the 6-step trip planning static workflow.
 
@@ -11,12 +11,10 @@ Each node:
 """
 import json
 import logging
-import random
 import re
 from typing import Dict, Any, Optional
 
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-from langchain_openai import ChatOpenAI
 
 from app.v1.services.trip_planning.state.trip_plan_state import TripPlanState
 from app.v1.services.agent_services.config import agent_config
@@ -28,7 +26,7 @@ logger = logging.getLogger(__name__)
 # === Destination → Airport/Station mapping ===
 DESTINATION_AIRPORTS = {
     "đà lạt": "DLI", "da lat": "DLI",
-    "nha trang": "CXR", "nha trang": "CXR",
+    "nha trang": "CXR",
     "đà nẵng": "DAD", "da nang": "DAD",
     "phú quốc": "PQC", "phu quoc": "PQC",
     "sapa": "HAN", "sa pa": "HAN",  # Sapa → fly to Hanoi
@@ -1097,7 +1095,6 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
         # Check if user confirms checkout
         confirm_kw = ["thanh toán", "pay", "xác nhận", "ok", "oke", "đồng ý", "chốt"]
         if not any(kw in last_user_msg.lower() for kw in confirm_kw):
-            itinerary = state.get("confirmed_itinerary", state.get("suggested_itinerary", {}))
             dest = state.get("destination", "")
             days = state.get("duration_days", 0)
             size = state.get("group_size", 1)

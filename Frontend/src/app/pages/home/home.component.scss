@@ -383,6 +383,55 @@
   }
 }
 
+.scroll-nav-btn {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  color: #3b82f6;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition: opacity 0.25s ease, transform 0.25s ease, background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+
+  i {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  &:hover:not(.is-disabled):not(:disabled) {
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    color: #ffffff;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  &:active:not(.is-disabled):not(:disabled) {
+    transform: translateY(-50%) scale(0.98);
+  }
+
+  &.scroll-nav-prev {
+    left: 4px;
+  }
+
+  &.scroll-nav-next {
+    right: 4px;
+  }
+
+  &.is-disabled,
+  &:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 .tours-scroll {
   display: flex;
   gap: 24px;
@@ -639,6 +688,11 @@
     margin: 0 -20px;
     padding: 0 20px;
     width: calc(100% + 40px);
+
+    .scroll-nav-btn {
+      width: 40px;
+      height: 40px;
+    }
   }
 
   .tour-card-wrapper {
@@ -678,6 +732,19 @@
     &::before,
     &::after {
       width: 40px;
+    }
+
+    .scroll-nav-btn {
+      width: 36px;
+      height: 36px;
+
+      &.scroll-nav-prev {
+        left: 0;
+      }
+
+      &.scroll-nav-next {
+        right: 0;
+      }
     }
   }
 
@@ -732,6 +799,15 @@
     &::before,
     &::after {
       width: 30px;
+    }
+
+    .scroll-nav-btn {
+      width: 32px;
+      height: 32px;
+
+      i {
+        font-size: 12px;
+      }
     }
   }
 

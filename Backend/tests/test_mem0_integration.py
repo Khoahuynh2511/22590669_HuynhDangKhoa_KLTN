@@ -3,7 +3,6 @@ Test Mem0 Integration
 Verify user isolation and thread-safety
 """
 import asyncio
-import os
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -191,7 +190,7 @@ async def main():
         print("Please set MEM0_API_KEY in .env file")
         return
     
-    print(f"✅ Mem0 client initialized")
+    print("✅ Mem0 client initialized")
     
     try:
         # await test_user_isolation()

@@ -3,7 +3,7 @@ Unit tests for Tour Package Search Endpoint
 Tests for hybrid search functionality (semantic + keyword + filters)
 """
 import pytest
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
+from unittest.mock import Mock, AsyncMock, patch
 from fastapi import HTTPException
 import logging
 

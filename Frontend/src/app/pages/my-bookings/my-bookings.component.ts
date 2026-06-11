@@ -8,7 +8,12 @@ import { PaymentService, PaymentData } from '../../services/payment.service';
 import { TrainBookingService } from '../../services/train-booking.service';
 import { BusBookingService } from '../../services/bus-booking.service';
 import { FlightBookingService } from '../../services/flight-booking.service';
-import { HotelBookingService } from '../../services/hotel-booking.service';
+import { HotelBookingService, HotelBookingDetail } from '../../services/hotel-booking.service';
+import { FlightBookingDetail } from '../../services/flight-booking.service';
+import { BusBookingDetail } from '../../services/bus-booking.service';
+import { TrainBookingDetail } from '../../services/train-booking.service';
+
+type TransportBookingDetail = FlightBookingDetail | BusBookingDetail | TrainBookingDetail | HotelBookingDetail;
 
 @Component({
   selector: 'app-my-bookings',
@@ -33,6 +38,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
 
   showDetailModal = false;
   bookingDetail: MyBookingDetail | null = null;
+  transportDetail: TransportBookingDetail | null = null;
   isLoadingDetail = false;
   detailErrorMessage = '';
   paymentInfo: PaymentData | null = null;
@@ -64,6 +70,13 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     confirmed: 0,
     cancelled: 0,
     completed: 0
+  };
+
+  transportStats = {
+    total: 0,
+    active: 0,
+    pending: 0,
+    totalSpent: 0
   };
 
   // Store all bookings for stats calculation
@@ -158,6 +171,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
         if (response.EC === 0) {
           this.transportBookings = response.data || [];
           this.total = response.total || 0;
+          this.calculateTransportStats();
         } else {
           this.errorMessage = response.EM || 'Có lỗi xảy ra khi tải danh sách đặt chỗ';
           this.transportBookings = [];
@@ -176,11 +190,8 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   // Cancel transport booking (train/bus/flight/hotel)
   cancelTransportBooking(bookingId: string | null): void {
     if (!bookingId) return;
-    if (!confirm('Bạn có chắc chắn muốn hủy đặt chỗ này?')) {
-      return;
-    }
 
-    this.isLoading = true;
+    this.isDeleting = true;
     this.errorMessage = '';
 
     let serviceCall: any;
@@ -199,24 +210,28 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
         serviceCall = this.hotelBookingService.cancelBooking(bookingId);
         break;
       default:
-        this.isLoading = false;
+        this.isDeleting = false;
         return;
     }
 
     serviceCall.subscribe({
       next: (response: any) => {
         if (response.EC === 0) {
-          // Refresh the transport bookings list
+          this.showDeleteConfirm = false;
+          this.bookingToDelete = null;
+          if (this.showDetailModal) {
+            this.closeDetailModal();
+          }
           this.loadTransportBookings();
         } else {
           this.errorMessage = response.EM || 'Không thể hủy đặt chỗ';
         }
-        this.isLoading = false;
+        this.isDeleting = false;
       },
       error: (error: any) => {
         console.error(`Error cancelling ${this.activeTab} booking:`, error);
         this.errorMessage = 'Có lỗi xảy ra khi hủy đặt chỗ. Vui lòng thử lại sau.';
-        this.isLoading = false;
+        this.isDeleting = false;
       }
     });
   }
@@ -304,6 +319,30 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     this.stats.confirmed = this.allBookings.filter(b => b.status === 'confirmed').length;
     this.stats.cancelled = this.allBookings.filter(b => b.status === 'cancelled').length;
     this.stats.completed = this.allBookings.filter(b => b.status === 'completed').length;
+  }
+
+  calculateTransportStats(): void {
+    this.transportStats.total = this.transportBookings.length;
+    this.transportStats.pending = this.transportBookings.filter(
+      b => b.status === 'pending' || b.status === 'otp_sent'
+    ).length;
+    this.transportStats.active = this.transportBookings.filter(
+      b => b.status === 'confirmed' || b.status === 'completed'
+    ).length;
+    this.transportStats.totalSpent = this.transportBookings
+      .filter(b => b.status === 'confirmed' || b.status === 'completed')
+      .reduce((sum, b) => sum + (b.total_price || 0), 0);
+  }
+
+  getActiveTabLabel(): string {
+    const labels: Record<string, string> = {
+      tour: 'Tour',
+      train: 'Tàu hỏa',
+      bus: 'Xe khách',
+      flight: 'Máy bay',
+      hotel: 'Khách sạn'
+    };
+    return labels[this.activeTab] || 'Đơn hàng';
   }
 
   calculateTotalSpent(): number {
@@ -404,10 +443,16 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   }
 
   openDetailModal(bookingId: string): void {
+    if (this.isTransportTab()) {
+      this.openTransportDetailModal(bookingId);
+      return;
+    }
+
     this.showDetailModal = true;
     this.isLoadingDetail = true;
     this.detailErrorMessage = '';
     this.bookingDetail = null;
+    this.transportDetail = null;
     this.paymentInfo = null;
 
     this.bookingService.getMyBookingDetail(bookingId).subscribe({
@@ -422,6 +467,50 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error loading booking detail:', error);
+        this.detailErrorMessage = 'Không thể tải chi tiết đơn hàng. Vui lòng thử lại sau.';
+        this.isLoadingDetail = false;
+      }
+    });
+  }
+
+  openTransportDetailModal(bookingId: string): void {
+    this.showDetailModal = true;
+    this.isLoadingDetail = true;
+    this.detailErrorMessage = '';
+    this.bookingDetail = null;
+    this.transportDetail = null;
+    this.paymentInfo = null;
+
+    let serviceCall: any;
+    switch (this.activeTab) {
+      case 'flight':
+        serviceCall = this.flightBookingService.getBookingDetail(bookingId);
+        break;
+      case 'bus':
+        serviceCall = this.busBookingService.getBookingDetail(bookingId);
+        break;
+      case 'train':
+        serviceCall = this.trainBookingService.getBookingDetail(bookingId);
+        break;
+      case 'hotel':
+        serviceCall = this.hotelBookingService.getBookingDetail(bookingId);
+        break;
+      default:
+        this.isLoadingDetail = false;
+        return;
+    }
+
+    serviceCall.subscribe({
+      next: (response: any) => {
+        if (response.EC === 0) {
+          this.transportDetail = response.data;
+        } else {
+          this.detailErrorMessage = response.EM || 'Không thể tải chi tiết đơn hàng';
+        }
+        this.isLoadingDetail = false;
+      },
+      error: (error: any) => {
+        console.error('Error loading transport detail:', error);
         this.detailErrorMessage = 'Không thể tải chi tiết đơn hàng. Vui lòng thử lại sau.';
         this.isLoadingDetail = false;
       }
@@ -447,8 +536,102 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   closeDetailModal(): void {
     this.showDetailModal = false;
     this.bookingDetail = null;
+    this.transportDetail = null;
     this.detailErrorMessage = '';
     this.paymentInfo = null;
+  }
+
+  formatTime(dateString: string): string {
+    if (!dateString) return '--:--';
+    const date = new Date(dateString);
+    return new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+
+  formatDurationMinutes(minutes: number | null | undefined): string {
+    if (!minutes) return '';
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0 && m > 0) return `${h}g ${m}p`;
+    if (h > 0) return `${h} giờ`;
+    return `${m} phút`;
+  }
+
+  formatDurationHours(hours: number | null | undefined): string {
+    if (!hours) return '';
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    if (h > 0 && m > 0) return `${h}g ${m}p`;
+    if (h > 0) return `${h} giờ`;
+    return `${m} phút`;
+  }
+
+  getUnitPrice(total: number, quantity: number): number {
+    if (!quantity) return total;
+    return Math.round(total / quantity);
+  }
+
+  getSeatClassLabel(seatClass: string): string {
+    const labels: Record<string, string> = {
+      economy: 'Phổ thông',
+      business: 'Thương gia',
+      first: 'Hạng nhất'
+    };
+    return labels[seatClass] || seatClass;
+  }
+
+  getTransportTypeLabel(): string {
+    const labels: Record<string, string> = {
+      flight: 'Vé máy bay',
+      bus: 'Vé xe khách',
+      train: 'Vé tàu hỏa',
+      hotel: 'Đặt phòng khách sạn'
+    };
+    return labels[this.activeTab] || 'Đơn hàng';
+  }
+
+  getTransportThemeClass(): string {
+    const themes: Record<string, string> = {
+      flight: 'theme-flight',
+      bus: 'theme-bus',
+      train: 'theme-train',
+      hotel: 'theme-hotel'
+    };
+    return themes[this.activeTab] || '';
+  }
+
+  getHotelNights(checkIn: string, checkOut: string): number {
+    if (!checkIn || !checkOut) return 0;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diff = Math.abs(end.getTime() - start.getTime());
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  }
+
+  asFlightDetail(): FlightBookingDetail | null {
+    return this.activeTab === 'flight' ? (this.transportDetail as FlightBookingDetail) : null;
+  }
+
+  asBusDetail(): BusBookingDetail | null {
+    return this.activeTab === 'bus' ? (this.transportDetail as BusBookingDetail) : null;
+  }
+
+  asTrainDetail(): TrainBookingDetail | null {
+    return this.activeTab === 'train' ? (this.transportDetail as TrainBookingDetail) : null;
+  }
+
+  asHotelDetail(): HotelBookingDetail | null {
+    return this.activeTab === 'hotel' ? (this.transportDetail as HotelBookingDetail) : null;
+  }
+
+  canCancelTransport(status: string): boolean {
+    return status === 'confirmed' || status === 'otp_sent';
+  }
+
+  printTransportBill(): void {
+    window.print();
   }
 
   formatDateTime(dateString: string): string {

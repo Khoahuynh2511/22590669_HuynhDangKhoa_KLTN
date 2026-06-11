@@ -36,13 +36,33 @@
       </div>
       } @else if (featuredTours.length > 0) {
       <div class="tours-scroll-container">
-        <div class="tours-scroll">
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-prev"
+          [class.is-disabled]="!canScrollPrev(featuredScroll)"
+          [attr.aria-hidden]="!canScrollPrev(featuredScroll)"
+          [disabled]="!canScrollPrev(featuredScroll)"
+          (click)="scrollTourSection(featuredScroll, 'prev')"
+          aria-label="Xem tour trước">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="tours-scroll" #featuredScroll (scroll)="onTourScroll()">
           @for (tour of getDisplayedFeaturedTours(); track tour.package_id) {
           <div class="tour-card-wrapper">
             <app-tour-card [tour]="tour"></app-tour-card>
           </div>
           }
         </div>
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-next"
+          [class.is-disabled]="!canScrollNext(featuredScroll)"
+          [attr.aria-hidden]="!canScrollNext(featuredScroll)"
+          [disabled]="!canScrollNext(featuredScroll)"
+          (click)="scrollTourSection(featuredScroll, 'next')"
+          aria-label="Xem tour tiếp theo">
+          <i class="fas fa-chevron-right"></i>
+        </button>
       </div>
       } @else {
       <div class="empty-state">
@@ -84,13 +104,33 @@
       </div>
       } @else if (recommendedTours.length > 0) {
       <div class="tours-scroll-container">
-        <div class="tours-scroll">
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-prev"
+          [class.is-disabled]="!canScrollPrev(recommendedScroll)"
+          [attr.aria-hidden]="!canScrollPrev(recommendedScroll)"
+          [disabled]="!canScrollPrev(recommendedScroll)"
+          (click)="scrollTourSection(recommendedScroll, 'prev')"
+          aria-label="Xem tour trước">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="tours-scroll" #recommendedScroll (scroll)="onTourScroll()">
           @for (tour of getDisplayedRecommendedTours(); track tour.package_id) {
           <div class="tour-card-wrapper">
             <app-tour-card [tour]="tour"></app-tour-card>
           </div>
           }
         </div>
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-next"
+          [class.is-disabled]="!canScrollNext(recommendedScroll)"
+          [attr.aria-hidden]="!canScrollNext(recommendedScroll)"
+          [disabled]="!canScrollNext(recommendedScroll)"
+          (click)="scrollTourSection(recommendedScroll, 'next')"
+          aria-label="Xem tour tiếp theo">
+          <i class="fas fa-chevron-right"></i>
+        </button>
       </div>
       } @else {
       <div class="empty-state">
@@ -132,13 +172,33 @@
       </div>
       } @else if (latestTours.length > 0) {
       <div class="tours-scroll-container">
-        <div class="tours-scroll">
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-prev"
+          [class.is-disabled]="!canScrollPrev(latestScroll)"
+          [attr.aria-hidden]="!canScrollPrev(latestScroll)"
+          [disabled]="!canScrollPrev(latestScroll)"
+          (click)="scrollTourSection(latestScroll, 'prev')"
+          aria-label="Xem tour trước">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <div class="tours-scroll" #latestScroll (scroll)="onTourScroll()">
           @for (tour of getDisplayedLatestTours(); track tour.package_id) {
           <div class="tour-card-wrapper">
             <app-tour-card [tour]="tour"></app-tour-card>
           </div>
           }
         </div>
+        <button
+          type="button"
+          class="scroll-nav-btn scroll-nav-next"
+          [class.is-disabled]="!canScrollNext(latestScroll)"
+          [attr.aria-hidden]="!canScrollNext(latestScroll)"
+          [disabled]="!canScrollNext(latestScroll)"
+          (click)="scrollTourSection(latestScroll, 'next')"
+          aria-label="Xem tour tiếp theo">
+          <i class="fas fa-chevron-right"></i>
+        </button>
       </div>
       } @else {
       <div class="empty-state">

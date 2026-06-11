@@ -19,8 +19,29 @@ export class HotelCardComponent {
 
   constructor(private router: Router, private decimalPipe: DecimalPipe) { }
 
-  toDetail(param: any) {
-    this.router.navigate(['hotel/detail', this.hotel.hotel_id])
+  toDetail(_param?: string): void {
+    this.router.navigate(['hotel/detail', this.hotel.hotel_id]);
+  }
+
+  onSelectClick(event: Event): void {
+    event.stopPropagation();
+    this.toDetail();
+  }
+
+  getReviewLabel(): string {
+    const score = this.hotel?.review_score ?? 0;
+    if (score >= 9) return 'Tuyệt vời';
+    if (score >= 8) return 'Rất tốt';
+    if (score >= 7) return 'Tốt';
+    return 'Bình thường';
+  }
+
+  getReviewClass(): string {
+    const score = this.hotel?.review_score ?? 0;
+    if (score >= 9) return 'review-excellent';
+    if (score >= 8) return 'review-very-good';
+    if (score >= 7) return 'review-good';
+    return 'review-normal';
   }
 
   formatPrice(price: number): string {

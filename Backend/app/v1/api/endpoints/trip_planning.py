@@ -8,7 +8,7 @@ import json
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
-from ...schema.trip_planning_schema import TripPlanRequest, TripPlanStartRequest, TripPlanStateResponse
+from ...schema.trip_planning_schema import TripPlanRequest, TripPlanStartRequest
 from ...services.trip_planning import trip_planning_graph
 from ...services.trip_planning.nodes import get_step_suggestions
 from ...services.chat_room_service import ChatRoomService

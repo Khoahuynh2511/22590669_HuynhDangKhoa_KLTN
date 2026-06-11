@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { BusService, Bus, BusStation } from '../../services/bus.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { paginateSlice } from '../../shared/utils/pagination.util';
+import { getMinSearchDate, validateSearchDepartureDate } from '../../shared/utils/date-search.util';
 
 @Component({
   selector: 'app-buses',
@@ -31,6 +32,8 @@ export class BusesComponent implements OnInit {
   totalResults = 0;
 
   sortBy: 'price' | 'departure' | 'duration' = 'price';
+  minDate = getMinSearchDate();
+  dateFieldError: 'departure' | '' = '';
 
   popularRoutes = [
     { from: 'BXSG', to: 'BXHN', fromCity: 'TP. Hồ Chí Minh', toCity: 'Hà Nội', duration: '36h', price: 650000 },
@@ -68,13 +71,22 @@ export class BusesComponent implements OnInit {
       return;
     }
 
+    const departureDateError = validateSearchDepartureDate(this.departureDate);
+    if (departureDateError) {
+      this.errorMessage = departureDateError;
+      this.dateFieldError = 'departure';
+      this.hasSearched = true;
+      return;
+    }
+
     this.isSearching = true;
     this.hasSearched = true;
     this.errorMessage = '';
+    this.dateFieldError = '';
     this.currentPage = 1;
 
     try {
-      const res = await this.busService.searchBuses(this.departure, this.destination, this.departureDate || undefined, 20);
+      const res = await this.busService.searchBuses(this.departure, this.destination, this.departureDate, 20);
       if (res.EC === 0 && res.data) {
         this.allSearchResults = res.data.buses;
         this.totalResults = res.data.total ?? res.data.buses.length;
@@ -120,6 +132,9 @@ export class BusesComponent implements OnInit {
   selectRoute(route: any) {
     this.departure = route.from;
     this.destination = route.to;
+    if (!this.departureDate) {
+      this.departureDate = this.minDate;
+    }
     this.onSearch();
   }
 

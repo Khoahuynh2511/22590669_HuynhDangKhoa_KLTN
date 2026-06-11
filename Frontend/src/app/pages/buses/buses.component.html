@@ -43,8 +43,19 @@
           </div>
 
           <div class="ticket-search-field">
-            <label class="ticket-search-label">Ngày đi</label>
-            <input type="date" [(ngModel)]="departureDate" class="ticket-search-input" />
+            <label class="ticket-search-label">Ngày đi <span class="ticket-search-required">*</span></label>
+            <div class="ticket-search-date">
+              <input type="date"
+                [(ngModel)]="departureDate"
+                [min]="minDate"
+                required
+                class="ticket-search-input"
+                [class.ticket-search-input--error]="dateFieldError === 'departure'"
+                (ngModelChange)="dateFieldError = ''" />
+              <span class="ticket-search-date-trigger" aria-hidden="true">
+                <i class="far fa-calendar-alt"></i>
+              </span>
+            </div>
           </div>
 
           <div class="ticket-search-field">

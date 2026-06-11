@@ -3,7 +3,7 @@ Unit tests for Admin User Service
 Tests all methods with comprehensive edge cases
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from uuid import uuid4
 from datetime import datetime, timezone
 

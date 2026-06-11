@@ -1,4 +1,6 @@
-import psycopg2, sys, json
+import psycopg2
+import sys
+import json
 sys.stdout.reconfigure(encoding='utf-8')
 from psycopg2.extras import RealDictCursor
 from app.v1.core.config import settings

@@ -64,7 +64,15 @@ export class ToursComponent implements OnInit {
   }
 
   private applyRouteParams(params: Record<string, any>): void {
-    this.searchParams = params as TourSearchParams;
+    this.searchParams = {
+      destination: params['destination'] || undefined,
+      departure_location: params['departure_location'] || undefined,
+      price_min: params['price_min'] ? Number(params['price_min']) : undefined,
+      price_max: params['price_max'] ? Number(params['price_max']) : undefined,
+      duration_min: params['duration_min'] ? Number(params['duration_min']) : undefined,
+      duration_max: params['duration_max'] ? Number(params['duration_max']) : undefined,
+      category: params['category'] || undefined,
+    };
     this.queryText = params['q'] || '';
     this.maxPrice = params['max_price'] ? Number(params['max_price']) : undefined;
     this.duration = params['duration'] ? Number(params['duration']) : undefined;
@@ -91,8 +99,13 @@ export class ToursComponent implements OnInit {
       this.isSearchMode = hasSearchCriteria;
 
       if (hasSearchCriteria) {
+        const searchQuery =
+          this.queryText?.trim() ||
+          this.searchParams.destination?.trim() ||
+          'tour du lich';
+
         const searchRequest: TourPackageSearchRequest = {
-          q: this.queryText || undefined,
+          q: searchQuery,
           max_price: this.maxPrice ?? this.searchParams.price_max,
           duration: this.duration ?? this.searchParams.duration_min,
           destination: this.searchParams.destination,

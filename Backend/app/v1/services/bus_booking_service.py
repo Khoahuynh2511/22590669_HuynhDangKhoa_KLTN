@@ -6,12 +6,13 @@ Uses Render PostgreSQL via psycopg2
 import logging
 import random
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Dict, Any
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
-from .otp_service import get_otp_service
+from ..core.datetime_utils import to_json_value
+from .otp_service import get_otp_service, get_otp_db_timestamps
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,7 @@ class BusBookingService:
 
                     # Generate and store OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
 
                     try:
                         cur.execute(
@@ -104,7 +105,7 @@ class BusBookingService:
                                (booking_id, otp_code, email, is_verified, expires_at, created_at)
                                VALUES (%s, %s, %s, FALSE, %s, %s)
                                RETURNING otp_id""",
-                            (booking_id, otp_code, passenger_email, expires_at, now)
+                            (booking_id, otp_code, passenger_email, otp_expires_at, otp_created_at)
                         )
                         if not cur.fetchone():
                             conn.rollback()
@@ -250,14 +251,12 @@ class BusBookingService:
 
                     # Generate new OTP
                     otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
-                    now = datetime.now(timezone.utc).isoformat()
-                    expires_at = (datetime.now(timezone.utc) + timedelta(minutes=5)).isoformat()
-
+                    otp_created_at, otp_expires_at = get_otp_db_timestamps()
                     cur.execute(
                         """INSERT INTO otp_verifications
                            (booking_id, otp_code, email, is_verified, expires_at, created_at)
                            VALUES (%s, %s, %s, FALSE, %s, %s)""",
-                        (booking_id, otp_code, passenger_email, expires_at, now)
+                        (booking_id, otp_code, passenger_email, otp_expires_at, otp_created_at)
                     )
 
                     # Get bus name for email
@@ -322,12 +321,12 @@ class BusBookingService:
                             "company_name": company_map.get(row.get('company_id'), 'N/A'),
                             "departure_city": station_map.get(row.get('departure_station'), ''),
                             "arrival_city": station_map.get(row.get('arrival_station'), ''),
-                            "departure_time": row.get('departure_time', ''),
+                            "departure_time": to_json_value(row.get('departure_time')) or '',
                             "seat_type": row.get('seat_type_name', row.get('seat_type_id', '')),
                             "num_passengers": row['num_passengers'],
                             "total_price": float(row['total_price']),
                             "status": row['status'],
-                            "created_at": str(row['created_at']) if row.get('created_at') else ''
+                            "created_at": to_json_value(row.get('created_at')) or ''
                         })
 
             return {"EC": 0, "EM": "Success", "data": bookings, "total": len(bookings)}

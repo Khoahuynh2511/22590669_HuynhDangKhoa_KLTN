@@ -2,7 +2,6 @@
 Script to generate embeddings for tour packages
 """
 import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -13,7 +12,6 @@ sys.path.append(str(project_root))
 from app.v1.core.config import settings
 from app.v1.core.supabase import supabase_client
 from openai import AsyncOpenAI
-import numpy as np
 from typing import List, Dict, Any
 
 

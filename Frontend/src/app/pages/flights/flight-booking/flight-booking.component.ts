@@ -49,9 +49,9 @@ export class FlightBookingComponent implements OnInit {
   totalPrice: number = 0;
 
   seatClassOptions = [
-    { value: 'economy', label: 'Phổ thông', icon: '🪑', desc: 'Ghế tiêu chuẩn, đầy đủ tiện nghi' },
-    { value: 'business', label: 'Thương gia', icon: '💼', desc: 'Ghế rộng hơn, ưu tiên lên máy bay' },
-    { value: 'first_class', label: 'Hạng nhất', icon: '👑', desc: 'Không gian riêng, dịch vụ cao cấp' }
+    { value: 'economy', label: 'Phổ thông', desc: 'Ghế tiêu chuẩn, đầy đủ tiện nghi' },
+    { value: 'business', label: 'Thương gia', desc: 'Ghế rộng hơn, ưu tiên lên máy bay' },
+    { value: 'first_class', label: 'Hạng nhất', desc: 'Không gian riêng, dịch vụ cao cấp' }
   ];
 
   constructor(

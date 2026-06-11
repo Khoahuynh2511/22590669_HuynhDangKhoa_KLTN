@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink, ActivatedRoute, Router } from '@angular/router';
 import { HeroComponent } from '../../components/hero/hero.component';
@@ -44,6 +44,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
   errorMessageRecommended: string | null = null;
   errorMessageLatest: string | null = null;
   errorMessageTravelNews: string | null = null;
+  scrollTick = 0;
 
   private observer?: IntersectionObserver;
 
@@ -55,7 +56,8 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
     private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    private cdr: ChangeDetectorRef
   ) { }
 
   async ngOnInit() {
@@ -125,6 +127,48 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     this.setupScrollAnimations();
+    this.refreshTourScrollStates();
+  }
+
+  scrollTourSection(element: HTMLElement | null | undefined, direction: 'prev' | 'next'): void {
+    if (!element) {
+      return;
+    }
+
+    const card = element.querySelector('.tour-card-wrapper') as HTMLElement | null;
+    const gap = Number.parseInt(getComputedStyle(element).columnGap || getComputedStyle(element).gap, 10) || 24;
+    const scrollAmount = card ? card.offsetWidth + gap : 444;
+
+    element.scrollBy({
+      left: direction === 'next' ? scrollAmount : -scrollAmount,
+      behavior: 'smooth'
+    });
+
+    window.setTimeout(() => this.onTourScroll(), 350);
+  }
+
+  canScrollPrev(element: HTMLElement | null | undefined): boolean {
+    return !!element && element.scrollLeft > 4;
+  }
+
+  canScrollNext(element: HTMLElement | null | undefined): boolean {
+    if (!element) {
+      return false;
+    }
+
+    return element.scrollLeft < element.scrollWidth - element.clientWidth - 4;
+  }
+
+  onTourScroll(): void {
+    this.scrollTick++;
+    this.cdr.markForCheck();
+  }
+
+  private refreshTourScrollStates(): void {
+    requestAnimationFrame(() => {
+      this.scrollTick++;
+      this.cdr.markForCheck();
+    });
   }
 
   ngOnDestroy() {
@@ -209,6 +253,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.errorMessageFeatured = error?.message || 'Lỗi khi tải tour nổi bật.';
     } finally {
       this.isLoadingFeaturedTours = false;
+      this.refreshTourScrollStates();
     }
   }
 
@@ -268,6 +313,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.errorMessageRecommended = error?.message || 'Lỗi khi tải tour đề xuất.';
     } finally {
       this.isLoadingTours = false;
+      this.refreshTourScrollStates();
     }
   }
 
@@ -315,6 +361,7 @@ export class HomeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.errorMessageLatest = error?.message || 'Lỗi khi tải tour mới nhất.';
     } finally {
       this.isLoadingLatestTours = false;
+      this.refreshTourScrollStates();
     }
   }
 

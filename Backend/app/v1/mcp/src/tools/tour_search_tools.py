@@ -193,10 +193,8 @@ class TourPackageSearchService:
             pkg = dict(row)
             pkg["price"] = _to_float(pkg.get("price"))
             name = (pkg.get("package_name") or "").lower()
-            dest = (pkg.get("destination") or "").lower()
             desc = (pkg.get("description") or "").lower()
             name_clean = _remove_diacritics(name)
-            dest_clean = _remove_diacritics(dest)
             desc_clean = _remove_diacritics(desc)
 
             matched = False
