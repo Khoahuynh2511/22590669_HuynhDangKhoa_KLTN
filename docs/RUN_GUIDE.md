@@ -33,7 +33,7 @@ Chỉnh sửa `Backend/.env` với các key thật. Các biến quan trọng:
 OPENAI_API_KEY=sk-...                    # OpenAI API key (LLM + Embeddings)
 SUPABASE_URL=https://xxx.supabase.co     # Supabase project URL
 SUPABASE_KEY=eyJ...                      # Supabase anon key
-DATABASE_URL=postgresql+asyncpg://...     # PostgreSQL connection string
+DATABASE_URL=postgresql://user:pass@dpg-xxxxx.region-postgres.render.com/dbname  # Render PostgreSQL (primary)
 JWT_SECRET=your-random-secret            # JWT signing secret
 
 # === AI / Agent ===
@@ -59,18 +59,24 @@ CORS_ORIGINS=http://localhost:4200,http://127.0.0.1:4200
 FRONTEND_BASE_URL=http://localhost:4200/home
 ```
 
-### 2.2. Database (Supabase)
+### 2.2. Database (Render PostgreSQL)
 
-1. Tạo project Supabase tại https://supabase.com
-2. Chạy SQL migrations theo thứ tự trong `Backend/migrations/`:
-   - Bắt đầu với `init_schema.sql`
-   - Rồi tiếp các file migration còn lại
-3. Import seed data (tuỳ chọn):
+> **Database chính của dự án là Render PostgreSQL**, không phải Supabase.
 
-```bash
-# Từ thư mục root project
-python import_data.py
-```
+1. Tạo PostgreSQL trên [Render Dashboard](https://dashboard.render.com) → New → PostgreSQL
+2. Copy **External Database URL** vào `Backend/.env`:
+   ```bash
+   DATABASE_URL=postgresql://user:pass@dpg-xxxxx.region-postgres.render.com/dbname
+   ```
+3. Chạy SQL migrations theo thứ tự trong `Backend/migrations/` (bắt đầu `init_schema.sql`)
+4. Import seed data (tuỳ chọn):
+   ```bash
+   python import_data.py
+   ```
+
+**Supabase** (nếu còn dùng): chỉ cho vector search tour / embeddings — cấu hình `SUPABASE_URL` + `SUPABASE_KEY` riêng, không thay `DATABASE_URL`.
+
+**Lưu ý Render free tier:** DB có thể sleep sau idle — lần query đầu có thể chậm vài giây.
 
 ### 2.3. SSL Fix trên Windows
 
@@ -214,7 +220,7 @@ cd Backend && uv add pip-system-certs --native-tls
 ```
 ConnectionRefusedError: cannot connect to PostgreSQL
 ```
-**Fix:** Kiểm tra `DATABASE_URL` và `SUPABASE_URL` trong `.env` đúng chưa.
+**Fix:** Kiểm tra `DATABASE_URL` trỏ đúng Render External Database URL. Thêm `?sslmode=require` nếu lỗi SSL.
 
 ### Frontend không gọi được API
 **Fix:** Kiểm tra `CORS_ORIGINS` trong Backend `.env` có chứa URL Frontend không.

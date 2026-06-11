@@ -1,0 +1,75 @@
+@if (visible) {
+  <div class="otp-backdrop" role="dialog" aria-modal="true" aria-labelledby="otp-popup-title">
+    <div class="otp-modal">
+      <div class="otp-header">
+        <h2 id="otp-popup-title" class="otp-title">{{ title }}</h2>
+        @if (email) {
+          <p class="otp-subtitle">Mã OTP đã được gửi đến <strong>{{ email }}</strong></p>
+        } @else {
+          <p class="otp-subtitle">Nhập mã OTP 6 số để xác nhận đặt vé</p>
+        }
+      </div>
+
+      @if (otpCode) {
+        <div class="otp-code-box">
+          <p class="otp-code-label">Mã OTP của bạn</p>
+          <p class="otp-code-value">{{ otpCode }}</p>
+          <button type="button" class="otp-copy-btn" (click)="copyOtpCode()">Sao chép mã</button>
+        </div>
+      }
+
+      @if (successMessage) {
+        <p class="otp-message otp-message-success">{{ successMessage }}</p>
+      }
+
+      @if (errorMessage) {
+        <p class="otp-message otp-message-error">{{ errorMessage }}</p>
+      }
+
+      <div class="otp-input-wrap">
+        <input
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          placeholder="000000"
+          [value]="otpInput"
+          (input)="onInput($event)"
+          (keydown.enter)="onEnter()"
+          [disabled]="isVerifying"
+          class="otp-input"
+          autocomplete="one-time-code">
+      </div>
+
+      @if (countdown > 0) {
+        <p class="otp-countdown">Mã hết hạn sau <strong>{{ formatCountdown() }}</strong></p>
+      }
+
+      <button
+        type="button"
+        class="otp-verify-btn"
+        (click)="onVerify()"
+        [disabled]="isVerifying || otpInput.length !== 6">
+        @if (isVerifying) {
+          Đang xác thực...
+        } @else {
+          Xác nhận OTP
+        }
+      </button>
+
+      <div class="otp-resend-row">
+        <span>Không nhận được mã?</span>
+        <button
+          type="button"
+          class="otp-resend-btn"
+          (click)="onResend()"
+          [disabled]="isResending || resendDisabled">
+          @if (isResending) {
+            Đang gửi...
+          } @else {
+            Gửi lại OTP
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

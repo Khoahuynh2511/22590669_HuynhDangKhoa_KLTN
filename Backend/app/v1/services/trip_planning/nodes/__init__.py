@@ -53,6 +53,235 @@ BUDGET_PRICE_MAP = {
     "luxury": 600000,
 }
 
+DESTINATION_SUGGESTIONS = [
+    "Đà Lạt 3 ngày",
+    "Hội An 2 ngày",
+    "Nha Trang 4 ngày",
+    "Đà Nẵng 3 ngày",
+    "Phú Quốc 3 ngày",
+    "Sapa 3 ngày",
+]
+
+DURATION_SUGGESTIONS = ["2 ngày", "3 ngày", "4 ngày", "5 ngày"]
+
+GROUP_SIZE_SUGGESTIONS = [
+    "Đi một mình",
+    "2 người",
+    "4 người gia đình",
+    "6 người bạn bè",
+]
+
+BUDGET_SUGGESTIONS = ["Tiết kiệm", "Trung bình", "Cao cấp"]
+
+PREFERENCE_SUGGESTIONS = [
+    "Thiên nhiên",
+    "Ẩm thực",
+    "Văn hóa",
+    "Phiêu lưu",
+    "Thư giãn",
+    "Bỏ qua",
+]
+
+BUDGET_VI = {"economy": "tiết kiệm", "moderate": "trung bình", "luxury": "cao cấp"}
+GROUP_TYPE_VI = {
+    "solo": "đi một mình",
+    "couple": "cặp đôi",
+    "family": "gia đình",
+    "friends": "bạn bè",
+}
+
+
+def get_step_suggestions(step: int, state: Optional[Dict[str, Any]] = None) -> list:
+    """Return quick-reply suggestions for a workflow step."""
+    state = state or {}
+    if step == 1:
+        if state.get("destination") and not state.get("duration_days"):
+            return DURATION_SUGGESTIONS
+        return DESTINATION_SUGGESTIONS
+    if step == 2:
+        if state.get("group_size") and not state.get("budget_level"):
+            return BUDGET_SUGGESTIONS
+        return GROUP_SIZE_SUGGESTIONS
+    if step == 3:
+        return PREFERENCE_SUGGESTIONS
+    return []
+
+
+def _parse_budget_from_text(text: str) -> Optional[str]:
+    """Parse Vietnamese budget phrases into economy/moderate/luxury."""
+    if not text:
+        return None
+    lowered = text.lower()
+    if any(k in lowered for k in ["tiết kiệm", "tiet kiem", "rẻ", "giá rẻ", "bình dân", "tầm thấp"]):
+        return "economy"
+    if any(k in lowered for k in ["cao cấp", "cao cap", "luxury", "sang trọng", "5 sao", "đắt cũng được"]):
+        return "luxury"
+    if any(k in lowered for k in ["trung bình", "trung binh", "vừa phải", "moderate"]):
+        return "moderate"
+    match = re.search(r"(\d+(?:[.,]\d+)?)\s*(triệu|tr\b|k\b|nghìn|ngàn|mil)", lowered)
+    if match:
+        amount = float(match.group(1).replace(",", "."))
+        unit = match.group(2)
+        if unit in {"k", "nghìn", "ngàn"}:
+            amount /= 1000
+        if amount <= 3:
+            return "economy"
+        if amount <= 8:
+            return "moderate"
+        return "luxury"
+    return None
+
+
+def _infer_preferences_from_text(text: str) -> list:
+    """Map free-text Vietnamese travel style to preference categories."""
+    if not text:
+        return []
+    lowered = text.lower()
+    keyword_map = [
+        (["núi", "rừng", "trek", "leo núi", "sinh thái", "camping", "thác", "đồi"], "nature"),
+        (["biển", "đảo", "bãi biển", "lặn", "resort"], "relax"),
+        (["ẩm thực", "món", "ăn uống", "quán", "food"], "food"),
+        (["văn hóa", "lịch sử", "phố cổ", "bảo tàng", "chùa", "tâm linh"], "culture"),
+        (["phiêu lưu", "mạo hiểm", "adventure", "zipline"], "adventure"),
+        (["thư giãn", "spa", "nghỉ dưỡng", "chill"], "relax"),
+        (["mua sắm", "shopping", "chợ"], "shopping"),
+        (["chụp ảnh", "check-in", "sống ảo"], "photography"),
+    ]
+    prefs = []
+    for keywords, category in keyword_map:
+        if any(kw in lowered for kw in keywords):
+            prefs.append(category)
+    return list(dict.fromkeys(prefs))
+
+
+def _format_group_budget_summary(size: int, gtype: str, budget: str) -> str:
+    """Build a short confirmation message for step 2 completion."""
+    return (
+        f"**{size} người** ({GROUP_TYPE_VI.get(gtype, gtype)}), "
+        f"ngân sách **{BUDGET_VI.get(budget, budget)}**."
+    )
+
+
+def _preferences_prompt_message(prefix: str = "") -> str:
+    """Single preferences question used when entering step 3."""
+    body = (
+        "Bạn thích trải nghiệm gì khi đi du lịch?\n"
+        "Chọn nhanh bên dưới hoặc gõ sở thích của bạn:"
+    )
+    if prefix:
+        return f"{prefix}\n\n{body}"
+    return body
+
+
+PREFERENCE_CHIP_MAP = {
+    "thiên nhiên": "nature",
+    "ẩm thực": "food",
+    "văn hóa": "culture",
+    "phiêu lưu": "adventure",
+    "thư giãn": "relax",
+}
+
+
+def _parse_preference_selection(text: str) -> Optional[list]:
+    """Map quick-reply chip labels to preference categories. None if not a chip."""
+    if not text:
+        return None
+    normalized = text.strip().lower()
+    if normalized == "bỏ qua":
+        return []
+    category = PREFERENCE_CHIP_MAP.get(normalized)
+    if category:
+        return [category]
+    return None
+
+
+def _looks_like_preference_answer(text: str) -> bool:
+    """Detect whether the user is answering the preferences question."""
+    if not text or not text.strip():
+        return False
+    if _parse_preference_selection(text) is not None:
+        return True
+    if _infer_preferences_from_text(text):
+        return True
+    lowered = text.lower()
+    pref_keywords = [
+        "thích", "muốn", "thiên nhiên", "biển", "núi", "rừng", "ẩm thực", "văn hóa", "phiêu lưu",
+        "thư giãn", "mua sắm", "tâm linh", "chụp ảnh", "trekking", "cafe", "spa", "du lịch",
+    ]
+    skip_keywords = ["bỏ qua", "skip", "đi luôn", "không có sở thích", "không cần"]
+    if any(kw in lowered for kw in pref_keywords):
+        return True
+    return any(kw in lowered for kw in skip_keywords)
+
+
+def _finalize_preferences(state: TripPlanState, messages: list, prefs: list) -> TripPlanState:
+    """Save preferences and advance to step 4."""
+    prefs_vi_map = {
+        "nature": "Thiên nhiên",
+        "food": "Ẩm thực",
+        "culture": "Văn hóa",
+        "adventure": "Phiêu lưu",
+        "relax": "Thư giãn",
+        "shopping": "Mua sắm",
+        "spiritual": "Tâm linh",
+        "photography": "Chụp ảnh",
+    }
+    state["preferences"] = prefs
+    state["constraints"] = None
+    state["preferences_asked"] = True
+    if prefs:
+        prefs_display = ", ".join([prefs_vi_map.get(p, p) for p in prefs])
+        msg = f"Tuyệt! Sở thích của bạn: **{prefs_display}**. Mình sẽ tìm các hoạt động phù hợp nhất!"
+    else:
+        msg = "Không sao! Mình sẽ chọn những trải nghiệm phổ biến nhất cho bạn. Đang lên lịch trình..."
+    state["step_message"] = msg
+    state["waiting_for_input"] = False
+    state["quick_suggestions"] = []
+    state["current_step"] = 4
+    state["messages"] = messages + [AIMessage(content=msg)]
+    return state
+
+
+def _advance_to_preferences(state: TripPlanState, messages: list, prefix: str = "") -> TripPlanState:
+    """Move to step 3 with the preferences question and quick replies."""
+    msg = _preferences_prompt_message(prefix)
+    state["current_step"] = 3
+    state["preferences_asked"] = True
+    return _reply_waiting(state, messages, msg, PREFERENCE_SUGGESTIONS)
+
+
+def _reply_waiting(state: TripPlanState, messages: list, msg: str, suggestions: list) -> TripPlanState:
+    """Set assistant reply and quick suggestions while waiting for user input."""
+    state["step_message"] = msg
+    state["waiting_for_input"] = True
+    state["quick_suggestions"] = suggestions
+    state["messages"] = messages + [AIMessage(content=msg)]
+    return state
+
+
+def _reply_done(state: TripPlanState, messages: list, msg: str, next_step: int) -> TripPlanState:
+    """Set assistant reply and advance without waiting."""
+    state["step_message"] = msg
+    state["waiting_for_input"] = False
+    state["quick_suggestions"] = []
+    state["current_step"] = next_step
+    state["messages"] = messages + [AIMessage(content=msg)]
+    return state
+
+
+def _parse_destination_duration_chip(text: str) -> tuple:
+    """Parse quick-reply like 'Đà Lạt 3 ngày' into destination and duration."""
+    if not text:
+        return None, None
+    from app.v1.services.trip_planning.activity_service import normalize_destination
+
+    duration = None
+    match = re.search(r"(\d+)\s*ngày", text, re.IGNORECASE)
+    if match:
+        duration = int(match.group(1))
+    destination = normalize_destination(text)
+    return destination or None, duration
+
 
 def _get_step_prompt(step_name: str) -> str:
     """Get prompt for a specific step from agent.yaml."""
@@ -122,11 +351,12 @@ class TripPlanningNodes:
 
     # ====================================================================
     # STEP 1: Basic Info (Destination + Duration)
+    # Smarter extraction: tries to extract ALL info from one message.
     # ====================================================================
     async def step1_basic_info_node(self, state: TripPlanState) -> TripPlanState:
         """
-        Extract destination and duration from user's message.
-        Loop until both are provided.
+        Extract destination, duration, and optionally group/budget from user's message.
+        Tries to extract as much as possible in one go to minimize back-and-forth.
         """
         logger.info("📍 [Step 1] Basic Info Node")
         current_step = state.get("current_step", 1)
@@ -140,24 +370,66 @@ class TripPlanningNodes:
                 last_user_msg = msg.content
                 break
 
+        chip_dest, chip_duration = _parse_destination_duration_chip(last_user_msg)
+        if chip_dest and not state.get("destination"):
+            state["destination"] = chip_dest
+        if chip_duration and not state.get("duration_days"):
+            state["duration_days"] = chip_duration
+
+        if state.get("destination"):
+            from app.v1.services.trip_planning.activity_service import normalize_destination
+            state["destination"] = normalize_destination(state["destination"])
+
         # Check if data already exists from previous interaction
         existing_dest = state.get("destination")
         existing_duration = state.get("duration_days")
 
         if existing_dest and existing_duration:
+            if state.get("group_size") and state.get("budget_level"):
+                prefix = _format_group_budget_summary(
+                    state["group_size"],
+                    state.get("group_type") or "friends",
+                    state["budget_level"],
+                )
+                return _advance_to_preferences(state, messages, prefix)
+            if state.get("group_size") and not state.get("budget_level"):
+                parsed_budget = _parse_budget_from_text(last_user_msg)
+                if parsed_budget:
+                    state["budget_level"] = parsed_budget
+                    prefix = _format_group_budget_summary(
+                        state["group_size"],
+                        state.get("group_type") or "friends",
+                        parsed_budget,
+                    )
+                    return _advance_to_preferences(state, messages, prefix)
+            if state.get("group_size"):
+                msg = "Ngân sách bạn muốn khoảng bao nhiêu?"
+                state["current_step"] = 2
+                return _reply_waiting(state, messages, msg, BUDGET_SUGGESTIONS)
+            msg = f"Kế hoạch **{existing_dest}** **{existing_duration} ngày**. Bạn đi mấy người?"
             state["current_step"] = 2
-            state["step_message"] = ""
-            state["waiting_for_input"] = False
-            logger.info(f"✅ [Step 1] Already complete: {existing_dest}, {existing_duration} days")
-            return state
+            return _reply_waiting(state, messages, msg, GROUP_SIZE_SUGGESTIONS)
 
-        # Use LLM to extract
-        prompt = _get_step_prompt("step1_extract")
-        if not prompt:
-            prompt = """Bạn là trợ lý du lịch. Trích xuất thông tin từ tin nhắn người dùng.
-Trả về CHỈ JSON, không giải thích:
-{"destination": "tên địa điểm", "duration_days": số_ngày, "travel_date": "YYYY-MM-DD hoặc null"}
-Nếu không có thông tin, để giá trị null."""
+        # Use LLM to extract — comprehensive extraction
+        prompt = """Bạn là trợ lý du lịch thông minh. Phân tích tin nhắn người dùng và trích xuất TẤT CẢ thông tin có thể.
+
+Trả về CHỈ JSON, không giải thích thêm:
+{
+  "destination": "tên địa điểm hoặc null",
+  "duration_days": số_ngày_hoặc_null,
+  "travel_date": "YYYY-MM-DD hoặc null",
+  "group_size": số_người_hoặc_null,
+  "group_type": "solo|couple|family|friends|null",
+  "budget_level": "economy|moderate|luxury|null",
+  "preferences": ["nature", "food", ...] hoặc null
+}
+
+Lưu ý:
+- Nếu user nói "đi Đà Lạt 3 ngày" → destination="Đà Lạt", duration_days=3
+- Nếu user nói "đi biển với gia đình" → gợi ý destination gần biển, group_type="family"
+- Nếu user nói "4 bạn đi Nha Trang" → group_size=4, group_type="friends", destination="Nha Trang"
+- Nếu user nói "đi Đà Lạt tiết kiệm" → budget_level="economy"
+- Trích xuất tối đa thông tin, để null cho những gì KHÔNG có trong tin nhắn."""
 
         try:
             llm_response = await self._ask_llm(prompt, last_user_msg)
@@ -169,48 +441,81 @@ Nếu không có thông tin, để giá trị null."""
 
         if extracted:
             if extracted.get("destination") and not state.get("destination"):
-                state["destination"] = extracted["destination"]
+                from app.v1.services.trip_planning.activity_service import normalize_destination
+                state["destination"] = normalize_destination(extracted["destination"])
             if extracted.get("duration_days") and not state.get("duration_days"):
-                state["duration_days"] = int(extracted["duration_days"])
+                try:
+                    state["duration_days"] = int(extracted["duration_days"])
+                except (ValueError, TypeError):
+                    pass
             if extracted.get("travel_date") and not state.get("travel_date"):
                 state["travel_date"] = extracted["travel_date"]
+            # Bonus: extract extra info if provided upfront
+            if extracted.get("group_size") and not state.get("group_size"):
+                try:
+                    state["group_size"] = int(extracted["group_size"])
+                except (ValueError, TypeError):
+                    pass
+            if extracted.get("group_type") and not state.get("group_type"):
+                state["group_type"] = extracted["group_type"]
+            if extracted.get("budget_level") and not state.get("budget_level"):
+                state["budget_level"] = extracted["budget_level"]
+            if extracted.get("preferences") and not state.get("preferences"):
+                state["preferences"] = extracted["preferences"]
 
         # Check completeness
         dest = state.get("destination")
         dur = state.get("duration_days")
 
         if dest and dur:
-            # Step complete
+            extra_info = []
+            if state.get("group_size"):
+                extra_info.append(f"**{state['group_size']} người**")
+            if state.get("budget_level"):
+                budget_vi = {"economy": "tiết kiệm", "moderate": "trung bình", "luxury": "cao cấp"}
+                extra_info.append(f"ngân sách **{budget_vi.get(state['budget_level'], state['budget_level'])}**")
+
+            extra_str = f" ({', '.join(extra_info)})" if extra_info else ""
+            msg = (
+                f"Tuyệt vời! Kế hoạch đi **{dest}** trong **{dur} ngày**{extra_str}.\n\n"
+            )
+
+            if state.get("group_size") and state.get("budget_level"):
+                gtype = state.get("group_type") or "friends"
+                prefix = _format_group_budget_summary(state["group_size"], gtype, state["budget_level"])
+                return _advance_to_preferences(state, messages, prefix.strip())
+
+            if state.get("group_size") and not state.get("budget_level"):
+                msg += "Ngân sách bạn muốn khoảng bao nhiêu?"
+                state["current_step"] = 2
+                return _reply_waiting(state, messages, msg, BUDGET_SUGGESTIONS)
+
+            msg += "Bạn đi **mấy người**? Chọn gợi ý bên dưới:"
             state["current_step"] = 2
-            state["step_message"] = f"Tuyệt! Bạn muốn đi **{dest}** trong **{dur} ngày**. 🎉"
-            state["waiting_for_input"] = False
-            # Add AI message
-            ai_msg = AIMessage(content=state["step_message"])
-            state["messages"] = messages + [ai_msg]
-        else:
-            # Need more info
-            missing = []
-            if not dest:
-                missing.append("điểm đến (bạn muốn đi đâu?)")
-            if not dur:
-                missing.append("thời gian (đi mấy ngày?)")
-
-            ask_msg = f"📅 Bạn cho mình thêm thông tin nhé: {' và '.join(missing)}"
-            state["step_message"] = ask_msg
-            state["waiting_for_input"] = True
+            return _reply_waiting(state, messages, msg, GROUP_SIZE_SUGGESTIONS)
+        elif dest and not dur:
+            msg = (
+                f"**{dest}** là lựa chọn tuyệt vời! Bạn muốn đi **mấy ngày**?\n"
+                "Chọn nhanh hoặc nhập số ngày:"
+            )
             state["current_step"] = 1
-            ai_msg = AIMessage(content=ask_msg)
-            state["messages"] = messages + [ai_msg]
-
-        return state
+            return _reply_waiting(state, messages, msg, DURATION_SUGGESTIONS)
+        else:
+            ask_msg = (
+                "Chào bạn! Mình sẽ giúp bạn lên kế hoạch du lịch.\n"
+                "Bạn muốn đi **đâu** và **bao lâu**? Chọn gợi ý hoặc gõ tự do:"
+            )
+            state["current_step"] = 1
+            return _reply_waiting(state, messages, ask_msg, DESTINATION_SUGGESTIONS)
 
     # ====================================================================
     # STEP 2: Participants & Budget
+    # Smarter: defaults to moderate budget, infers group type from size.
     # ====================================================================
     async def step2_budget_people_node(self, state: TripPlanState) -> TripPlanState:
         """
         Extract group size, type, and budget level.
-        Loop until all are provided.
+        Uses sensible defaults to minimize back-and-forth.
         """
         logger.info("👥 [Step 2] Participants & Budget Node")
         state["current_step"] = 2
@@ -227,18 +532,24 @@ Nếu không có thông tin, để giá trị null."""
         existing_budget = state.get("budget_level")
 
         if existing_size and existing_type and existing_budget:
-            state["current_step"] = 3
-            state["step_message"] = ""
-            state["waiting_for_input"] = False
-            return state
+            prefix = _format_group_budget_summary(existing_size, existing_type, existing_budget)
+            return _advance_to_preferences(state, messages, prefix)
 
-        prompt = _get_step_prompt("step2_extract")
-        if not prompt:
-            prompt = """Trích xuất thông tin từ tin nhắn người dùng.
+        if not state.get("budget_level") and last_user_msg:
+            parsed_budget = _parse_budget_from_text(last_user_msg)
+            if parsed_budget:
+                state["budget_level"] = parsed_budget
+
+        prompt = """Trích xuất thông tin nhóm và ngân sách từ tin nhắn người dùng.
 Trả về CHỈ JSON:
 {"group_size": số_người, "group_type": "solo|couple|family|friends", "budget_level": "economy|moderate|luxury"}
 group_type: solo=1 người, couple=2 người yêu, family=gia đình, friends=bạn bè
 budget_level: economy=tiết kiệm, moderate=trung bình, luxury=cao cấp
+
+Lưu ý:
+- "không quan trọng", "bất kỳ", "tùy" → budget_level=null
+- "tiết kiệm", "rẻ", "giá rẻ" → economy
+- "cao cấp", "sang trọng", "đắt cũng được" → luxury
 Nếu không có thông tin, để null."""
 
         try:
@@ -251,7 +562,10 @@ Nếu không có thông tin, để null."""
 
         if extracted:
             if extracted.get("group_size") and not state.get("group_size"):
-                state["group_size"] = int(extracted["group_size"])
+                try:
+                    state["group_size"] = int(extracted["group_size"])
+                except (ValueError, TypeError):
+                    pass
             if extracted.get("group_type") and not state.get("group_type"):
                 state["group_type"] = extracted["group_type"]
             if extracted.get("budget_level") and not state.get("budget_level"):
@@ -263,55 +577,51 @@ Nếu không có thông tin, để null."""
                     state["group_type"] = "solo"
                 elif size == 2:
                     state["group_type"] = "couple"
-                else:
+                elif size >= 3:
                     state["group_type"] = "friends"
 
         size = state.get("group_size")
         gtype = state.get("group_type")
         budget = state.get("budget_level")
 
-        if size and gtype and budget:
-            type_vi = {"solo": "đi một mình", "couple": "cặp đôi", "family": "gia đình", "friends": "bạn bè"}
-            budget_vi = {"economy": "tiết kiệm", "moderate": "trung bình", "luxury": "cao cấp"}
-            msg = f"Got it! **{size} người** ({type_vi.get(gtype, gtype)}), ngân sách **{budget_vi.get(budget, budget)}**. 👍"
-            state["step_message"] = msg
-            state["waiting_for_input"] = False
-            state["current_step"] = 3
-            ai_msg = AIMessage(content=msg)
-            state["messages"] = messages + [ai_msg]
-        else:
-            missing = []
-            if not size:
-                missing.append("số người đi")
-            if not budget:
-                missing.append("ngân sách (tiết kiệm/trung bình/cao cấp)")
-            ask_msg = f"👥 Cho mình biết thêm: {' và '.join(missing)} nhé!"
-            state["step_message"] = ask_msg
-            state["waiting_for_input"] = True
-            ai_msg = AIMessage(content=ask_msg)
-            state["messages"] = messages + [ai_msg]
+        # Apply sensible defaults if user provides partial info
+        if size and not gtype:
+            if size == 1:
+                gtype = "solo"
+            elif size == 2:
+                gtype = "couple"
+            else:
+                gtype = "friends"
+            state["group_type"] = gtype
 
-        return state
+        if size and gtype:
+            if not budget:
+                msg = (
+                    f"Đã rõ **{size} người** ({GROUP_TYPE_VI.get(gtype, gtype)}). "
+                    "Ngân sách bạn muốn khoảng bao nhiêu?"
+                )
+                return _reply_waiting(state, messages, msg, BUDGET_SUGGESTIONS)
+
+            msg = _format_group_budget_summary(size, gtype, budget)
+            return _advance_to_preferences(state, messages, msg)
+        else:
+            msg = "Bạn đi **mấy người**? Chọn gợi ý bên dưới hoặc gõ tự do:"
+            return _reply_waiting(state, messages, msg, GROUP_SIZE_SUGGESTIONS)
 
     # ====================================================================
     # STEP 3: Preferences (Optional - can skip)
+    # Shows quick suggestion examples for user.
     # ====================================================================
     async def step3_preferences_node(self, state: TripPlanState) -> TripPlanState:
         """
         Extract preferences. This step is optional - user can skip.
         Always advances to step 4 after processing.
+        Shows helpful suggestions to guide user.
         """
         logger.info("[Step 3] Preferences Node")
         state["current_step"] = 3
 
         messages = state.get("messages", [])
-
-        # If preferences already set from a previous call, skip straight to step 4
-        prefs = state.get("preferences")
-        if prefs is not None and isinstance(prefs, list):
-            state["current_step"] = 4
-            state["waiting_for_input"] = False
-            return state
 
         last_user_msg = ""
         for msg in reversed(messages):
@@ -319,31 +629,37 @@ Nếu không có thông tin, để null."""
                 last_user_msg = msg.content
                 break
 
-        # Check if user wants to skip or message doesn't contain preference keywords
-        skip_keywords = ["không", "bỏ qua", "skip", "đi luôn", "tiếp", "ok", "oke", "được rồi", "không có"]
-        pref_keywords = ["thích", "muốn", "thiên nhiên", "biển", "núi", "ẩm thực", "văn hóa", "phiêu lưu",
-                         "thư giãn", "mua sắm", "tâm linh", "chụp ảnh", "trekking", "cafe", "spa"]
-        has_pref = any(kw in last_user_msg.lower() for kw in pref_keywords)
-        wants_skip = any(kw in last_user_msg.lower() for kw in skip_keywords)
+        chip_prefs = _parse_preference_selection(last_user_msg)
+        if chip_prefs is not None:
+            return _finalize_preferences(state, messages, chip_prefs)
 
-        if wants_skip or not has_pref:
-            # No preferences or user wants to skip
-            state["preferences"] = []
-            state["constraints"] = None
-            msg = "Không sao! Mình sẽ gợi ý những hoạt động phổ biến nhất. Đang tìm kiếm..."
-            state["step_message"] = msg
-            state["waiting_for_input"] = False
-            state["current_step"] = 4  # Advance immediately
-            ai_msg = AIMessage(content=msg)
-            state["messages"] = messages + [ai_msg]
-            return state
+        if not state.get("preferences_asked"):
+            if _looks_like_preference_answer(last_user_msg):
+                state["preferences_asked"] = True
+            else:
+                return _advance_to_preferences(state, messages)
+
+        skip_keywords = ["bỏ qua", "skip", "đi luôn", "không có sở thích", "không cần"]
+        pref_keywords = [
+            "thích", "muốn", "thiên nhiên", "biển", "núi", "rừng", "ẩm thực", "văn hóa", "phiêu lưu",
+            "thư giãn", "mua sắm", "tâm linh", "chụp ảnh", "trekking", "cafe", "spa",
+            "cảnh đẹp", "chùa", "phố cổ", "chợ", "đồi", "thác", "hồ", "du lịch", "sinh thái",
+        ]
+        lowered_msg = last_user_msg.lower()
+        has_pref = any(kw in lowered_msg for kw in pref_keywords)
+        wants_skip = any(kw in lowered_msg for kw in skip_keywords)
+
+        inferred_prefs = _infer_preferences_from_text(last_user_msg)
+        if inferred_prefs:
+            return _finalize_preferences(state, messages, inferred_prefs)
+
+        if wants_skip or (not has_pref and len(last_user_msg.strip()) <= 3):
+            return _finalize_preferences(state, messages, [])
 
         # Extract preferences from user message using LLM
-        prompt = _get_step_prompt("step3_extract")
-        if not prompt:
-            prompt = """Trích xuất sở thích du lịch từ tin nhắn người dùng.
+        prompt = """Trích xuất sở thích du lịch từ tin nhắn người dùng.
 Trả về CHỈ JSON:
-{"preferences": ["nature", "food", ...], "constraints": "yêu cầu đặc biệt hoặc null}
+{"preferences": ["nature", "food", ...], "constraints": "yêu cầu đặc biệt hoặc null"}
 Categories: nature, food, culture, adventure, relax, shopping, spiritual, photography
 Nếu người dùng không nêu, trả về danh sách rỗng."""
 
@@ -354,22 +670,10 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
             extracted = None
 
         if extracted and extracted.get("preferences"):
-            state["preferences"] = extracted["preferences"]
             state["constraints"] = extracted.get("constraints")
-            prefs_vi = ", ".join(extracted["preferences"])
-            msg = f"Tuyệt! Sở thích: **{prefs_vi}**. Mình sẽ tìm các hoạt động phù hợp!"
-        else:
-            state["preferences"] = []
-            state["constraints"] = None
-            msg = "OK! Mình sẽ gợi ý những hoạt động phổ biến nhất."
+            return _finalize_preferences(state, messages, extracted["preferences"])
 
-        state["step_message"] = msg
-        state["waiting_for_input"] = False
-        state["current_step"] = 4  # Always advance
-        ai_msg = AIMessage(content=msg)
-        state["messages"] = messages + [ai_msg]
-
-        return state
+        return _finalize_preferences(state, messages, [])
 
     # ====================================================================
     # STEP 4: Plan Generation (Modular Itinerary Builder)
@@ -441,6 +745,9 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
                 return state
 
         # --- FIRST TIME: Fetch activities and build itinerary ---
+        from app.v1.services.trip_planning.activity_service import normalize_destination
+        destination = normalize_destination(destination)
+        state["destination"] = destination
         activities = await self._fetch_activities(destination, preferences, budget_level)
         state["available_activities"] = activities
 
@@ -575,11 +882,12 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
 
     # ====================================================================
     # STEP 5: Transportation
+    # Smarter: auto-skips if no travel_date, better messaging.
     # ====================================================================
     async def step5_transportation_node(self, state: TripPlanState) -> TripPlanState:
         """
         Search for flights and trains based on destination + date.
-        User can select or skip.
+        User can select or skip. Auto-skips if no travel_date provided.
         """
         logger.info("✈️ [Step 5] Transportation Node")
         state["current_step"] = 5
@@ -595,19 +903,19 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
 
         # --- Already has selections, advance ---
         if state.get("selected_flight") or state.get("selected_train") or \
-           state.get("needs_flight") is False and state.get("needs_train") is False:
+           (state.get("needs_flight") is False and state.get("needs_train") is False):
             state["current_step"] = 6
             state["waiting_for_input"] = False
             return state
 
         # --- Check if user wants to skip ---
-        skip_kw = ["không", "bỏ qua", "skip", "đi luôn", "tiếp", "tự lo"]
+        skip_kw = ["không", "bỏ qua", "skip", "đi luôn", "tiếp", "tự lo", "tự sắp xếp", "không cần"]
         if any(kw in last_user_msg.lower() for kw in skip_kw):
             state["needs_flight"] = False
             state["needs_train"] = False
             state["flight_search_results"] = []
             state["train_search_results"] = []
-            msg = "👌 Bạn sẽ tự sắp xếp di chuyển. Tiến hành chốt đơn nhé!"
+            msg = "👌 Bạn sẽ tự sắp xếp di chuyển. Tiến hành tóm tắt đơn hàng nhé!"
             state["step_message"] = msg
             state["current_step"] = 6
             state["waiting_for_input"] = False
@@ -615,7 +923,34 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
             state["messages"] = messages + [ai_msg]
             return state
 
-        # --- First time: ask and search ---
+        # --- Auto-skip if no travel_date (can't search flights/trains without date) ---
+        if not travel_date:
+            dest_lower = destination.lower().strip()
+            has_airport = DESTINATION_AIRPORTS.get(dest_lower, "")
+            has_station = DESTINATION_STATIONS.get(dest_lower, "")
+
+            if has_airport or has_station:
+                msg = (f"🚌 Để tìm chuyến bay/tàu đến **{destination}**, bạn cho mình biết **ngày đi** được không? "
+                       "_(Định dạng: 2025-01-15 hoặc 15/01/2025)_\n\n"
+                       "Hoặc gõ **'bỏ qua'** nếu bạn tự sắp xếp di chuyển.")
+                state["step_message"] = msg
+                state["waiting_for_input"] = True
+                ai_msg = AIMessage(content=msg)
+                state["messages"] = messages + [ai_msg]
+                return state
+            else:
+                # No transport options available for this destination
+                state["needs_flight"] = False
+                state["needs_train"] = False
+                msg = "Tuyệt! Chuyển sang bước thanh toán. 💳"
+                state["step_message"] = msg
+                state["current_step"] = 6
+                state["waiting_for_input"] = False
+                ai_msg = AIMessage(content=msg)
+                state["messages"] = messages + [ai_msg]
+                return state
+
+        # --- First time: search for transport ---
         if not state.get("flight_search_results") and not state.get("train_search_results"):
             flights = []
             trains = []
@@ -663,7 +998,7 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
             trains = state.get("train_search_results", [])
 
             if flights or trains:
-                lines = ["✈️ **Phương tiện di chuyển đến {}:**\n".format(destination)]
+                lines = [f"✈️ **Phương tiện di chuyển đến {destination}:**\n"]
                 if flights:
                     lines.append("**✈️ Chuyến bay:**")
                     for i, f in enumerate(flights[:3], 1):
@@ -682,7 +1017,7 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
                 lines.append("_(Gõ số thứ tự để chọn, hoặc **'bỏ qua'** nếu tự sắp xếp)_")
                 msg = "\n".join(lines)
             else:
-                msg = ("Không tìm thấy chuyến bay/tàu phù hợp. "
+                msg = ("Không tìm thấy chuyến bay/tàu phù hợp cho ngày này. "
                        "_(Gõ **'bỏ qua'** để tiếp tục)_")
                 state["needs_flight"] = False
                 state["needs_train"] = False
@@ -694,7 +1029,6 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
             return state
 
         # --- User responded with selection ---
-        # Parse selection
         flights = state.get("flight_search_results", [])
         trains = state.get("train_search_results", [])
 
@@ -748,119 +1082,91 @@ Nếu người dùng không nêu, trả về danh sách rỗng."""
                 last_user_msg = msg.content
                 break
 
-        # If already completed
+        # If already paid / completed
         if state.get("booking_completed"):
             state["is_complete"] = True
             return state
 
+        from app.v1.services.trip_planning.trip_checkout_service import (
+            calculate_grand_total,
+            trip_checkout_service,
+        )
+
+        grand_total = calculate_grand_total(state)
+
         # Check if user confirms checkout
         confirm_kw = ["thanh toán", "pay", "xác nhận", "ok", "oke", "đồng ý", "chốt"]
         if not any(kw in last_user_msg.lower() for kw in confirm_kw):
-            # Show summary and ask for confirmation
             itinerary = state.get("confirmed_itinerary", state.get("suggested_itinerary", {}))
-            total_price = state.get("itinerary_total_price", 0)
             dest = state.get("destination", "")
             days = state.get("duration_days", 0)
             size = state.get("group_size", 1)
-
-            transport_extra = 0
-            if state.get("selected_flight"):
-                transport_extra += state["selected_flight"].get("price", 0) * size
-            if state.get("selected_train"):
-                transport_extra += state["selected_train"].get("price", 0) * size
-
-            grand_total = total_price + transport_extra
+            activity_total = float(state.get("itinerary_total_price") or 0)
+            transport_extra = grand_total - activity_total
 
             lines = [
-                f"📋 **Tóm tắt đơn hàng:**\n",
-                f"- 📍 Điểm đến: **{dest}** ({days} ngày)",
-                f"- 👥 Số người: **{size}**",
+                "**Tóm tắt đơn hàng:**",
+                f"- Điểm đến: **{dest}** ({days} ngày)",
+                f"- Số người: **{size}**",
             ]
             if state.get("selected_flight"):
-                lines.append(f"- ✈️ Chuyến bay: {state['selected_flight'].get('airline', '')}")
+                lines.append(f"- Chuyến bay: {state['selected_flight'].get('airline', '')}")
             if state.get("selected_train"):
-                lines.append(f"- 🚂 Tàu: {state['selected_train'].get('train_name', '')}")
-            lines.append(f"\n💰 **Tổng thanh toán: {grand_total:,.0f}đ**")
-            lines.append(f"  (Hoạt động: {total_price:,.0f}đ + Di chuyển: {transport_extra:,.0f}đ)\n")
-            lines.append("_(Gõ **'thanh toán'** để tiếp tục)_")
+                lines.append(f"- Tàu: {state['selected_train'].get('train_name', '')}")
+            lines.append(f"\n**Tổng thanh toán: {grand_total:,.0f}đ**")
+            lines.append(f"  (Hoạt động: {activity_total:,.0f}đ + Di chuyển: {transport_extra:,.0f}đ)\n")
+            lines.append("Nhấn **Thanh toán ngay** bên dưới để tạo đơn và chuyển đến VNPay.")
 
             msg = "\n".join(lines)
+            state["step_message"] = msg
+            state["waiting_for_input"] = True
+            state["quick_suggestions"] = []
+            ai_msg = AIMessage(content=msg)
+            state["messages"] = messages + [ai_msg]
+            return state
+
+        # --- Process checkout: booking + VNPay (same as tour flow) ---
+        if state.get("payment_url") and state.get("booking_id"):
+            msg = (
+                "Đơn hàng đã được tạo. Nhấn **Thanh toán VNPay** bên dưới để hoàn tất.\n\n"
+                f"Mã booking: `{state['booking_id']}`"
+            )
+            state["step_message"] = msg
+            state["waiting_for_input"] = False
+            ai_msg = AIMessage(content=msg)
+            state["messages"] = messages + [ai_msg]
+            return state
+
+        checkout = await trip_checkout_service.create_checkout(
+            state,
+            ip_addr=state.get("_client_ip") or "127.0.0.1",
+        )
+
+        if not checkout.get("success"):
+            msg = f"Có lỗi khi tạo đơn hàng: {checkout.get('error', 'Không xác định')}. Vui lòng thử lại."
             state["step_message"] = msg
             state["waiting_for_input"] = True
             ai_msg = AIMessage(content=msg)
             state["messages"] = messages + [ai_msg]
             return state
 
-        # --- Process checkout ---
-        try:
-            import psycopg2
-            import os
-            from dotenv import load_dotenv
-            load_dotenv()
+        state["custom_plan_id"] = checkout.get("plan_id")
+        state["booking_id"] = checkout.get("booking_id")
+        state["payment_url"] = checkout.get("payment_url")
+        state["booking_completed"] = False
+        state["waiting_for_input"] = False
+        state["is_complete"] = False
 
-            db_url = os.getenv("DATABASE_URL")
-            conn = psycopg2.connect(db_url)
-            conn.autocommit = True
-            cur = conn.cursor()
-
-            itinerary = state.get("confirmed_itinerary", state.get("suggested_itinerary", {}))
-            # Convert itinerary to JSON-safe format
-            itinerary_data = {}
-            for day_key, slots in itinerary.items():
-                itinerary_data[day_key] = {}
-                for slot, activity in slots.items():
-                    if activity and isinstance(activity, dict):
-                        itinerary_data[day_key][slot] = activity.get("activity_id") or activity.get("name")
-                    else:
-                        itinerary_data[day_key][slot] = None
-
-            import json
-            cur.execute("""
-                INSERT INTO custom_trip_plans
-                    (user_id, destination, travel_date, duration_days, group_size,
-                     group_type, budget_level, itinerary, total_price, status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING plan_id
-            """, (
-                state.get("user_id"),
-                state.get("destination"),
-                state.get("travel_date"),
-                state.get("duration_days"),
-                state.get("group_size", 1),
-                state.get("group_type"),
-                state.get("budget_level"),
-                json.dumps(itinerary_data, ensure_ascii=False),
-                state.get("itinerary_total_price", 0),
-                "confirmed",
-            ))
-            plan_id = cur.fetchone()[0]
-            state["custom_plan_id"] = str(plan_id)
-
-            cur.close()
-            conn.close()
-
-            msg = (
-                f"🎉 **Đặt lịch thành công!**\n\n"
-                f"📋 Mã kế hoạch: `{plan_id}`\n"
-                f"📍 {state.get('destination')} - {state.get('duration_days')} ngày\n"
-                f"💰 Tổng: {state.get('itinerary_total_price', 0):,.0f}đ\n\n"
-                f"Cảm ơn bạn đã sử dụng dịch vụ! Chúc bạn có chuyến đi tuyệt vời! 🌟"
-            )
-            state["step_message"] = msg
-            state["booking_completed"] = True
-            state["is_complete"] = True
-            state["waiting_for_input"] = False
-            ai_msg = AIMessage(content=msg)
-            state["messages"] = messages + [ai_msg]
-
-        except Exception as e:
-            logger.error(f"❌ [Step 6] Checkout error: {e}")
-            msg = f"❌ Có lỗi xảy ra khi đặt lịch: {str(e)}. Vui lòng thử lại."
-            state["step_message"] = msg
-            state["waiting_for_input"] = True
-            ai_msg = AIMessage(content=msg)
-            state["messages"] = messages + [ai_msg]
-
+        msg = (
+            "Đơn hàng đã được tạo thành công!\n\n"
+            f"- Mã kế hoạch: `{checkout.get('plan_id')}`\n"
+            f"- Mã booking: `{checkout.get('booking_id')}`\n"
+            f"- Tổng: **{checkout.get('total_price', 0):,.0f}đ**\n\n"
+            "Nhấn **Thanh toán VNPay** bên dưới để chuyển đến cổng thanh toán."
+        )
+        state["step_message"] = msg
+        ai_msg = AIMessage(content=msg)
+        state["messages"] = messages + [ai_msg]
         return state
 
     # ====================================================================

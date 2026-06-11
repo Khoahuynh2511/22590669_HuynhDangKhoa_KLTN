@@ -11,12 +11,15 @@ class TripPlanRequest(BaseModel):
     """Request to send a message in the trip planning workflow."""
     message: str = Field(..., description="User message")
     conversation_id: Optional[str] = Field(None, description="Conversation ID for context")
+    room_id: Optional[str] = Field(None, description="Chat room ID for persistence")
+    updated_itinerary: Optional[Dict[str, Any]] = Field(None, description="User-modified itinerary from drag-and-drop")
 
     class Config:
         json_schema_extra = {
             "example": {
                 "message": "Tôi muốn đi Đà Lạt 3 ngày",
-                "conversation_id": "plan_abc123"
+                "conversation_id": "plan_abc123",
+                "room_id": "room_xyz789"
             }
         }
 

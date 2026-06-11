@@ -1,7 +1,11 @@
 <div class="tours-page">
   <div class="search-section">
     <div class="container mx-auto px-6 py-6">
-      <app-search-bar [searchType]="'tour'" (onSearch)="onSearch($event)">
+      <app-search-bar
+        [searchType]="'tour'"
+        [initialQueryText]="queryText"
+        [navigateOnSearch]="false"
+        (onSearch)="onSearch($event)">
       </app-search-bar>
     </div>
   </div>
@@ -24,49 +28,49 @@
     <div class="results-header mb-6">
       <h2 class="results-title">
         @if (isLoading) {
-        Đang tìm kiếm...
+          Đang tìm kiếm...
         } @else {
-        @if (totalFound > 0) {
-        Tìm thấy {{ totalFound }} tour
-        } @else {
-        Tìm thấy {{ filteredTours.length }} tour
-        }
+          Tìm thấy {{ displayTotal }} tour
         }
       </h2>
     </div>
 
     @if (isLoading) {
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Đang tải danh sách tour...</p>
-    </div>
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Đang tải danh sách tour...</p>
+      </div>
     } @else if (errorMessage) {
-    <div class="error-state">
-      <i class="fas fa-exclamation-triangle"></i>
-      <h3>Lỗi khi tải danh sách tour</h3>
-      <p>{{ errorMessage }}</p>
-      <button class="btn-reset" (click)="loadTours()">
-        <i class="fas fa-redo"></i>
-        Thử lại
-      </button>
-    </div>
-    } @else if (filteredTours.length > 0) {
-    <div class="tours-grid">
-      @for (tour of filteredTours; track tour.package_id) {
-      <app-tour-card [tour]="tour">
-      </app-tour-card>
-      }
-    </div>
+      <div class="error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Lỗi khi tải danh sách tour</h3>
+        <p>{{ errorMessage }}</p>
+        <button type="button" class="btn-reset" (click)="loadTours()">
+          Thử lại
+        </button>
+      </div>
+    } @else if (paginatedTours.length > 0) {
+      <div class="tours-grid">
+        @for (tour of paginatedTours; track tour.package_id) {
+          <app-tour-card [tour]="tour"></app-tour-card>
+        }
+      </div>
+
+      <app-pagination
+        [currentPage]="currentPage"
+        [total]="displayTotal"
+        [pageSize]="pageSize"
+        (pageChange)="onPageChange($event)">
+      </app-pagination>
     } @else {
-    <div class="empty-state">
-      <i class="fas fa-search"></i>
-      <h3>Không tìm thấy tour nào</h3>
-      <p>Thử thay đổi tiêu chí tìm kiếm hoặc xóa bộ lọc</p>
-      <button class="btn-reset" (click)="loadTours()">
-        <i class="fas fa-redo"></i>
-        Tải lại
-      </button>
-    </div>
+      <div class="empty-state">
+        <i class="fas fa-search"></i>
+        <h3>Không tìm thấy tour nào</h3>
+        <p>Thử thay đổi tiêu chí tìm kiếm hoặc xóa bộ lọc</p>
+        <button type="button" class="btn-reset" (click)="loadTours()">
+          Tải lại
+        </button>
+      </div>
     }
   </div>
 </div>

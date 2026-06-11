@@ -4,6 +4,13 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import { ConfigService } from './config.service';
 import { StateHotel } from '../shared/models/hotelState.model';
 
+export interface HotelListResponse {
+  EC: number;
+  EM: string;
+  total: number;
+  hotels: StateHotel[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -12,23 +19,27 @@ export class HotelService {
   private apiBaseUrl: string;
 
   public hotelState: BehaviorSubject<StateHotel[]> = new BehaviorSubject<StateHotel[]>([]);
+  public hotelTotalState: BehaviorSubject<number> = new BehaviorSubject<number>(0);
 
   constructor(private http: HttpClient, private configService: ConfigService) {
     this.apiBaseUrl = this.configService.getApiUrl();
   }
 
-  /** Load danh sach khach san tu API */
-  loadHotels(location?: string, search?: string): void {
-    let url = `${this.apiBaseUrl}/hotels?`;
+  loadHotels(location?: string, search?: string, limit?: number, offset?: number): void {
     const params: string[] = [];
     if (location) params.push(`location=${encodeURIComponent(location)}`);
     if (search) params.push(`search=${encodeURIComponent(search)}`);
-    url += params.join('&');
+    if (limit !== undefined) params.push(`limit=${limit}`);
+    if (offset !== undefined) params.push(`offset=${offset}`);
 
-    this.http.get<{ EC: number; EM: string; hotels: StateHotel[] }>(url).subscribe({
+    const query = params.length ? `?${params.join('&')}` : '';
+    const url = `${this.apiBaseUrl}/hotels${query}`;
+
+    this.http.get<HotelListResponse>(url).subscribe({
       next: (res) => {
         if (res.EC === 0) {
-          this.hotelState.next(res.hotels);
+          this.hotelState.next(res.hotels || []);
+          this.hotelTotalState.next(res.total ?? res.hotels?.length ?? 0);
         }
       },
       error: (err) => {
@@ -37,17 +48,14 @@ export class HotelService {
     });
   }
 
-  /** Lay chi tiet 1 khach san */
   getHotelById(hotelId: string): Observable<{ EC: number; EM: string; hotel: any }> {
     return this.http.get<{ EC: number; EM: string; hotel: any }>(`${this.apiBaseUrl}/hotels/${hotelId}`);
   }
 
-  /** Lay danh sach dia diem */
   getLocations(): Observable<{ EC: number; EM: string; data: string[] }> {
     return this.http.get<{ EC: number; EM: string; data: string[] }>(`${this.apiBaseUrl}/hotels/locations`);
   }
 
-  /** Filter hotels client-side (fallback) */
   public filterHotels(
     name?: string,
     location?: string,
@@ -63,7 +71,7 @@ export class HotelService {
           ? hotel.price >= priceRange.min && hotel.price <= priceRange.max
           : true;
 
-      return matchesName && matchesLocation;
+      return matchesName && matchesLocation && matchesPrice;
     });
   }
 }

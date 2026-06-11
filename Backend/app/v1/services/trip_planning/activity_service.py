@@ -11,26 +11,98 @@ from typing import List, Dict, Any, Optional
 
 import psycopg2
 
+from app.v1.core.config import settings
+
 logger = logging.getLogger(__name__)
+
+KNOWN_DESTINATIONS = [
+    "Đà Lạt",
+    "Hội An",
+    "Nha Trang",
+    "Đà Nẵng",
+    "Phú Quốc",
+    "Sapa",
+    "Huế",
+    "Vũng Tàu",
+]
 
 
 def _remove_diacritics(text: str) -> str:
     """Remove Vietnamese diacritics for matching."""
     if not text:
         return ""
-    normalized = unicodedata.normalize('NFD', text)
-    stripped = re.sub(r'[̀-ͯˀ-˟]', '', normalized)
-    stripped = stripped.replace('đ', 'd').replace('Đ', 'D')
+    normalized = unicodedata.normalize("NFD", text)
+    stripped = re.sub(r"[̀-ͯˀ-˟]", "", normalized)
+    stripped = stripped.replace("đ", "d").replace("Đ", "D")
     return stripped.strip()
+
+
+def normalize_destination(name: str) -> str:
+    """Strip duration suffix and map to a canonical destination name."""
+    if not name:
+        return name
+    text = name.strip()
+    text = re.sub(r"\s+\d+\s*ngày\s*$", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"\s+\d+\s*days?\s*$", "", text, flags=re.IGNORECASE).strip()
+    text_clean = _remove_diacritics(text.lower())
+
+    for known in KNOWN_DESTINATIONS:
+        known_clean = _remove_diacritics(known.lower())
+        if known_clean in text_clean or text_clean in known_clean:
+            return known
+    return text
+
+
+def _destination_matches(query: str, act_dest: str) -> bool:
+    """Match user destination against DB destination (bidirectional, diacritics-safe)."""
+    if not query or not act_dest:
+        return False
+    query_norm = normalize_destination(query)
+    query_lower = query_norm.lower().strip()
+    act_lower = act_dest.lower().strip()
+    query_clean = _remove_diacritics(query_lower)
+    act_clean = _remove_diacritics(act_lower)
+    return (
+        query_lower in act_lower
+        or act_lower in query_lower
+        or query_clean in act_clean
+        or act_clean in query_clean
+    )
+
+
+def _to_float(value: Any, default: float = 0.0) -> float:
+    """Coerce DB numeric values that may arrive as str/Decimal."""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def _normalize_activity_row(activity: Dict[str, Any]) -> Dict[str, Any]:
+    """Ensure numeric fields are usable in comparisons and math."""
+    activity["price"] = _to_float(activity.get("price"))
+    if activity.get("duration_hours") is not None:
+        activity["duration_hours"] = _to_float(activity.get("duration_hours"))
+    return activity
 
 
 class ActivityService:
     """Fetch activity packages from Render PostgreSQL."""
 
     def __init__(self):
-        self.db_url = os.getenv("DATABASE_URL")
-        if not self.db_url:
-            logger.warning("DATABASE_URL not set")
+        self.db_url = self._resolve_db_url()
+
+    @staticmethod
+    def _resolve_db_url() -> str:
+        url = settings.DATABASE_URL or os.getenv("DATABASE_URL", "")
+        return (
+            url.replace("postgresql+asyncpg://", "postgresql://")
+            .replace("postgres+asyncpg://", "postgresql://")
+        )
 
     def _get_conn(self):
         if not self.db_url:
@@ -52,6 +124,8 @@ class ActivityService:
         """
         if not destination:
             return []
+
+        destination = normalize_destination(destination)
 
         conn = None
         try:
@@ -79,25 +153,19 @@ class ActivityService:
                 for key, val in activity.items():
                     if val is not None and not isinstance(val, (str, int, float, bool, list, dict)):
                         activity[key] = str(val)
-                all_activities.append(activity)
+                all_activities.append(_normalize_activity_row(activity))
 
             # Python-side destination matching (handles Vietnamese diacritics)
-            dest_lower = destination.lower().strip()
-            dest_clean = _remove_diacritics(dest_lower)
-
             activities = []
             for act in all_activities:
-                act_dest = (act.get("destination") or "").lower()
-                act_dest_clean = _remove_diacritics(act_dest)
-
-                # Match if: original contains query, or stripped contains stripped query
-                if dest_lower in act_dest or dest_clean in act_dest_clean:
-                    # Apply optional filters
-                    if time_slot and act.get("time_slot") != time_slot:
-                        continue
-                    if category and act.get("category") != category:
-                        continue
-                    activities.append(act)
+                act_dest = act.get("destination") or ""
+                if not _destination_matches(destination, act_dest):
+                    continue
+                if time_slot and act.get("time_slot") != time_slot:
+                    continue
+                if category and act.get("category") != category:
+                    continue
+                activities.append(act)
 
             # Rank by preferences
             if preferences and activities:
@@ -109,7 +177,7 @@ class ActivityService:
                     score = 0
                     if act.get("category") and act["category"].lower() in pref_set:
                         score += 2
-                    if act.get("price", 0) <= budget_price:
+                    if _to_float(act.get("price")) <= budget_price:
                         score += 1
                     act["_rank_score"] = score
 

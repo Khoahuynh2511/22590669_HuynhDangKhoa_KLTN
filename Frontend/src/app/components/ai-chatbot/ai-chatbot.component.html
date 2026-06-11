@@ -1,4 +1,5 @@
-<div class="agent-page">
+<div class="agent-overlay" (click)="onClose()">
+  <div class="agent-page" (click)="$event.stopPropagation()">
   <aside class="agent-sidebar">
     <div class="sidebar-header">
       <div class="agent-brand">
@@ -18,12 +19,16 @@
       <div class="sidebar-controls">
         <button class="primary-button" (click)="startNewConversation()" [disabled]="isStreaming">
           <i class="fas fa-plus"></i>
-          Cuộc trò chuyện mới
+          Chat mới
+        </button>
+        <button class="outline-button" (click)="startNewTripPlanning()" [disabled]="isStreaming">
+          <i class="fas fa-map-marked-alt"></i>
+          Lập kế hoạch
         </button>
       </div>
 
       <div class="sidebar-section-label">Lịch sử trò chuyện</div>
-      <div class="conversation-list" role="list">
+      <div class="conversation-list">
         @if (isLoadingConversations) {
           <div class="conversation-empty">
             <i class="fas fa-spinner fa-spin"></i>
@@ -39,7 +44,6 @@
           @for (conversation of conversations; track conversation.id) {
             <div
               class="conversation-item"
-              role="button"
               tabindex="0"
               [class.active]="conversation.id === activeConversation?.id"
               (click)="selectConversation(conversation.id)"
@@ -47,22 +51,31 @@
               (keydown.space)="$event.preventDefault(); selectConversation(conversation.id)"
             >
               <div class="conversation-meta">
+                <span class="conversation-type-icon">
+                  @if (conversation.conversationType === 'trip_planning') {
+                    <i class="fas fa-map-marked-alt"></i>
+                  } @else {
+                    <i class="fas fa-comment"></i>
+                  }
+                </span>
                 <div class="conversation-title">{{ conversation.title }}</div>
               </div>
               <div class="conversation-preview">{{ getConversationPreview(conversation) }}</div>
-              <button
-                type="button"
-                class="conversation-delete"
-                title="Xóa cuộc trò chuyện"
-                (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
-                [disabled]="isStreaming || isDeletingConversation === conversation.id"
-              >
-                @if (isDeletingConversation === conversation.id) {
+              @if (isDeletingConversation !== conversation.id) {
+                <button
+                  type="button"
+                  class="conversation-delete"
+                  title="Xóa cuộc trò chuyện"
+                  (click)="$event.stopPropagation(); deleteConversation(conversation.id)"
+                  [disabled]="isStreaming"
+                >
+                  <i class="fas fa-trash"></i>
+                </button>
+              } @else {
+                <span class="conversation-delete">
                   <i class="fas fa-spinner fa-spin"></i>
-                } @else {
-                <i class="fas fa-trash"></i>
-                }
-              </button>
+                </span>
+              }
             </div>
           }
           }
@@ -74,11 +87,20 @@
       <header class="stage-header">
         <div class="stage-heading">
           <div class="stage-icon">
-            <i class="fas fa-robot"></i>
+            @if (isTripPlanningMode()) {
+              <i class="fas fa-map-marked-alt"></i>
+            } @else {
+              <i class="fas fa-robot"></i>
+            }
           </div>
           <div>
-            <h1>Travel Intelligence</h1>
-            <p>Định hướng kế hoạch du lịch cá nhân hoá</p>
+            @if (isTripPlanningMode()) {
+              <h1>Trip Planner</h1>
+              <p>Lên kế hoạch du lịch cá nhân hoá</p>
+            } @else {
+              <h1>Travel Intelligence</h1>
+              <p>Định hướng kế hoạch du lịch cá nhân hoá</p>
+            }
           </div>
         </div>
         <div class="stage-actions">
@@ -86,8 +108,26 @@
             <span class="status-dot"></span>
             {{ headerStatus }}
           </div>
+          <button type="button" class="close-stage-btn" (click)="onClose()" title="Đóng">×</button>
         </div>
       </header>
+
+      <!-- Trip Planning Progress Bar -->
+      @if (isTripPlanningMode()) {
+        <div class="trip-progress-bar">
+          @for (step of [1,2,3,4,5,6]; track step) {
+            <div class="trip-step" [class.active]="step === currentTripStep()" [class.completed]="step < currentTripStep()">
+              <span class="trip-step-num">{{ step < currentTripStep() ? '✓' : step }}</span>
+              <span class="trip-step-label">
+                {{ step === 1 ? 'Thông tin' : step === 2 ? 'Người & Ngân sách' : step === 3 ? 'Sở thích' : step === 4 ? 'Lập kế hoạch' : step === 5 ? 'Di chuyển' : 'Thanh toán' }}
+              </span>
+            </div>
+            @if (step < 6) {
+              <div class="trip-step-connector" [class.completed]="step < currentTripStep()"></div>
+            }
+          }
+        </div>
+      }
 
       <div class="stage-body">
         <div class="messages-container" #messagesContainer (scroll)="onMessagesScroll()">
@@ -103,14 +143,23 @@
           @if (!messages.length && !isTyping && !isLoadingMessages) {
             <div class="stage-empty">
               <div class="empty-illustration">
-                <i class="fas fa-map-marked-alt"></i>
+                @if (isTripPlanningMode()) {
+                  <i class="fas fa-map-marked-alt"></i>
+                } @else {
+                  <i class="fas fa-map-marked-alt"></i>
+                }
               </div>
-              <h2>Xin chào! Tôi có thể giúp gì cho hành trình tiếp theo của bạn?</h2>
-              <p>Đặt câu hỏi về điểm đến, ngân sách, ưu đãi hoặc bất kỳ điều gì liên quan đến tour.</p>
+              @if (isTripPlanningMode()) {
+                <h2>Xin chào! Hãy cho mình biết bạn muốn đi đâu?</h2>
+                <p>Ví dụ: Đà Lạt 3 ngày, Hội An 2 ngày với gia đình...</p>
+              } @else {
+                <h2>Xin chào! Tôi có thể giúp gì cho hành trình tiếp theo của bạn?</h2>
+                <p>Đặt câu hỏi về điểm đến, ngân sách, ưu đãi hoặc bất kỳ điều gì liên quan đến tour.</p>
+              }
             </div>
           }
 
-          @for (message of messages; track $index) {
+          @for (message of messages; track $index; let msgIdx = $index) {
             <div class="message-row" [class.user]="message.isUser" [class.assistant]="!message.isUser">
               @if (message.isError) {
                 <div class="message-error">
@@ -123,13 +172,27 @@
                     @if (message.isUser) {
                       <i class="fas fa-user"></i>
                     } @else {
-                      <i class="fas fa-robot"></i>
+                      @if (message.tripStep) {
+                        <i class="fas fa-map-marked-alt"></i>
+                      } @else {
+                        <i class="fas fa-robot"></i>
+                      }
                     }
                   </div>
                   <div class="message-bubble" [innerHTML]="message.isUser ? message.content : formatMessageContent(message.content)"></div>
                 </div>
+                @if (!message.isUser && isTripPlanningMode() && message.quickSuggestions?.length) {
+                  <div class="quick-replies">
+                    @for (suggestion of message.quickSuggestions; track suggestion) {
+                      <button type="button" class="quick-reply-btn" (click)="applyQuickReply(suggestion)" [disabled]="isStreaming">
+                        {{ suggestion }}
+                      </button>
+                    }
+                  </div>
+                }
               }
 
+              <!-- Tour selections (general chat) -->
               @if (!message.isUser && message.tourSelections?.length) {
                 <div class="tour-selection-deck">
                   @for (tourSelection of message.tourSelections; track tourSelection.index) {
@@ -153,6 +216,7 @@
                 </div>
               }
 
+              <!-- Tour packages cards (general chat) -->
               @if (!message.isUser && message.showTourCards && message.tourPackages && message.tourPackages.length > 0) {
                 <div class="mcp-ui-container">
                   <div class="mcp-ui-content tour-packages-grid" style="display: flex; flex-direction: column; gap: 24px; width: 100%;">
@@ -163,18 +227,290 @@
                 </div>
               }
 
+              <!-- MCP UI (general chat) -->
               @if (!message.isUser && (message.mcpUiResource || message.mcpUiHtml)) {
                 @if (message.mcpUiResource && message.mcpUiResource['type'] === 'payment_button') {
-                  <!-- Render payment button from mcpUiResource -->
                   <div class="mcp-ui-container">
                     <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiResource['html'] || message.mcpUiHtml || '')" (click)="handlePaymentClickFromHtml($event)"></div>
                   </div>
                 } @else if (message.mcpUiHtml && (!message.mcpUiResource || message.mcpUiResource['type'] !== 'payment_button')) {
-                  <!-- Render other UI from mcpUiHtml (tour cards, etc.) -->
                   <div class="mcp-ui-container">
                     <div class="mcp-ui-content" [innerHTML]="sanitizeHtml(message.mcpUiHtml)" (click)="handlePaymentClickFromHtml($event)"></div>
                   </div>
                 }
+              }
+
+              <!-- ============================================ -->
+              <!-- TRIP PLANNING: Itinerary Builder Card        -->
+              <!-- ============================================ -->
+              @if (!message.isUser && message.showItineraryBuilder && message.itineraryData) {
+                <div class="itinerary-builder-card">
+                  <div class="itinerary-header">
+                    <div class="itinerary-header-left">
+                      <h3>🗺️ Lịch Trình Đề Xuất</h3>
+                      <p>Kéo thả để sắp xếp, hoặc thay đổi hoạt động</p>
+                    </div>
+                    <div class="itinerary-header-right">
+                      <div class="itinerary-total">
+                        <span class="itinerary-total-label">Tổng cộng</span>
+                        <span class="itinerary-total-price">{{ formatPrice(message.tripTotalPrice || 0) }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="itinerary-body">
+                    @for (dayItem of getItineraryDays(message.itineraryData); track dayItem.key) {
+                      <div class="itinerary-day">
+                        <div class="day-badge">📅 Ngày {{ dayItem.num }}</div>
+                        <div class="day-slots">
+                          <!-- Morning -->
+                          <div class="activity-slot morning"
+                               [class.drag-over]="isDragOver(dayItem.key, 'morning')"
+                               draggable="true"
+                               (dragstart)="onActivityDragStart(dayItem.key, 'morning', dayItem.day.morning)"
+                               (dragover)="onActivityDragOver($event, dayItem.key, 'morning')"
+                               (dragleave)="onActivityDragLeave(dayItem.key, 'morning')"
+                               (drop)="onActivityDrop(dayItem.key, 'morning', msgIdx)">
+                            <div class="slot-label">🌅 Sáng</div>
+                            @if (dayItem.day.morning) {
+                              <div class="slot-activity">
+                                <span class="drag-handle" title="Kéo để di đổi">⠿</span>
+                                <div class="slot-info">
+                                  <div class="slot-name">{{ dayItem.day.morning.name }}</div>
+                                  <div class="slot-meta">
+                                    @if (dayItem.day.morning.location) {
+                                      <span>📍 {{ dayItem.day.morning.location }}</span>
+                                    }
+                                  </div>
+                                  <div class="slot-price">{{ dayItem.day.morning.price ? formatPrice(dayItem.day.morning.price) : 'Miễn phí' }}</div>
+                                </div>
+                                <div class="slot-actions">
+                                  <button type="button" class="slot-btn replace" title="Thay đổi"
+                                          (click)="toggleReplacePanel(msgIdx, dayItem.key, 'morning')">...</button>
+                                  <button type="button" class="slot-btn remove" title="Xóa"
+                                          (click)="removeActivity(msgIdx, dayItem.key, 'morning')">X</button>
+                                </div>
+                              </div>
+                              @if (isReplacePanelOpen(msgIdx, dayItem.key, 'morning')) {
+                                <div class="replace-panel">
+                                  @for (candidate of getReplaceCandidates(msgIdx, dayItem.key, 'morning'); track candidate.activity_id) {
+                                    <button type="button" class="replace-option"
+                                            (click)="selectReplacement(msgIdx, dayItem.key, 'morning', candidate)">
+                                      <span class="replace-name">{{ candidate.name }}</span>
+                                      <span class="replace-price">{{ candidate.price ? formatPrice(candidate.price) : 'Miễn phí' }}</span>
+                                    </button>
+                                  }
+                                  @if (!getReplaceCandidates(msgIdx, dayItem.key, 'morning').length) {
+                                    <div class="replace-empty">Không có hoạt động thay thế</div>
+                                  }
+                                </div>
+                              }
+                            } @else {
+                              <div class="slot-empty">
+                                <span>Kéo hoạt động vào đây</span>
+                              </div>
+                            }
+                          </div>
+
+                          <!-- Afternoon -->
+                          <div class="activity-slot afternoon"
+                               [class.drag-over]="isDragOver(dayItem.key, 'afternoon')"
+                               draggable="true"
+                               (dragstart)="onActivityDragStart(dayItem.key, 'afternoon', dayItem.day.afternoon)"
+                               (dragover)="onActivityDragOver($event, dayItem.key, 'afternoon')"
+                               (dragleave)="onActivityDragLeave(dayItem.key, 'afternoon')"
+                               (drop)="onActivityDrop(dayItem.key, 'afternoon', msgIdx)">
+                            <div class="slot-label">☀️ Trưa</div>
+                            @if (dayItem.day.afternoon) {
+                              <div class="slot-activity">
+                                <span class="drag-handle" title="Kéo để di đổi">⠿</span>
+                                <div class="slot-info">
+                                  <div class="slot-name">{{ dayItem.day.afternoon.name }}</div>
+                                  <div class="slot-meta">
+                                    @if (dayItem.day.afternoon.location) {
+                                      <span>📍 {{ dayItem.day.afternoon.location }}</span>
+                                    }
+                                  </div>
+                                  <div class="slot-price">{{ dayItem.day.afternoon.price ? formatPrice(dayItem.day.afternoon.price) : 'Miễn phí' }}</div>
+                                </div>
+                                <div class="slot-actions">
+                                  <button type="button" class="slot-btn replace" title="Thay đổi"
+                                          (click)="toggleReplacePanel(msgIdx, dayItem.key, 'afternoon')">...</button>
+                                  <button type="button" class="slot-btn remove" title="Xóa"
+                                          (click)="removeActivity(msgIdx, dayItem.key, 'afternoon')">X</button>
+                                </div>
+                              </div>
+                              @if (isReplacePanelOpen(msgIdx, dayItem.key, 'afternoon')) {
+                                <div class="replace-panel">
+                                  @for (candidate of getReplaceCandidates(msgIdx, dayItem.key, 'afternoon'); track candidate.activity_id) {
+                                    <button type="button" class="replace-option"
+                                            (click)="selectReplacement(msgIdx, dayItem.key, 'afternoon', candidate)">
+                                      <span class="replace-name">{{ candidate.name }}</span>
+                                      <span class="replace-price">{{ candidate.price ? formatPrice(candidate.price) : 'Miễn phí' }}</span>
+                                    </button>
+                                  }
+                                  @if (!getReplaceCandidates(msgIdx, dayItem.key, 'afternoon').length) {
+                                    <div class="replace-empty">Không có hoạt động thay thế</div>
+                                  }
+                                </div>
+                              }
+                            } @else {
+                              <div class="slot-empty">
+                                <span>Kéo hoạt động vào đây</span>
+                              </div>
+                            }
+                          </div>
+
+                          <!-- Evening -->
+                          <div class="activity-slot evening"
+                               [class.drag-over]="isDragOver(dayItem.key, 'evening')"
+                               draggable="true"
+                               (dragstart)="onActivityDragStart(dayItem.key, 'evening', dayItem.day.evening)"
+                               (dragover)="onActivityDragOver($event, dayItem.key, 'evening')"
+                               (dragleave)="onActivityDragLeave(dayItem.key, 'evening')"
+                               (drop)="onActivityDrop(dayItem.key, 'evening', msgIdx)">
+                            <div class="slot-label">🌙 Chiều</div>
+                            @if (dayItem.day.evening) {
+                              <div class="slot-activity">
+                                <span class="drag-handle" title="Kéo để di đổi">⠿</span>
+                                <div class="slot-info">
+                                  <div class="slot-name">{{ dayItem.day.evening.name }}</div>
+                                  <div class="slot-meta">
+                                    @if (dayItem.day.evening.location) {
+                                      <span>📍 {{ dayItem.day.evening.location }}</span>
+                                    }
+                                  </div>
+                                  <div class="slot-price">{{ dayItem.day.evening.price ? formatPrice(dayItem.day.evening.price) : 'Miễn phí' }}</div>
+                                </div>
+                                <div class="slot-actions">
+                                  <button type="button" class="slot-btn replace" title="Thay đổi"
+                                          (click)="toggleReplacePanel(msgIdx, dayItem.key, 'evening')">...</button>
+                                  <button type="button" class="slot-btn remove" title="Xóa"
+                                          (click)="removeActivity(msgIdx, dayItem.key, 'evening')">X</button>
+                                </div>
+                              </div>
+                              @if (isReplacePanelOpen(msgIdx, dayItem.key, 'evening')) {
+                                <div class="replace-panel">
+                                  @for (candidate of getReplaceCandidates(msgIdx, dayItem.key, 'evening'); track candidate.activity_id) {
+                                    <button type="button" class="replace-option"
+                                            (click)="selectReplacement(msgIdx, dayItem.key, 'evening', candidate)">
+                                      <span class="replace-name">{{ candidate.name }}</span>
+                                      <span class="replace-price">{{ candidate.price ? formatPrice(candidate.price) : 'Miễn phí' }}</span>
+                                    </button>
+                                  }
+                                  @if (!getReplaceCandidates(msgIdx, dayItem.key, 'evening').length) {
+                                    <div class="replace-empty">Không có hoạt động thay thế</div>
+                                  }
+                                </div>
+                              }
+                            } @else {
+                              <div class="slot-empty">
+                                <span>Kéo hoạt động vào đây</span>
+                              </div>
+                            }
+                          </div>
+                        </div>
+                      </div>
+                    }
+
+                    <!-- Action buttons -->
+                    <div class="itinerary-actions">
+                      <button type="button" class="confirm-itinerary-btn" (click)="confirmItinerary(msgIdx)" [disabled]="isStreaming">
+                        ✅ Xác nhận lịch trình này
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <!-- ============================================ -->
+              <!-- TRIP PLANNING: Transport Selection Card       -->
+              <!-- ============================================ -->
+              @if (!message.isUser && message.showTransport && message.transportData) {
+                <div class="transport-card-inline">
+                  <div class="transport-header">
+                    <h3>🚀 Phương Tiện Di Chuyển</h3>
+                    <p>Chọn phương tiện phù hợp hoặc bỏ qua</p>
+                  </div>
+                  <div class="transport-body">
+                    <!-- Flights -->
+                    @if (message.transportData.flights?.length) {
+                      <div class="transport-section">
+                        <div class="transport-section-title">
+                          <span class="transport-icon flight">✈️</span>
+                          Chuyến bay
+                        </div>
+                        @for (f of message.transportData.flights; track $index) {
+                          <div class="transport-option" (click)="selectFlightAndSend($index)">
+                            <div class="transport-option-icon">✈️</div>
+                            <div class="transport-option-info">
+                              <div class="transport-option-name">{{ f.airline || '' }} {{ f.flight_number || '' }}</div>
+                              <div class="transport-option-time">{{ f.departure_time || '' }} → {{ f.arrival_time || '' }}</div>
+                            </div>
+                            <div class="transport-option-price">{{ formatPrice(f.price || 0) }}</div>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    <!-- Trains -->
+                    @if (message.transportData.trains?.length) {
+                      <div class="transport-section">
+                        <div class="transport-section-title">
+                          <span class="transport-icon train">🚂</span>
+                          Tàu hỏa
+                        </div>
+                        @for (t of message.transportData.trains; track $index) {
+                          <div class="transport-option" (click)="selectTrainAndSend($index, message.transportData.flights?.length || 0)">
+                            <div class="transport-option-icon">🚂</div>
+                            <div class="transport-option-info">
+                              <div class="transport-option-name">{{ t.train_name || '' }}</div>
+                              <div class="transport-option-time">{{ t.departure_time || '' }} → {{ t.arrival_time || '' }}</div>
+                            </div>
+                            <div class="transport-option-price">{{ formatPrice(t.price || 0) }}</div>
+                          </div>
+                        }
+                      </div>
+                    }
+
+                    <button class="skip-transport-btn" (click)="skipTransport()" [disabled]="isStreaming">
+                      🙅 Bỏ qua — Tự sắp xếp di chuyển
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- ============================================ -->
+              <!-- TRIP PLANNING: Checkout Card                  -->
+              <!-- ============================================ -->
+              @if (!message.isUser && message.showCheckout && message.checkoutData) {
+                <div class="checkout-card-inline">
+                  <div class="checkout-header">
+                    <h3>Chốt đơn & Thanh toán</h3>
+                    <p>Xem lại và thanh toán qua VNPay</p>
+                  </div>
+                  <div class="checkout-body">
+                    <div class="checkout-price">
+                      <span class="checkout-price-label">Tổng thanh toán:</span>
+                      <span class="checkout-price-value">{{ formatPrice(message.checkoutData.total_price || 0) }}</span>
+                    </div>
+                    @if (message.checkoutData.booking_id) {
+                      <p class="checkout-booking-id">Mã booking: {{ message.checkoutData.booking_id }}</p>
+                    }
+                    <button class="checkout-btn" (click)="proceedToCheckout()" [disabled]="isStreaming">
+                      {{ message.checkoutData.payment_url ? 'Thanh toán VNPay' : 'Thanh toán ngay' }}
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- Trip Planning Complete -->
+              @if (!message.isUser && isTripComplete()) {
+                <div class="trip-complete-card">
+                  <div class="trip-complete-icon">🎉</div>
+                  <h3>Kế hoạch đã được lưu thành công!</h3>
+                  <p>Chúc bạn có chuyến đi thật tuyệt vời! 🌟</p>
+                </div>
               }
             </div>
           }
@@ -183,7 +519,11 @@
             <div class="message-row assistant">
               <div class="message-body">
                 <div class="message-avatar">
-                  <i class="fas fa-robot"></i>
+                  @if (isTripPlanningMode()) {
+                    <i class="fas fa-map-marked-alt"></i>
+                  } @else {
+                    <i class="fas fa-robot"></i>
+                  }
                 </div>
                 <div class="typing-ellipsis">
                   <span></span>
@@ -197,13 +537,25 @@
       </div>
 
       <footer class="stage-composer">
+        @if (isTripPlanningMode() && getVisibleQuickSuggestions().length && !isStreaming) {
+          <div class="composer-quick-replies">
+            <span class="composer-quick-label">Gợi ý nhanh:</span>
+            <div class="composer-quick-list">
+              @for (suggestion of getVisibleQuickSuggestions(); track suggestion) {
+                <button type="button" class="quick-reply-btn" (click)="applyQuickReply(suggestion)">
+                  {{ suggestion }}
+                </button>
+              }
+            </div>
+          </div>
+        }
         <div class="composer-bar">
           <textarea
             #messageInput
             [(ngModel)]="userMessage"
             (keydown)="onKeyDown($event)"
             (input)="onTextareaInput($event)"
-            placeholder="Đặt câu hỏi về hành trình, điểm đến hay các ưu đãi du lịch..."
+            [placeholder]="messagePlaceholder"
             rows="1"
           ></textarea>
           <div class="composer-actions">
@@ -215,4 +567,19 @@
         </div>
       </footer>
     </section>
+  </div>
+
+  <app-otp-popup
+    [visible]="showOtpPopup"
+    [otpCode]="returnedOtpCode"
+    [email]="otpEmail"
+    [isVerifying]="isVerifyingOTP"
+    [isResending]="isResendingOTP"
+    [errorMessage]="otpError.includes('đã được tạo') || otpError.includes('đã được gửi') ? '' : otpError"
+    [successMessage]="otpSuccess || (otpError.includes('đã được tạo') ? otpError : '')"
+    [countdown]="otpCountdown"
+    [resendDisabled]="otpCountdown > 240"
+    (verify)="verifyAgentOTP($event)"
+    (resend)="resendAgentOTP()">
+  </app-otp-popup>
 </div>

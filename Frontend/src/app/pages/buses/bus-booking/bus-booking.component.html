@@ -236,61 +236,9 @@
         }
 
         @if (showOTPForm) {
-          <!-- OTP Verification -->
-          <div class="bg-white rounded-xl shadow-md border p-8">
-            <div class="text-center mb-6">
-              <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-              </div>
-              <h2 class="text-2xl font-bold text-gray-900 mb-2">Xác thực email</h2>
-              <p class="text-gray-500">Mã OTP 6 số đã được gửi đến</p>
-              <p class="font-semibold text-orange-600 text-lg mt-1">{{ otpEmail }}</p>
-            </div>
-
-            @if (returnedOtpCode) {
-              <div class="bg-amber-50 border-2 border-dashed border-amber-300 rounded-xl p-4 mb-6 text-center">
-                <p class="text-xs text-amber-600 mb-1">Mã OTP của bạn (chế độ demo)</p>
-                <p class="text-3xl font-bold font-mono tracking-[0.5em] text-amber-700 select-all">{{ returnedOtpCode }}</p>
-              </div>
-            }
-
-            <div class="flex justify-center mb-6">
-              <input type="text" [(ngModel)]="otpCode" maxlength="6" placeholder="Nhập 6 số OTP"
-                (keyup.enter)="otpCode.length === 6 && verifyOTP()"
-                class="w-56 px-4 py-4 border-2 border-gray-300 rounded-xl text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono">
-            </div>
-
-            @if (otpError) {
-              <p [class.text-red-600]="otpError.includes('sai') || otpError.includes('thất bại') || otpError.includes('hết hạn')"
-                [class.text-green-600]="otpError.includes('đã được gửi')"
-                class="text-sm text-center mb-4">{{ otpError }}</p>
-            }
-
-            <div class="text-center text-sm text-gray-500 mb-4">
-              @if (otpCountdown > 0) {
-                Mã hết hạn sau <span class="font-bold text-orange-600">{{ formatCountdown() }}</span>
-              } @else {
-                <span class="text-red-500 font-medium">Mã OTP đã hết hạn</span>
-              }
-            </div>
-
-            <button (click)="verifyOTP()" [disabled]="isVerifyingOTP || otpCode.length !== 6"
-              class="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:bg-gray-400 text-white font-bold rounded-xl transition-all text-lg">
-              @if (isVerifyingOTP) {
-                <span class="flex items-center justify-center gap-2">
-                  <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Đang xác thực...
-                </span>
-              } @else {
-                Xác nhận đặt vé
-              }
-            </button>
-
-            <div class="mt-4 flex items-center justify-center gap-4 text-sm">
-              <span class="text-gray-500">Không nhận được mã?</span>
-              <button (click)="resendOTP()" [disabled]="otpCountdown > 240"
-                class="text-orange-600 hover:text-orange-800 font-medium disabled:text-gray-400 disabled:cursor-not-allowed">Gửi lại OTP</button>
-            </div>
+          <div class="bg-white rounded-xl shadow-md border p-8 text-center text-gray-600">
+            <p class="text-lg font-medium">Vui lòng xác thực OTP trong hộp thoại</p>
+            <p class="text-sm mt-2">Mã OTP đã được gửi đến {{ otpEmail }}</p>
           </div>
         }
       </div>
@@ -357,4 +305,18 @@
       </div>
     </div>
   </div>
+
+  <app-otp-popup
+    [visible]="showOTPForm"
+    [otpCode]="returnedOtpCode"
+    [email]="otpEmail"
+    [isVerifying]="isVerifyingOTP"
+    [isResending]="isResendingOTP"
+    [errorMessage]="otpError.includes('đã được gửi') ? '' : otpError"
+    [successMessage]="otpError.includes('đã được gửi') ? otpError : ''"
+    [countdown]="otpCountdown"
+    [resendDisabled]="otpCountdown > 240"
+    (verify)="verifyOTP($event)"
+    (resend)="resendOTP()">
+  </app-otp-popup>
 </div>

@@ -30,12 +30,11 @@
       </div>
 
       <!-- Search Form -->
-      <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-4xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-          <!-- Departure -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">🛫 Sân bay đi</label>
-            <select [(ngModel)]="departure" class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm">
+      <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-5xl mx-auto">
+        <div class="ticket-search-form" [class.ticket-search-form--wide]="tripType === 'round-trip'">
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Sân bay đi</label>
+            <select [(ngModel)]="departure" class="ticket-search-select">
               <option value="">Chọn sân bay đi</option>
               @for (a of airports; track a.code) {
                 <option [value]="a.code">{{ a.city }} — {{ a.name }}</option>
@@ -43,19 +42,15 @@
             </select>
           </div>
 
-          <!-- Swap button -->
-          <div class="hidden lg:flex items-center justify-center pb-1">
-            <button type="button" (click)="swapAirports()" class="w-10 h-10 rounded-full bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:border-blue-400" title="Đổi chiều">
-              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-              </svg>
-            </button>
-          </div>
+          <button type="button" (click)="swapAirports()" class="ticket-search-swap" title="Đổi chiều">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+          </button>
 
-          <!-- Arrival -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">🛬 Sân bay đến</label>
-            <select [(ngModel)]="destination" class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm">
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Sân bay đến</label>
+            <select [(ngModel)]="destination" class="ticket-search-select">
               <option value="">Chọn sân bay đến</option>
               @for (a of airports; track a.code) {
                 <option [value]="a.code">{{ a.city }} — {{ a.name }}</option>
@@ -63,33 +58,28 @@
             </select>
           </div>
 
-          <!-- Date -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">📅 Ngày đi</label>
-            <input type="date" [(ngModel)]="departureDate"
-              class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Ngày đi</label>
+            <input type="date" [(ngModel)]="departureDate" class="ticket-search-input" />
           </div>
 
-          <!-- Passengers + Search -->
-          <div class="flex flex-col gap-2">
-            @if (tripType === 'round-trip') {
-              <div>
-                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">📅 Ngày về</label>
-                <input type="date" [(ngModel)]="returnDate"
-                  class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
-              </div>
-            }
-            <div>
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">👤 Hành khách</label>
-              <div class="flex gap-2">
-                <input type="number" [(ngModel)]="passengers" min="1" max="9"
-                  class="flex-1 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
-                <button type="button" (click)="onSearch()"
-                  class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg text-sm whitespace-nowrap">
-                  Tìm chuyến
-                </button>
-              </div>
+          @if (tripType === 'round-trip') {
+            <div class="ticket-search-field">
+              <label class="ticket-search-label">Ngày về</label>
+              <input type="date" [(ngModel)]="returnDate" class="ticket-search-input" />
             </div>
+          }
+
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Hành khách</label>
+            <input type="number" [(ngModel)]="passengers" min="1" max="9" class="ticket-search-input" />
+          </div>
+
+          <div class="ticket-search-field ticket-search-submit">
+            <label class="ticket-search-label ticket-search-label-hidden">Tìm kiếm</label>
+            <button type="button" (click)="onSearch()" class="ticket-search-btn">
+              Tìm chuyến
+            </button>
           </div>
         </div>
       </div>
@@ -126,10 +116,10 @@
           </svg>
           {{ errorMessage }}
         </div>
-      } @else if (searchResults.length > 0) {
+      } @else if (paginatedResults.length > 0) {
         <!-- Results header with sort -->
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-800">Kết quả tìm kiếm <span class="text-blue-600">({{ searchResults.length }} chuyến)</span></h2>
+          <h2 class="text-lg font-bold text-gray-800">Kết quả tìm kiếm <span class="text-blue-600">({{ totalResults }} chuyến)</span></h2>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500">Sắp xếp:</span>
             <select [(ngModel)]="sortBy" (ngModelChange)="sortResults()"
@@ -142,7 +132,7 @@
         </div>
 
         <div class="space-y-3">
-          @for (flight of searchResults; track flight.flight_id) {
+          @for (flight of paginatedResults; track flight.flight_id) {
             <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden group">
               <div class="flex items-stretch">
                 <!-- Airline column -->
@@ -221,6 +211,13 @@
             </div>
           }
         </div>
+
+        <app-pagination
+          [currentPage]="currentPage"
+          [total]="totalResults"
+          [pageSize]="pageSize"
+          (pageChange)="onPageChange($event)">
+        </app-pagination>
       } @else {
         <div class="text-center py-16">
           <div class="text-6xl mb-4">🔍</div>

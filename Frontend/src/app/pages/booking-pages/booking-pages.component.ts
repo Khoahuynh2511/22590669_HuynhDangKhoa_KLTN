@@ -6,6 +6,7 @@ import { BookingService } from '../../services/booking.service';
 import { TourService } from '../../services/tour.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { PromotionService, Promotion } from '../../services/promotion.service';
+import { OtpPopupComponent } from '../../shared/otp-popup/otp-popup.component';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -13,7 +14,8 @@ import { CommonModule } from '@angular/common';
   imports: [
     BookingCardComponent,
     FormsModule,
-    CommonModule],
+    CommonModule,
+    OtpPopupComponent],
   templateUrl: './booking-pages.component.html',
   styleUrl: './booking-pages.component.scss'
 })
@@ -340,8 +342,9 @@ export class BookingPagesComponent implements OnInit {
     }).format(price);
   }
 
-  verifyOTP(): void {
-    if (!this.otpCode || this.otpCode.length !== 6) {
+  verifyOTP(code?: string): void {
+    const otp = code || this.otpCode;
+    if (!otp || otp.length !== 6) {
       this.otpErrorMessage = 'Vui lòng nhập mã OTP 6 số.';
       return;
     }
@@ -355,7 +358,7 @@ export class BookingPagesComponent implements OnInit {
     this.otpErrorMessage = '';
     this.otpSuccessMessage = '';
 
-    this.bookingService.verifyOTP(this.bookingIdForOTP, this.otpCode).subscribe({
+    this.bookingService.verifyOTP(this.bookingIdForOTP, otp).subscribe({
       next: (response) => {
         if (response.EC === 0) {
           this.otpSuccessMessage = 'Xác nhận OTP thành công! Đặt tour của bạn đã được xác nhận.';

@@ -442,16 +442,16 @@ async def get_tour_package(
 
 @router.post("/", response_model=TourPackageCreateResponse, status_code=201)
 async def create_tour_package(
-    package_name: str = Form(..., description="Tên tour package", example="Tour Đà Lạt 3N2Đ"),
-    destination: str = Form(..., description="Điểm đến", example="Đà Lạt"),
-    description: str = Form(..., description="Mô tả chi tiết", example="Tour khám phá thành phố ngàn hoa với nhiều điểm tham quan đẹp"),
-    duration_days: int = Form(..., description="Số ngày tour (>0)", example=3, gt=0),
-    price: float = Form(..., description="Giá tour VNĐ (>0)", example=2500000, gt=0),
-    available_slots: int = Form(..., description="Số chỗ còn trống (≥0)", example=20, ge=0),
-    start_date: date = Form(..., description="Ngày bắt đầu (YYYY-MM-DD)", example="2024-12-10"),
-    end_date: date = Form(..., description="Ngày kết thúc (YYYY-MM-DD)", example="2024-12-13"),
-    cuisine: Optional[str] = Form(None, description="Ẩm thực", example="Ẩm thực miền Trung"),
-    suitable_for: Optional[str] = Form(None, description="Phù hợp cho", example="Gia đình, Cặp đôi"),
+    package_name: str = Form(..., description="Tên tour package"),
+    destination: str = Form(..., description="Điểm đến"),
+    description: str = Form(..., description="Mô tả chi tiết"),
+    duration_days: int = Form(..., description="Số ngày tour (>0)", gt=0),
+    price: float = Form(..., description="Giá tour VNĐ (>0)", gt=0),
+    available_slots: int = Form(..., description="Số chỗ còn trống (≥0)", ge=0),
+    start_date: date = Form(..., description="Ngày bắt đầu (YYYY-MM-DD)"),
+    end_date: date = Form(..., description="Ngày kết thúc (YYYY-MM-DD)"),
+    cuisine: Optional[str] = Form(None, description="Ẩm thực"),
+    suitable_for: Optional[str] = Form(None, description="Phù hợp cho"),
     is_active: bool = Form(True, description="Trạng thái kích hoạt"),
     images: List[UploadFile] = File(..., description="Tour images (max 10 ảnh, định dạng: JPEG/JPG/PNG/WebP)"),
     service: TourPackageService = Depends(get_tour_package_service)

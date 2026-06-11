@@ -32,6 +32,7 @@ class TripPlanState(MessagesState):
     # === Step 3: Preferences ===
     preferences: Optional[List[str]]  # ["nature", "food", "adventure"]
     constraints: Optional[str]
+    preferences_asked: bool
 
     # === Step 4: Modular Itinerary ===
     available_activities: List[Dict[str, Any]]  # All activities for this destination
@@ -58,3 +59,4 @@ class TripPlanState(MessagesState):
     step_message: str
     waiting_for_input: bool
     is_complete: bool
+    quick_suggestions: List[str]

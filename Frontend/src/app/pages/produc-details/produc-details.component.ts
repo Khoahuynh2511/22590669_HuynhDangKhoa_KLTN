@@ -1,11 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { SearchBarComponent } from '../../components/search-bar/search-bar.component';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { HotelService } from '../../services/hotel.service';
 import { TourService } from '../../services/tour.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Tour } from '../../shared/models/tour.model';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
+import {
+  formatDescriptionHtml,
+  splitDescriptionByDays as splitDescriptionByDaysUtil,
+  truncateDescription
+} from '../../shared/utils/text-format.util';
 import { firstValueFrom } from 'rxjs';
 
 interface Hotel {
@@ -112,7 +117,8 @@ export class ProducDetailsComponent implements OnInit {
     private hotelService: HotelService,
     private tourService: TourService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) { }
 
   async ngOnInit(): Promise<void> {
@@ -320,10 +326,7 @@ export class ProducDetailsComponent implements OnInit {
     if (!this.tour?.description) {
       return '';
     }
-    if (this.tour.description.length <= this.descriptionMaxLength) {
-      return this.tour.description;
-    }
-    return this.tour.description.substring(0, this.descriptionMaxLength) + '...';
+    return truncateDescription(this.tour.description, this.descriptionMaxLength);
   }
 
   getFullDescription(): string {
@@ -331,56 +334,29 @@ export class ProducDetailsComponent implements OnInit {
   }
 
   shouldShowReadMore(): boolean {
-    return (this.tour?.description?.length || 0) > this.descriptionMaxLength;
+    if (!this.tour?.description) {
+      return false;
+    }
+    return truncateDescription(this.tour.description, this.descriptionMaxLength).endsWith('...');
   }
 
   toggleDescription(): void {
     this.isDescriptionExpanded = !this.isDescriptionExpanded;
   }
 
-  formatDescriptionText(text: string): string {
-    if (!text) return '';
-    
-    let formatted = text;
-    
-    formatted = formatted.replace(/Ngày \d+:/g, '<strong class="day-header">$&</strong> ');
-    formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/g, '<div class="note-box">$1</div>');
-    formatted = formatted.replace(/\*\*\*/g, '');
-    formatted = formatted.replace(/\*\*/g, '');
-    formatted = formatted.replace(/\*/g, '');
-    formatted = formatted.replace(/-{10,}o0o0o0o0o-{10,}/gi, '');
-    formatted = formatted.replace(/-{5,}[o0o0o0o0o]+-{5,}/gi, '');
-    formatted = formatted.replace(/[-]{10,}/g, '');
-    formatted = formatted.replace(/Quý khách/g, '<span class="highlight-text">Quý khách</span>');
-    formatted = formatted.replace(/Đà Lạt/g, '<span class="location-text">Đà Lạt</span>');
-    
-    return formatted;
+  formatDescriptionText(text: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(formatDescriptionHtml(text));
   }
 
-  splitDescriptionByDays(): Array<{day: string, content: string}> {
+  splitDescriptionByDays(): Array<{ day: string; content: string }> {
     if (!this.tour?.description) {
       return [];
     }
-    
-    const days: Array<{day: string, content: string}> = [];
-    const text = this.tour.description;
-    const dayRegex = /Ngày \d+:[^\n]*/g;
-    const matches = [...text.matchAll(dayRegex)];
-    
-    if (matches.length === 0) {
-      return [{ day: '', content: text }];
-    }
-    
-    for (let i = 0; i < matches.length; i++) {
-      const start = matches[i].index!;
-      const end = i < matches.length - 1 ? matches[i + 1].index! : text.length;
-      const day = matches[i][0];
-      const content = text.substring(start + day.length, end).trim();
-      
-      days.push({ day: day.trim(), content });
-    }
-    
-    return days;
+    return splitDescriptionByDaysUtil(this.tour.description);
+  }
+
+  hasMultiDayDescription(): boolean {
+    return this.splitDescriptionByDays().some((block) => block.day.length > 0);
   }
 
   onBookTour(): void {

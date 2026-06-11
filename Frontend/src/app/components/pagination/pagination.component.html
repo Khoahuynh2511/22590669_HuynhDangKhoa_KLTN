@@ -1,0 +1,39 @@
+@if (totalPages > 1) {
+  <div class="pagination-wrapper">
+    @if (showSummary) {
+      <p class="pagination-summary">
+        Hiển thị {{ displayRange }} trong tổng số {{ total }} kết quả
+      </p>
+    }
+
+    <nav class="pagination" aria-label="Phân trang">
+      <button
+        type="button"
+        class="pagination-btn"
+        [disabled]="currentPage === 1"
+        (click)="goToPage(currentPage - 1)">
+        Trước
+      </button>
+
+      <div class="pagination-numbers">
+        @for (page of pageNumbers; track page) {
+          <button
+            type="button"
+            class="pagination-number"
+            [class.active]="page === currentPage"
+            (click)="goToPage(page)">
+            {{ page }}
+          </button>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="pagination-btn"
+        [disabled]="currentPage === totalPages"
+        (click)="goToPage(currentPage + 1)">
+        Sau
+      </button>
+    </nav>
+  </div>
+}

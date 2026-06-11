@@ -1,19 +1,20 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TourCardComponent } from '../../components/tour-card/tour-card.component';
-import { SearchBarComponent } from '../../components/search-bar/search-bar.component';
+import { SearchBarComponent, TourSearchData } from '../../components/search-bar/search-bar.component';
+import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { TourService } from '../../services/tour.service';
-import { FavoriteService } from '../../services/favorite.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { Tour, TourSearchParams, TourPackageSearchRequest } from '../../shared/models/tour.model';
 import { MessageService } from 'primeng/api';
 import { ToastModule } from 'primeng/toast';
+import { paginateSlice } from '../../shared/utils/pagination.util';
 
 @Component({
   selector: 'app-tours',
-  imports: [CommonModule, FormsModule, TourCardComponent, SearchBarComponent, ToastModule],
+  imports: [CommonModule, FormsModule, TourCardComponent, SearchBarComponent, PaginationComponent, ToastModule],
   providers: [MessageService],
   templateUrl: './tours.component.html',
   styleUrl: './tours.component.scss'
@@ -21,22 +22,27 @@ import { ToastModule } from 'primeng/toast';
 export class ToursComponent implements OnInit {
   tours: Tour[] = [];
   filteredTours: Tour[] = [];
+  paginatedTours: Tour[] = [];
   isLoading = false;
   searchParams: TourSearchParams = {};
-  queryText: string = '';
+  queryText = '';
   maxPrice: number | undefined;
   duration: number | undefined;
-  totalFound: number = 0;
+  totalFound = 0;
   errorMessage: string | null = null;
   isAuthenticated = false;
+  isSearchMode = false;
+
+  currentPage = 1;
+  pageSize = 12;
 
   sortBy: 'price_asc' | 'price_desc' | 'popular' = 'popular';
 
   constructor(
     private tourService: TourService,
-    private favoriteService: FavoriteService,
     private authStateService: AuthStateService,
     private route: ActivatedRoute,
+    private router: Router,
     private messageService: MessageService
   ) { }
 
@@ -45,115 +51,114 @@ export class ToursComponent implements OnInit {
 
     this.authStateService.isAuthenticated$.subscribe(isAuth => {
       this.isAuthenticated = isAuth;
-      if (isAuth && this.tours.length > 0) {
-        this.loadFavoriteStatuses();
-      }
     });
 
     const snapshotParams = this.route.snapshot.queryParams;
-    this.searchParams = snapshotParams as TourSearchParams;
-    this.queryText = snapshotParams['q'] || '';
-    this.maxPrice = snapshotParams['max_price'] ? Number(snapshotParams['max_price']) : undefined;
-    this.duration = snapshotParams['duration'] ? Number(snapshotParams['duration']) : undefined;
-
+    this.applyRouteParams(snapshotParams);
     await this.loadTours();
 
     this.route.queryParams.subscribe(params => {
-      this.searchParams = params as TourSearchParams;
-      this.queryText = params['q'] || '';
-      this.maxPrice = params['max_price'] ? Number(params['max_price']) : undefined;
-      this.duration = params['duration'] ? Number(params['duration']) : undefined;
+      this.applyRouteParams(params);
       this.loadTours();
     });
+  }
+
+  private applyRouteParams(params: Record<string, any>): void {
+    this.searchParams = params as TourSearchParams;
+    this.queryText = params['q'] || '';
+    this.maxPrice = params['max_price'] ? Number(params['max_price']) : undefined;
+    this.duration = params['duration'] ? Number(params['duration']) : undefined;
+    this.currentPage = params['page'] ? Number(params['page']) : 1;
   }
 
   async loadTours() {
     this.isLoading = true;
     this.errorMessage = null;
+
     try {
-      if (this.queryText || this.maxPrice || this.duration || this.searchParams.destination) {
+      const hasSearchCriteria = Boolean(
+        this.queryText ||
+        this.maxPrice ||
+        this.duration ||
+        this.searchParams.destination ||
+        this.searchParams.departure_location ||
+        this.searchParams.price_min ||
+        this.searchParams.price_max ||
+        this.searchParams.duration_min ||
+        this.searchParams.duration_max
+      );
+
+      this.isSearchMode = hasSearchCriteria;
+
+      if (hasSearchCriteria) {
         const searchRequest: TourPackageSearchRequest = {
           q: this.queryText || undefined,
-          max_price: this.maxPrice,
-          duration: this.duration,
+          max_price: this.maxPrice ?? this.searchParams.price_max,
+          duration: this.duration ?? this.searchParams.duration_min,
           destination: this.searchParams.destination,
           limit: 50
         };
 
         const response = await this.tourService.searchTourPackages(searchRequest);
         this.tours = response.packages || [];
-        this.totalFound = response.found || 0;
-      } else if (this.searchParams.destination || this.searchParams.departure_location ||
-        this.searchParams.price_min || this.searchParams.price_max ||
-        this.searchParams.duration_min || this.searchParams.duration_max) {
-        const searchRequest: TourPackageSearchRequest = {
-          q: undefined,
-          max_price: this.searchParams.price_max,
-          duration: this.searchParams.duration_min,
-          destination: this.searchParams.destination,
-          limit: 50
-        };
-
-        const response = await this.tourService.searchTourPackages(searchRequest);
-        this.tours = response.packages || [];
-        this.totalFound = response.found || 0;
+        this.totalFound = response.found || this.tours.length;
       } else {
+        const offset = (this.currentPage - 1) * this.pageSize;
         const response = await this.tourService.getTourPackages({
           is_active: true,
-          limit: 100,
-          offset: 0
+          limit: this.pageSize,
+          offset
         });
         this.tours = response.packages || [];
         this.totalFound = response.total || this.tours.length;
-        console.log('Loaded all tour packages:', {
-          total: response.total,
-          packages: this.tours.length,
-          sample: this.tours[0]
-        });
       }
-      this.applyFilters();
 
-      // Load favorite statuses if authenticated
-      if (this.isAuthenticated && this.tours.length > 0) {
-        this.loadFavoriteStatuses();
-      }
+      this.applyFilters();
     } catch (error: any) {
       console.error('Error loading tours:', error);
       this.errorMessage = error?.message || 'Lỗi khi tải danh sách tour. Vui lòng thử lại sau.';
       this.tours = [];
       this.filteredTours = [];
+      this.paginatedTours = [];
     } finally {
       this.isLoading = false;
     }
   }
 
-  async loadFavoriteStatuses(): Promise<void> {
-    // This logic is now handled globally by FavoriteService
-  }
-
-  isFavorite(packageId: string): boolean {
-    return false; // Handled internally by TourCard
-  }
-
-  isLoadingFavorite(packageId: string): boolean {
-    return false; // Handled internally by TourCard
-  }
-
-  async onToggleFavorite(packageId: string): Promise<void> {
-    // Logic handles in TourCard, but we listen for potential side effects if needed
-    console.log('ToursComponent: Favorite toggled for', packageId);
-  }
-
-  onSearch(params: any) {
-    // Chỉ dùng queryText để search
-    this.queryText = params.queryText || params.q || '';
-    this.searchParams = {}; // Clear các params riêng lẻ
-    this.loadTours();
+  onSearch(params: TourSearchData | unknown) {
+    const searchParams = params as TourSearchData;
+    this.queryText = searchParams.queryText || '';
+    this.searchParams = {};
+    this.currentPage = 1;
+    this.router.navigate(['/tours'], {
+      queryParams: {
+        q: this.queryText || null,
+        page: null
+      }
+    });
   }
 
   changeSortBy(sortBy: 'price_asc' | 'price_desc' | 'popular') {
     this.sortBy = sortBy;
+    this.currentPage = 1;
     this.applyFilters();
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = page;
+
+    if (this.isSearchMode) {
+      this.applyFilters();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    this.router.navigate(['/tours'], {
+      queryParams: {
+        page: page > 1 ? page : null
+      },
+      queryParamsHandling: 'merge'
+    });
   }
 
   applyFilters() {
@@ -172,5 +177,15 @@ export class ToursComponent implements OnInit {
     }
 
     this.filteredTours = filtered;
+
+    if (this.isSearchMode) {
+      this.paginatedTours = paginateSlice(this.filteredTours, this.currentPage, this.pageSize);
+    } else {
+      this.paginatedTours = this.filteredTours;
+    }
+  }
+
+  get displayTotal(): number {
+    return this.isSearchMode ? this.filteredTours.length : this.totalFound;
   }
 }

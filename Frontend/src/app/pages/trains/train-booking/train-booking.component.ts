@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TrainBookingService, TrainBookingCreateRequest } from '../../../services/train-booking.service';
 import { Train } from '../../../services/train.service';
+import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-train-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, OtpPopupComponent],
   templateUrl: './train-booking.component.html',
   styleUrl: './train-booking.component.scss'
 })
@@ -33,6 +34,7 @@ export class TrainBookingComponent implements OnInit {
   otpCode: string = '';
   otpEmail: string = '';
   isVerifyingOTP = false;
+  isResendingOTP = false;
   otpError: string = '';
   otpCountdown: number = 300;
   countdownInterval: any;
@@ -138,11 +140,11 @@ export class TrainBookingComponent implements OnInit {
     } finally { this.isSubmitting = false; }
   }
 
-  async verifyOTP() {
-    if (!this.otpCode || this.otpCode.length !== 6) { this.otpError = 'Vui lòng nhập đủ 6 số OTP'; return; }
+  async verifyOTP(code: string) {
+    if (!code || code.length !== 6) { this.otpError = 'Vui lòng nhập đủ 6 số OTP'; return; }
     this.isVerifyingOTP = true; this.otpError = '';
     try {
-      const response = await firstValueFrom(this.trainBookingService.verifyOTP(this.bookingId, this.otpCode));
+      const response = await firstValueFrom(this.trainBookingService.verifyOTP(this.bookingId, code));
       if (response.EC === 0) {
         if (this.countdownInterval) clearInterval(this.countdownInterval);
         this.router.navigate(['/my-bookings'], { queryParams: { tab: 'train' } });
@@ -152,12 +154,14 @@ export class TrainBookingComponent implements OnInit {
   }
 
   async resendOTP() {
+    this.isResendingOTP = true;
     try {
       const response = await firstValueFrom(this.trainBookingService.resendOTP(this.bookingId));
       this.returnedOtpCode = response?.data?.otp_code || '';
       this.otpError = 'Mã OTP mới đã được gửi!';
       this.startCountdown();
     } catch (error) { this.otpError = 'Không thể gửi lại OTP'; }
+    finally { this.isResendingOTP = false; }
   }
 
   goBack() { this.router.navigate(['/trains']); }

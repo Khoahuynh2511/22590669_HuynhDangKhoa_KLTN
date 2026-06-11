@@ -1,18 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ConfigService } from './config.service';
-
-export interface TripPlanMessage {
-  type: 'start' | 'step' | 'token' | 'activities' | 'itinerary_confirmed' | 'flights' | 'trains' | 'checkout' | 'done' | 'error';
-  conversation_id?: string;
-  user_id?: string;
-  step?: number;
-  message?: string;
-  content?: string;
-  waiting_for_input?: boolean;
-  is_complete?: boolean;
-  data?: any;
-  error?: string;
-}
+import { TripPlanStreamEvent } from '../shared/models/trip-planning.model';
 
 @Injectable({
   providedIn: 'root'
@@ -26,8 +14,14 @@ export class TripPlannerService {
 
   /**
    * Send a message in the trip planning workflow and get SSE streaming response.
+   * Supports room_id for chat history persistence and updated_itinerary for drag-and-drop.
    */
-  async sendMessage(message: string, conversationId: string | null): Promise<ReadableStreamDefaultReader<Uint8Array>> {
+  async sendMessage(
+    message: string,
+    conversationId: string | null,
+    roomId?: string | null,
+    updatedItinerary?: Record<string, any> | null
+  ): Promise<ReadableStreamDefaultReader<Uint8Array>> {
     const token = localStorage.getItem('access_token');
 
     const headers: HeadersInit = {
@@ -38,13 +32,20 @@ export class TripPlannerService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    const body: any = {
+      message,
+      conversation_id: conversationId,
+      room_id: roomId || undefined,
+    };
+
+    if (updatedItinerary) {
+      body.updated_itinerary = updatedItinerary;
+    }
+
     const response = await fetch(`${this.baseUrl}/stream`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        message,
-        conversation_id: conversationId,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -59,39 +60,12 @@ export class TripPlannerService {
   }
 
   /**
-   * Start a new trip planning session with optional pre-fill data.
-   */
-  async startPlanning(initialData?: { destination?: string; duration_days?: number }): Promise<any> {
-    const token = localStorage.getItem('access_token');
-
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}/start`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(initialData || {}),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
-  }
-
-  /**
    * Parse SSE stream events from the reader.
    * Calls the callback for each parsed event.
    */
   async parseStream(
     reader: ReadableStreamDefaultReader<Uint8Array>,
-    onEvent: (event: TripPlanMessage) => void,
+    onEvent: (event: TripPlanStreamEvent) => void,
   ): Promise<void> {
     const decoder = new TextDecoder();
     let buffer = '';
@@ -108,7 +82,7 @@ export class TripPlannerService {
         const trimmed = line.trim();
         if (trimmed.startsWith('data: ')) {
           try {
-            const event = JSON.parse(trimmed.slice(6)) as TripPlanMessage;
+            const event = JSON.parse(trimmed.slice(6)) as TripPlanStreamEvent;
             onEvent(event);
           } catch (e) {
             console.warn('Failed to parse SSE event:', trimmed, e);
@@ -120,7 +94,7 @@ export class TripPlannerService {
     // Process remaining buffer
     if (buffer.trim().startsWith('data: ')) {
       try {
-        const event = JSON.parse(buffer.trim().slice(6)) as TripPlanMessage;
+        const event = JSON.parse(buffer.trim().slice(6)) as TripPlanStreamEvent;
         onEvent(event);
       } catch (e) {
         // Ignore

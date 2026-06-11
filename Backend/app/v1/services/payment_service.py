@@ -30,7 +30,8 @@ class PaymentService:
 
     def _pg_conn(self):
         """Get PostgreSQL connection"""
-        return psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor)
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        return psycopg2.connect(url, cursor_factory=RealDictCursor)
 
     async def create_payment(
         self,

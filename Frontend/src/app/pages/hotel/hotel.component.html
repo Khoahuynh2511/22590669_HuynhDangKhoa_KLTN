@@ -1,6 +1,5 @@
 <div class="bg-gray-100 min-h-screen hotel-pages">
 
-  <!-- Sticky Search Bar -->
   <div class="sticky top-0 flex-1 p-4 bg-white shadow-lg z-10 flex justify-center items-center">
     <div class="container mx-auto px-6">
       <app-search-bar [showTabs]="false" (onSearch)="getSearchVal($event)"></app-search-bar>
@@ -9,15 +8,12 @@
 
   <div class="container mx-auto p-6 flex flex-row gap-4">
 
-    <!-- Sidebar Filters -->
     <div class="wrapper-comp flex flex-col gap-4">
       <app-accordion-filter (filterChange)="onFilterChange($event)"></app-accordion-filter>
     </div>
 
-    <!-- Hotel List -->
     <div class="wrapper-comp flex flex-col gap-4 flex-1">
 
-      <!-- Loading State -->
       @if (isLoading) {
         <div class="flex flex-col items-center justify-center py-20">
           <div class="loading-spinner mb-4"></div>
@@ -25,32 +21,33 @@
         </div>
       }
 
-      <!-- Empty State -->
-      @if (!isLoading && hotels.length === 0) {
+      @if (!isLoading && totalFiltered === 0) {
         <div class="flex flex-col items-center justify-center py-20">
           <div class="empty-icon mb-4">
-            <i class="fas fa-hotel text-gray-300" style="font-size: 64px;"></i>
+            <i class="fas fa-hotel text-gray-300 empty-hotel-icon"></i>
           </div>
           <h3 class="text-xl font-semibold text-gray-600 mb-2">Không tìm thấy khách sạn</h3>
           <p class="text-gray-400 mb-6">Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</p>
           <button
+            type="button"
             class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition"
             (click)="resetAllFilters()">
-            <i class="fas fa-redo mr-2"></i>Đặt lại bộ lọc
+            Đặt lại bộ lọc
           </button>
         </div>
       }
 
-      <!-- Hotel Cards -->
       @for (item of hotels; track item.hotel_id) {
         <app-hotel-card [hotel]="item"></app-hotel-card>
       }
 
-      <!-- Results count -->
-      @if (!isLoading && hotels.length > 0) {
-        <div class="text-center text-gray-400 text-sm py-4">
-          Hiển thị {{ hotels.length }} khách sạn
-        </div>
+      @if (!isLoading && totalFiltered > 0) {
+        <app-pagination
+          [currentPage]="currentPage"
+          [total]="totalFiltered"
+          [pageSize]="pageSize"
+          (pageChange)="onPageChange($event)">
+        </app-pagination>
       }
     </div>
 

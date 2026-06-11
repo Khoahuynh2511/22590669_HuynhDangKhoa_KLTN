@@ -1,0 +1,111 @@
+﻿<!-- Floating Robot Trigger -->
+<div class="widget-trigger" [class.open]="isOpen" (click)="togglePopup()">
+  <div class="robot-body">
+    <div class="robot-antenna"></div>
+    <div class="robot-head">
+      <div class="robot-eye left"></div>
+      <div class="robot-eye right"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Popup Panel (draggable + resizable) -->
+<div class="widget-popup" [class.visible]="isOpen"
+     [style.left.px]="popupX" [style.top.px]="popupY"
+     [style.width.px]="popupW" [style.height.px]="popupH">
+
+  <!-- Resize edges -->
+  <div class="resize-edge n" (mousedown)="startResize($event, 'n')"></div>
+  <div class="resize-edge s" (mousedown)="startResize($event, 's')"></div>
+  <div class="resize-edge e" (mousedown)="startResize($event, 'e')"></div>
+  <div class="resize-edge w" (mousedown)="startResize($event, 'w')"></div>
+  <div class="resize-edge ne" (mousedown)="startResize($event, 'ne')"></div>
+  <div class="resize-edge nw" (mousedown)="startResize($event, 'nw')"></div>
+  <div class="resize-edge se" (mousedown)="startResize($event, 'se')"></div>
+  <div class="resize-edge sw" (mousedown)="startResize($event, 'sw')"></div>
+
+  <!-- Header (drag handle) -->
+  <div class="widget-header" (mousedown)="startDrag($event)">
+    <div class="header-left">
+      <span class="header-title">Travel AI</span>
+      <span class="header-status">Tr&#x1EF1;c tuy&#x1EBF;n</span>
+    </div>
+    <button class="close-btn" (click)="togglePopup()">&times;</button>
+  </div>
+
+  <!-- Mode Tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab" [class.active]="mode === 'chat'" (click)="switchMode('chat')">Tr&#x00F2; chuy&#x1EC7;n</button>
+    <button class="mode-tab" (click)="switchMode('planner')">L&#x1EAD;p k&#x1EBF; ho&#x1EA1;ch</button>
+  </div>
+
+  <!-- Chat Mode -->
+  @if (mode === 'chat') {
+    <div class="widget-body" #chatBody>
+      @if (!chatMessages.length && !isChatTyping) {
+        <div class="empty-state">
+          <div class="empty-greeting">Xin ch&#x00E0;o!</div>
+          <p class="empty-sub">T&#x00F4;i c&#x00F3; th&#x1EC3; gi&#x00FA;p g&#x00EC; cho h&#x00E0;nh tr&#x00EC;nh ti&#x1EBF;p theo c&#x1EE7;a b&#x1EA1;n?</p>
+        </div>
+      }
+
+      @for (message of chatMessages; track $index) {
+        <div class="msg-row" [class.user]="message.isUser" [class.assistant]="!message.isUser">
+          @if (message.isError) {
+            <div class="msg-bubble error" [innerHTML]="message.content"></div>
+          } @else {
+            <div class="msg-bubble" [innerHTML]="message.isUser ? message.content : formatContent(message.content)"></div>
+          }
+
+          @if (!message.isUser && message.tourSelections?.length) {
+            <div class="tour-list">
+              @for (tour of message.tourSelections; track tour.index) {
+                <div class="tour-mini-card" (click)="selectTour(tour.name, tour.price)">
+                  <span class="tour-name">{{ tour.name }}</span>
+                  <span class="tour-price">{{ formatPrice(tour.price) }}</span>
+                </div>
+              }
+            </div>
+          }
+
+          @if (!message.isUser && message.mcpUiHtml) {
+            <div class="mcp-html" [innerHTML]="sanitize(message.mcpUiHtml)" (click)="handleMcpClick($event)"></div>
+          }
+        </div>
+      }
+
+      @if (isChatTyping) {
+        <div class="msg-row assistant">
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="widget-footer">
+      <textarea
+        [(ngModel)]="chatInputText"
+        (keydown)="onChatKey($event)"
+        (input)="autoResize($event)"
+        placeholder="Nh&#x1EAD;p tin nh&#x1EAF;n..."
+        rows="1"
+      ></textarea>
+      <button class="send-btn" (click)="sendChatMessage()" [disabled]="isChatStreaming || !chatInputText.trim()">G&#x1EED;i</button>
+    </div>
+  }
+</div>
+
+<app-otp-popup
+  [visible]="showOtpPopup"
+  [otpCode]="returnedOtpCode"
+  [email]="otpEmail"
+  [isVerifying]="isVerifyingOTP"
+  [isResending]="isResendingOTP"
+  [errorMessage]="otpError.includes('đã được tạo') || otpError.includes('đã được gửi') ? '' : otpError"
+  [successMessage]="otpSuccess || (otpError.includes('đã được tạo') ? otpError : '')"
+  [countdown]="otpCountdown"
+  [resendDisabled]="otpCountdown > 240"
+  (verify)="verifyAgentOTP($event)"
+  (resend)="resendAgentOTP()">
+</app-otp-popup>

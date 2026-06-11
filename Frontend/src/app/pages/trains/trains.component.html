@@ -8,61 +8,49 @@
       </div>
 
       <!-- Search Form -->
-      <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-4xl mx-auto">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-          <!-- Departure -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Ga &#273;i</label>
-            <select [(ngModel)]="departure" title="Ch&#7885;n ga &#273;i"
-              class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:bg-white transition-all text-sm">
-              <option value="">Ch&#7885;n ga &#273;i</option>
+      <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-5xl mx-auto">
+        <div class="ticket-search-form">
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Ga đi</label>
+            <select [(ngModel)]="departure" title="Chọn ga đi" class="ticket-search-select">
+              <option value="">Chọn ga đi</option>
               @for (s of stations; track s.code) {
-                <option [value]="s.code">{{ s.city }} &#8212; {{ s.name }}</option>
+                <option [value]="s.code">{{ s.city }} — {{ s.name }}</option>
               }
             </select>
           </div>
 
-          <!-- Swap button -->
-          <div class="hidden lg:flex items-center justify-center pb-1">
-            <button type="button" (click)="swapStations()" class="w-10 h-10 rounded-full bg-green-50 hover:bg-green-100 border-2 border-green-200 flex items-center justify-center transition-all hover:scale-110 hover:border-green-400" title="&#272;&#7893;i chi&#7873;u">
-              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
-              </svg>
+          <button type="button" (click)="swapStations()" class="ticket-search-swap" title="Đổi chiều">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+          </button>
+
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Ga đến</label>
+            <select [(ngModel)]="destination" title="Chọn ga đến" class="ticket-search-select">
+              <option value="">Chọn ga đến</option>
+              @for (s of stations; track s.code) {
+                <option [value]="s.code">{{ s.city }} — {{ s.name }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Ngày đi</label>
+            <input type="date" [(ngModel)]="departureDate" class="ticket-search-input" />
+          </div>
+
+          <div class="ticket-search-field">
+            <label class="ticket-search-label">Hành khách</label>
+            <input type="number" [(ngModel)]="passengers" min="1" max="9" class="ticket-search-input" />
+          </div>
+
+          <div class="ticket-search-field ticket-search-submit">
+            <label class="ticket-search-label ticket-search-label-hidden">Tìm kiếm</label>
+            <button type="button" (click)="onSearch()" class="ticket-search-btn">
+              Tìm tàu
             </button>
-          </div>
-
-          <!-- Arrival -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Ga &#273;&#7871;n</label>
-            <select [(ngModel)]="destination" title="Ch&#7885;n ga &#273;&#7871;n"
-              class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:bg-white transition-all text-sm">
-              <option value="">Ch&#7885;n ga &#273;&#7871;n</option>
-              @for (s of stations; track s.code) {
-                <option [value]="s.code">{{ s.city }} &#8212; {{ s.name }}</option>
-              }
-            </select>
-          </div>
-
-          <!-- Date -->
-          <div class="flex flex-col">
-            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Ng&#224;y &#273;i</label>
-            <input type="date" [(ngModel)]="departureDate" placeholder="Ch&#7885;n ng&#224;y &#273;i"
-              class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:bg-white transition-all text-sm" />
-          </div>
-
-          <!-- Passengers + Search -->
-          <div class="flex flex-col gap-2">
-            <div>
-              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">H&#224;nh kh&#225;ch</label>
-              <div class="flex gap-2">
-                <input type="number" [(ngModel)]="passengers" min="1" max="9" placeholder="1"
-                  class="flex-1 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:bg-white transition-all text-sm" />
-                <button type="button" (click)="onSearch()"
-                  class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg text-sm whitespace-nowrap">
-                  T&#236;m t&#224;u
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -97,10 +85,9 @@
           </svg>
           {{ errorMessage }}
         </div>
-      } @else if (searchResults.length > 0) {
-        <!-- Results header with sort -->
+      } @else if (paginatedResults.length > 0) {
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-bold text-gray-800">K&#7871;t qu&#7843; t&#236;m ki&#7871;m <span class="text-green-600">({{ searchResults.length }} chuy&#7871;n)</span></h2>
+          <h2 class="text-lg font-bold text-gray-800">Kết quả tìm kiếm <span class="text-green-600">({{ totalResults }} chuyến)</span></h2>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-500">S&#7855;p x&#7871;p:</span>
             <select [(ngModel)]="sortBy" (ngModelChange)="sortResults()" title="S&#7855;p x&#7871;p k&#7871;t qu&#7843;"
@@ -113,7 +100,7 @@
         </div>
 
         <div class="space-y-3">
-          @for (train of searchResults; track train.train_id) {
+          @for (train of paginatedResults; track train.train_id) {
             <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden group">
               <div class="flex items-stretch">
                 <!-- Train type column -->
@@ -182,6 +169,13 @@
             </div>
           }
         </div>
+
+        <app-pagination
+          [currentPage]="currentPage"
+          [total]="totalResults"
+          [pageSize]="pageSize"
+          (pageChange)="onPageChange($event)">
+        </app-pagination>
       } @else {
         <div class="text-center py-16">
           <h3 class="text-lg font-semibold text-gray-700 mb-2">Kh&#244;ng t&#236;m th&#7845;y chuy&#7871;n t&#224;u</h3>

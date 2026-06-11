@@ -119,11 +119,6 @@ export const routes: Routes = [
     loadComponent: () => import('./components/ai-chatbot/ai-chatbot.component').then(m => m.AiChatbotComponent)
   },
   {
-    path: 'trip-planner',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/trip-planner/trip-planner.component').then(m => m.TripPlannerComponent)
-  },
-  {
     path: 'chat-room/:roomId',
     canActivate: [authGuard],
     loadComponent: () => import('./components/ai-chatbot/ai-chatbot.component').then(m => m.AiChatbotComponent)

@@ -6,7 +6,7 @@ import logging
 import random
 import string
 from typing import Optional, Dict, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from ..core.config import settings
@@ -25,6 +25,25 @@ class PromotionService:
 
     def _normalize(self, rows):
         return [dict(r) for r in rows]
+
+    def _parse_promotion_datetime(self, value) -> Optional[datetime]:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return value.replace(tzinfo=None) if value.tzinfo else value
+        if isinstance(value, date):
+            return datetime.combine(value, datetime.min.time())
+        if isinstance(value, str):
+            date_str = value.replace('Z', '+00:00') if 'Z' in value else value
+            return datetime.fromisoformat(date_str).replace(tzinfo=None)
+        return None
+
+    def _promotion_has_available_quantity(self, promo: Dict[str, Any]) -> bool:
+        used_count = promo.get('used_count') or 0
+        usage_limit = promo.get('usage_limit')
+        if usage_limit is None:
+            return True
+        return used_count < usage_limit
 
     def _generate_promotion_code(self) -> str:
         """
@@ -683,34 +702,14 @@ class PromotionService:
                 for promo_dict in results:
                     promo = dict(promo_dict)
                     try:
-                        # Parse dates from database (handle string or datetime objects)
-                        start_date_str = promo['start_date']
-                        end_date_str = promo['end_date']
+                        start_date = self._parse_promotion_datetime(promo.get('start_date'))
+                        end_date = self._parse_promotion_datetime(promo.get('end_date'))
 
-                        # Convert to datetime if string, or use directly if already datetime
-                        if isinstance(start_date_str, str):
-                            # Handle ISO format with or without timezone
-                            if 'Z' in start_date_str:
-                                start_date_str = start_date_str.replace('Z', '+00:00')
-                            # Parse and remove timezone info for comparison
-                            start_date = datetime.fromisoformat(start_date_str).replace(tzinfo=None)
-                        else:
-                            # Already a datetime object, just ensure no timezone
-                            start_date = start_date_str.replace(tzinfo=None) if start_date_str.tzinfo else start_date_str
+                        if start_date is None or end_date is None:
+                            continue
 
-                        if isinstance(end_date_str, str):
-                            # Handle ISO format with or without timezone
-                            if 'Z' in end_date_str:
-                                end_date_str = end_date_str.replace('Z', '+00:00')
-                            # Parse and remove timezone info for comparison
-                            end_date = datetime.fromisoformat(end_date_str).replace(tzinfo=None)
-                        else:
-                            # Already a datetime object, just ensure no timezone
-                            end_date = end_date_str.replace(tzinfo=None) if end_date_str.tzinfo else end_date_str
-
-                        # Check if still valid
                         is_valid_time = start_date <= now <= end_date
-                        has_quantity = promo['used_count'] < promo['usage_limit']
+                        has_quantity = self._promotion_has_available_quantity(promo)
 
                         if is_valid_time and has_quantity:
                             # Convert UUID to string
@@ -812,7 +811,7 @@ class PromotionService:
                 }
 
             # Check if promotion has available quantity
-            if promo['used_count'] >= promo['usage_limit']:
+            if not self._promotion_has_available_quantity(promo):
                 return {
                     "EC": 1,
                     "EM": "Promotion has reached its usage limit",
@@ -832,7 +831,7 @@ class PromotionService:
             final_price = original_price - discount_amount
 
             # Increment used_count
-            new_used_count = promo['used_count'] + 1
+            new_used_count = (promo.get('used_count') or 0) + 1
 
             with self._get_conn() as conn:
                 cursor = conn.cursor()

@@ -3,6 +3,8 @@ Chat API Endpoints
 """
 import logging
 import json
+from decimal import Decimal
+from datetime import date, datetime
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from ...schema.agent_schema import ChatRequest, ChatResponse, ConversationHistory
@@ -34,6 +36,50 @@ def _content_to_text(value) -> str:
             return _content_to_text(value.get("content"))
         return ""
     return str(value)
+
+
+def _json_default(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, Decimal):
+        return float(value)
+    return str(value)
+
+
+def _dumps_event(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, default=_json_default)
+
+
+def _match_tours_from_user_message(user_message: str, tour_packages: list) -> list:
+    if not user_message or not tour_packages:
+        return []
+
+    message = user_message.lower()
+    selection_hints = [
+        'chọn', 'chon', 'đặt tour', 'dat tour', 'muốn đặt', 'muon dat',
+        'book tour', 'tour này', 'tour nay', 'tour do'
+    ]
+    if not any(hint in message for hint in selection_hints):
+        return []
+
+    matched = []
+    for pkg in tour_packages:
+        name = (pkg.get('package_name') or '').lower().strip()
+        if name and name in message:
+            matched.append(pkg)
+
+    if matched:
+        return matched[:1]
+
+    for pkg in tour_packages:
+        name = (pkg.get('package_name') or '').lower().strip()
+        if not name:
+            continue
+        tokens = [token for token in name.replace('-', ' ').split() if len(token) > 3]
+        if any(token in message for token in tokens):
+            matched.append(pkg)
+
+    return matched[:1]
 
 
 @router.post("/stream")
@@ -98,7 +144,10 @@ async def chat_stream(
                 full_response = ""
                 recommendations = []
                 tour_packages = []
+                tour_packages_for_ui = []
                 metadata = {}
+                mcp_ui_resource = None
+                mcp_ui_html = None
 
                 # Track MCP UI data and whether tokens have been streamed
                 pending_mcp_ui_resource = None
@@ -106,6 +155,8 @@ async def chat_stream(
                 pending_tour_packages = None
                 has_streamed_tokens = False
                 is_recommendation_response = False
+                state_tour_packages_snapshot = []
+                otp_required_payload = None
 
                 # Stream from LangGraph
                 async for event in supervisor_graph.process_message_stream(
@@ -158,7 +209,7 @@ async def chat_stream(
                                 logger.info(
                                     f"📤 Streaming MCP UI event (after tokens): {
                                         len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
-                                yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
+                                yield f"data: {_dumps_event(ui_event)}\n\n"
 
                                 # Clear pending
                                 pending_mcp_ui_resource = None
@@ -173,25 +224,41 @@ async def chat_stream(
                                 raw_final = chain_output.get("final_response", full_response)
                                 full_response = _content_to_text(raw_final)
                             if "recommended_package_ids" in chain_output:
-                                recommendations = chain_output.get("recommended_package_ids", [])
-                            if "tour_packages" in chain_output:
-                                tour_packages = chain_output.get("tour_packages", [])
+                                new_ids = chain_output.get("recommended_package_ids") or []
+                                if new_ids:
+                                    recommendations = new_ids
+                            new_tour_packages = chain_output.get("tour_packages")
+                            if new_tour_packages:
+                                state_tour_packages_snapshot = new_tour_packages
+                                tour_packages = new_tour_packages
                             if "metadata" in chain_output:
                                 metadata = chain_output.get("metadata", {})
 
-                            # Check for MCP UI Resource updates
-                            mcp_ui_resource = chain_output.get("mcp_ui_resource")
-                            mcp_ui_html = chain_output.get("mcp_ui_html")
-                            tour_packages_for_ui = chain_output.get("tour_packages", [])
+                            pending_booking_id = chain_output.get("pending_booking_id")
+                            pending_otp_code = chain_output.get("pending_otp_code")
+                            otp_email = chain_output.get("user_email")
+                            if pending_booking_id and pending_otp_code:
+                                otp_required_payload = {
+                                    "booking_id": str(pending_booking_id),
+                                    "otp_code": str(pending_otp_code),
+                                    "email": otp_email or "",
+                                }
 
-                            # Only send tour packages if this is a recommendation response (check URI)
-                            if mcp_ui_resource and isinstance(mcp_ui_resource, dict):
-                                uri = str(mcp_ui_resource.get('uri', ''))
-                                if 'tour-recommendations' in uri:
+                            new_mcp_ui_resource = chain_output.get("mcp_ui_resource")
+                            if new_mcp_ui_resource:
+                                mcp_ui_resource = new_mcp_ui_resource
+                                uri = str(new_mcp_ui_resource.get('uri', ''))
+                                if 'tour-recommendations' in uri and new_tour_packages:
+                                    tour_packages_for_ui = new_tour_packages
                                     is_recommendation_response = True
+                            new_mcp_ui_html = chain_output.get("mcp_ui_html")
+                            if new_mcp_ui_html:
+                                mcp_ui_html = new_mcp_ui_html
 
-                            # Only include tour packages if this is a recommendation response
-                            if mcp_ui_resource or mcp_ui_html or (tour_packages_for_ui and is_recommendation_response):
+                            if tour_packages_for_ui:
+                                is_recommendation_response = True
+
+                            if mcp_ui_resource or mcp_ui_html or tour_packages_for_ui:
                                 # Convert AnyUrl objects to strings if present in mcp_ui_resource
                                 if mcp_ui_resource and isinstance(mcp_ui_resource, dict):
                                     if 'uri' in mcp_ui_resource:
@@ -204,23 +271,20 @@ async def chat_stream(
                                         "ui_resource": mcp_ui_resource,
                                         "html": mcp_ui_html,  # Keep for backward compatibility
                                         # Only send if recommendation
-                                        "tourPackages": tour_packages_for_ui[:5] if (tour_packages_for_ui and is_recommendation_response) else None
+                                        "tourPackages": tour_packages_for_ui[:5] if tour_packages_for_ui else None
                                     }
                                     logger.info(
-                                        f"📤 Streaming MCP UI event (tokens already streamed): {
-                                            len(tour_packages_for_ui) if (
-                                                tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
-                                    yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
+                                        f"Streaming MCP UI event (tokens already streamed): "
+                                        f"{len(tour_packages_for_ui) if tour_packages_for_ui else 0} tour packages")
+                                    yield f"data: {_dumps_event(ui_event)}\n\n"
                                 else:
                                     # Store for later (will be sent when first token arrives)
                                     pending_mcp_ui_resource = mcp_ui_resource
                                     pending_mcp_ui_html = mcp_ui_html
-                                    pending_tour_packages = tour_packages_for_ui[:5] if (
-                                        tour_packages_for_ui and is_recommendation_response) else None
+                                    pending_tour_packages = tour_packages_for_ui[:5] if tour_packages_for_ui else None
                                     logger.info(
-                                        f"⏳ MCP UI pending (waiting for tokens): {
-                                            len(tour_packages_for_ui) if (
-                                                tour_packages_for_ui and is_recommendation_response) else 0} tour packages")
+                                        f"MCP UI pending (waiting for tokens): "
+                                        f"{len(tour_packages_for_ui) if tour_packages_for_ui else 0} tour packages")
 
                 # If we still have pending MCP UI but no tokens were streamed (edge case), send it at the end
                 if (pending_mcp_ui_resource or pending_mcp_ui_html or pending_tour_packages) and not has_streamed_tokens:
@@ -237,17 +301,42 @@ async def chat_stream(
                     logger.info(
                         f"📤 Streaming MCP UI event (no tokens, sending at end): {
                             len(pending_tour_packages) if pending_tour_packages else 0} tour packages")
-                    yield f"data: {json.dumps(ui_event, ensure_ascii=False)}\n\n"
+                    yield f"data: {_dumps_event(ui_event)}\n\n"
 
-                # Send recommendations (full tour packages) ONLY if this is a recommendation response
-                if is_recommendation_response and (recommendations or tour_packages):
-                    # Use tour_packages if available (has full details), otherwise use IDs
-                    rec_data = tour_packages if tour_packages else recommendations
+                # Send recommendations when tour packages are available
+                if tour_packages_for_ui:
+                    is_recommendation_response = True
+
+                if not tour_packages_for_ui and state_tour_packages_snapshot:
+                    selected_tours = _match_tours_from_user_message(
+                        request.message,
+                        state_tour_packages_snapshot
+                    )
+                    if selected_tours:
+                        tour_packages_for_ui = selected_tours
+                        is_recommendation_response = True
+
+                if is_recommendation_response and (recommendations or tour_packages or tour_packages_for_ui):
+                    rec_data = (
+                        tour_packages
+                        if tour_packages
+                        else (tour_packages_for_ui if tour_packages_for_ui else recommendations)
+                    )
                     rec_event = {
                         "type": "recommendations",
                         "data": rec_data
                     }
-                    yield f"data: {json.dumps(rec_event, ensure_ascii=False)}\n\n"
+                    yield f"data: {_dumps_event(rec_event)}\n\n"
+
+                if otp_required_payload:
+                    otp_event = {
+                        "type": "otp_required",
+                        "data": otp_required_payload,
+                    }
+                    logger.info(
+                        f"Streaming OTP required event for booking {otp_required_payload.get('booking_id')}"
+                    )
+                    yield f"data: {json.dumps(otp_event, ensure_ascii=False)}\n\n"
 
                 # Send metadata
                 metadata_event = {

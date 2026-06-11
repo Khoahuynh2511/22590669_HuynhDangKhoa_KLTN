@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FlightBookingService, FlightBookingCreateRequest } from '../../../services/flight-booking.service';
 import { Flight } from '../../../services/flight.service';
+import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-flight-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, OtpPopupComponent],
   templateUrl: './flight-booking.component.html',
   styleUrl: './flight-booking.component.scss'
 })
@@ -37,6 +38,7 @@ export class FlightBookingComponent implements OnInit {
   otpCode: string = '';
   otpEmail: string = '';
   isVerifyingOTP = false;
+  isResendingOTP = false;
   otpError: string = '';
   otpCountdown: number = 300;
   countdownInterval: any;
@@ -165,15 +167,15 @@ export class FlightBookingComponent implements OnInit {
     }
   }
 
-  async verifyOTP() {
-    if (!this.otpCode || this.otpCode.length !== 6) {
+  async verifyOTP(code: string) {
+    if (!code || code.length !== 6) {
       this.otpError = 'Vui lòng nhập đủ 6 số OTP';
       return;
     }
     this.isVerifyingOTP = true;
     this.otpError = '';
     try {
-      const response = await firstValueFrom(this.flightBookingService.verifyOTP(this.bookingId, this.otpCode));
+      const response = await firstValueFrom(this.flightBookingService.verifyOTP(this.bookingId, code));
       if (response.EC === 0) {
         if (this.countdownInterval) clearInterval(this.countdownInterval);
         this.router.navigate(['/my-bookings'], { queryParams: { tab: 'flight' } });
@@ -188,6 +190,7 @@ export class FlightBookingComponent implements OnInit {
   }
 
   async resendOTP() {
+    this.isResendingOTP = true;
     try {
       const response = await firstValueFrom(this.flightBookingService.resendOTP(this.bookingId));
       this.returnedOtpCode = response?.data?.otp_code || '';
@@ -195,6 +198,8 @@ export class FlightBookingComponent implements OnInit {
       this.startCountdown();
     } catch (error) {
       this.otpError = 'Không thể gửi lại OTP';
+    } finally {
+      this.isResendingOTP = false;
     }
   }
 

@@ -59,7 +59,7 @@ class ReviewService:
                             r.review_id, r.booking_id, r.user_id, r.package_id,
                             r.rating, r.comment, r.status, r.created_at, r.updated_at,
                             u.full_name as user_full_name, u.email as user_email,
-                            u.profile_picture as user_profile_picture,
+                            u.avatar_url as user_profile_picture,
                             tp.package_name, tp.destination, tp.price,
                             ROW_NUMBER() OVER (ORDER BY r.created_at DESC) as row_num
                         FROM reviews r
@@ -216,7 +216,7 @@ class ReviewService:
                             r.review_id, r.booking_id, r.user_id, r.package_id,
                             r.rating, r.comment, r.status, r.created_at, r.updated_at,
                             u.full_name as user_full_name, u.email as user_email,
-                            u.profile_picture as user_profile_picture,
+                            u.avatar_url as user_profile_picture,
                             tp.package_name, tp.destination
                         FROM reviews r
                         LEFT JOIN users u ON r.user_id = u.user_id

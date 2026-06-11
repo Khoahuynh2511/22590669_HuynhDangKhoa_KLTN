@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TrainService, Train, TrainStation } from '../../services/train.service';
+import { PaginationComponent } from '../../components/pagination/pagination.component';
+import { paginateSlice } from '../../shared/utils/pagination.util';
 
-// Re-export Train for template usage
 export type { Train };
 
 interface SeatPriceEntry {
@@ -17,8 +18,9 @@ interface SeatPriceEntry {
 @Component({
   selector: 'app-trains',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './trains.component.html'
+  imports: [CommonModule, FormsModule, PaginationComponent],
+  templateUrl: './trains.component.html',
+  styleUrl: './trains.component.scss'
 })
 export class TrainsComponent implements OnInit {
   departure = '';
@@ -26,12 +28,16 @@ export class TrainsComponent implements OnInit {
   departureDate = '';
   passengers = 1;
   stations: TrainStation[] = [];
-  searchResults: Train[] = [];
+  allSearchResults: Train[] = [];
+  paginatedResults: Train[] = [];
   isSearching = false;
   hasSearched = false;
   errorMessage = '';
 
-  // Sort
+  currentPage = 1;
+  pageSize = 5;
+  totalResults = 0;
+
   sortBy: 'price' | 'departure' | 'duration' = 'price';
 
   popularRoutes = [
@@ -59,31 +65,71 @@ export class TrainsComponent implements OnInit {
   }
 
   async onSearch() {
-    if (!this.departure || !this.destination) { this.errorMessage = 'Vui lòng chọn ga đi và ga đến'; this.hasSearched = true; return; }
-    if (this.departure === this.destination) { this.errorMessage = 'Ga đi và ga đến không được trùng nhau'; this.hasSearched = true; return; }
-    this.isSearching = true; this.hasSearched = true; this.errorMessage = '';
+    if (!this.departure || !this.destination) {
+      this.errorMessage = 'Vui lòng chọn ga đi và ga đến';
+      this.hasSearched = true;
+      return;
+    }
+    if (this.departure === this.destination) {
+      this.errorMessage = 'Ga đi và ga đến không được trùng nhau';
+      this.hasSearched = true;
+      return;
+    }
+
+    this.isSearching = true;
+    this.hasSearched = true;
+    this.errorMessage = '';
+    this.currentPage = 1;
+
     try {
-      const res = await this.trainService.searchTrains(this.departure, this.destination, this.departureDate || undefined);
+      const res = await this.trainService.searchTrains(this.departure, this.destination, this.departureDate || undefined, 20);
       if (res.EC === 0 && res.data) {
-        this.searchResults = res.data.trains;
+        this.allSearchResults = res.data.trains;
+        this.totalResults = res.data.total ?? res.data.trains.length;
         this.sortResults();
+      } else {
+        this.errorMessage = res.EM || 'Không tìm thấy chuyến tàu';
+        this.allSearchResults = [];
+        this.paginatedResults = [];
+        this.totalResults = 0;
       }
-      else { this.errorMessage = res.EM; this.searchResults = []; }
-    } catch (e: any) { this.errorMessage = 'Lỗi kết nối. Vui lòng thử lại.'; this.searchResults = []; }
-    finally { this.isSearching = false; }
+    } catch (e: any) {
+      this.errorMessage = 'Lỗi kết nối. Vui lòng thử lại.';
+      this.allSearchResults = [];
+      this.paginatedResults = [];
+      this.totalResults = 0;
+    } finally {
+      this.isSearching = false;
+    }
   }
 
   sortResults() {
     if (this.sortBy === 'price') {
-      this.searchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
+      this.allSearchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
     } else if (this.sortBy === 'departure') {
-      this.searchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
+      this.allSearchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
     } else if (this.sortBy === 'duration') {
-      this.searchResults.sort((a, b) => a.duration_hours - b.duration_hours);
+      this.allSearchResults.sort((a, b) => a.duration_hours - b.duration_hours);
     }
+    this.updatePaginatedResults();
   }
 
-  selectRoute(route: any) { this.departure = route.from; this.destination = route.to; this.onSearch(); }
+  onPageChange(page: number): void {
+    this.currentPage = page;
+    this.updatePaginatedResults();
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  }
+
+  private updatePaginatedResults(): void {
+    this.totalResults = this.allSearchResults.length;
+    this.paginatedResults = paginateSlice(this.allSearchResults, this.currentPage, this.pageSize);
+  }
+
+  selectRoute(route: any) {
+    this.departure = route.from;
+    this.destination = route.to;
+    this.onSearch();
+  }
 
   bookTrain(train: Train) {
     this.router.navigate(['/train-booking', train.train_id], {
@@ -91,7 +137,9 @@ export class TrainsComponent implements OnInit {
     });
   }
 
-  openAIChat() { this.router.navigate(['/chat-room']); }
+  openAIChat() {
+    this.router.navigate(['/chat-room']);
+  }
 
   getLowestPrice(train: Train): number {
     const prices = Object.values(train.seats).map(s => s.price);
@@ -111,5 +159,7 @@ export class TrainsComponent implements OnInit {
     return entries;
   }
 
-  formatPrice(price: number): string { return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price); }
+  formatPrice(price: number): string {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+  }
 }

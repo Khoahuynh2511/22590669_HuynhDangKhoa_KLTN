@@ -4,12 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HotelBookingService, HotelBookingCreateRequest } from '../../../services/hotel-booking.service';
 import { HotelService } from '../../../services/hotel.service';
+import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-hotel-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, OtpPopupComponent],
   templateUrl: './hotel-booking.component.html',
   styleUrl: './hotel-booking.component.scss'
 })
@@ -43,6 +44,7 @@ export class HotelBookingComponent implements OnInit {
   otpCode: string = '';
   otpEmail: string = '';
   isVerifyingOTP = false;
+  isResendingOTP = false;
   otpError: string = '';
   returnedOtpCode: string = '';  // OTP code returned from API (for demo)
 
@@ -153,8 +155,8 @@ export class HotelBookingComponent implements OnInit {
     }
   }
 
-  async verifyOTP() {
-    if (!this.otpCode || this.otpCode.length !== 6) {
+  async verifyOTP(code: string) {
+    if (!code || code.length !== 6) {
       this.otpError = 'Vui lòng nhập đủ 6 số OTP';
       return;
     }
@@ -164,7 +166,7 @@ export class HotelBookingComponent implements OnInit {
 
     try {
       const response = await firstValueFrom(
-        this.hotelBookingService.verifyOTP(this.bookingId, this.otpCode)
+        this.hotelBookingService.verifyOTP(this.bookingId, code)
       );
 
       if (response.EC === 0) {
@@ -180,12 +182,15 @@ export class HotelBookingComponent implements OnInit {
   }
 
   async resendOTP() {
+    this.isResendingOTP = true;
     try {
       const response = await firstValueFrom(this.hotelBookingService.resendOTP(this.bookingId));
       this.returnedOtpCode = response?.data?.otp_code || '';
       this.otpError = 'Mã OTP mới đã được gửi!';
     } catch (error) {
       this.otpError = 'Không thể gửi lại OTP';
+    } finally {
+      this.isResendingOTP = false;
     }
   }
 

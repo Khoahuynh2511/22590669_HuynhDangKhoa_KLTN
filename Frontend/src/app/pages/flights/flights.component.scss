@@ -3,6 +3,8 @@
   padding-top: 126px;
 }
 
+@import '../../styles/ticket-search-form.scss';
+
 @media (max-width: 768px) {
   :host {
     padding-top: 114px;

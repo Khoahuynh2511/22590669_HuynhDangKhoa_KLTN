@@ -3,11 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { BusService, Bus, BusStation } from '../../services/bus.service';
+import { PaginationComponent } from '../../components/pagination/pagination.component';
+import { paginateSlice } from '../../shared/utils/pagination.util';
 
 @Component({
   selector: 'app-buses',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, PaginationComponent],
   templateUrl: './buses.component.html',
   styleUrl: './buses.component.scss'
 })
@@ -18,12 +20,16 @@ export class BusesComponent implements OnInit {
   passengers = 1;
 
   stations: BusStation[] = [];
-  searchResults: Bus[] = [];
+  allSearchResults: Bus[] = [];
+  paginatedResults: Bus[] = [];
   isSearching = false;
   hasSearched = false;
   errorMessage = '';
 
-  // Sort
+  currentPage = 1;
+  pageSize = 5;
+  totalResults = 0;
+
   sortBy: 'price' | 'departure' | 'duration' = 'price';
 
   popularRoutes = [
@@ -65,19 +71,25 @@ export class BusesComponent implements OnInit {
     this.isSearching = true;
     this.hasSearched = true;
     this.errorMessage = '';
+    this.currentPage = 1;
 
     try {
-      const res = await this.busService.searchBuses(this.departure, this.destination, this.departureDate || undefined);
+      const res = await this.busService.searchBuses(this.departure, this.destination, this.departureDate || undefined, 20);
       if (res.EC === 0 && res.data) {
-        this.searchResults = res.data.buses;
+        this.allSearchResults = res.data.buses;
+        this.totalResults = res.data.total ?? res.data.buses.length;
         this.sortResults();
       } else {
         this.errorMessage = res.EM || 'Không tìm thấy chuyến xe';
-        this.searchResults = [];
+        this.allSearchResults = [];
+        this.paginatedResults = [];
+        this.totalResults = 0;
       }
     } catch (e: any) {
       this.errorMessage = 'Lỗi kết nối. Vui lòng thử lại.';
-      this.searchResults = [];
+      this.allSearchResults = [];
+      this.paginatedResults = [];
+      this.totalResults = 0;
     } finally {
       this.isSearching = false;
     }
@@ -85,12 +97,24 @@ export class BusesComponent implements OnInit {
 
   sortResults() {
     if (this.sortBy === 'price') {
-      this.searchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
+      this.allSearchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
     } else if (this.sortBy === 'departure') {
-      this.searchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
+      this.allSearchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
     } else if (this.sortBy === 'duration') {
-      this.searchResults.sort((a, b) => a.duration_hours - b.duration_hours);
+      this.allSearchResults.sort((a, b) => a.duration_hours - b.duration_hours);
     }
+    this.updatePaginatedResults();
+  }
+
+  onPageChange(page: number): void {
+    this.currentPage = page;
+    this.updatePaginatedResults();
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  }
+
+  private updatePaginatedResults(): void {
+    this.totalResults = this.allSearchResults.length;
+    this.paginatedResults = paginateSlice(this.allSearchResults, this.currentPage, this.pageSize);
   }
 
   selectRoute(route: any) {

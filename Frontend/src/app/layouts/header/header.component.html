@@ -17,7 +17,7 @@
           <nav [class.nav-white]="!isScrolled && isHomePage" [class.nav-dark]="isScrolled || !isHomePage"
             class="hidden lg:flex items-center" aria-label="Main navigation">
             @for (item of topMenu; track $index) {
-            <a [routerLink]="item.url" class="menu-item">
+            <a [routerLink]="item.url" [queryParams]="item.queryParams || null" class="menu-item">
               {{ item.label }}
             </a>
             }

@@ -186,7 +186,7 @@ class SupervisorGraph:
         Returns:
             Compiled StateGraph
         """
-        workflow = StateGraph(AgentState, config_schema=GraphConfig)
+        workflow = StateGraph(AgentState, context_schema=GraphConfig)
 
         # Add nodes
         workflow.add_node("chat_llm", self.chat_nodes.chat_llm_node)

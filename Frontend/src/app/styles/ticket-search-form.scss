@@ -1,0 +1,118 @@
+.ticket-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.75fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.ticket-search-form--wide {
+  grid-template-columns: minmax(0, 1.2fr) auto minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.75fr) auto;
+}
+
+.ticket-search-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ticket-search-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+  min-height: 14px;
+}
+
+.ticket-search-label-hidden {
+  visibility: hidden;
+}
+
+.ticket-search-input,
+.ticket-search-select {
+  width: 100%;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 14px;
+  color: #1e293b;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus {
+    border-color: #3b82f6;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  }
+}
+
+.ticket-search-swap {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 2px solid #dbeafe;
+  background: #eff6ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  align-self: end;
+
+  &:hover {
+    transform: scale(1.05);
+    border-color: #93c5fd;
+  }
+}
+
+.ticket-search-btn {
+  width: 100%;
+  min-width: 120px;
+  height: 46px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+  }
+}
+
+@media (max-width: 1200px) {
+  .ticket-search-form,
+  .ticket-search-form--wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ticket-search-swap {
+    display: none;
+  }
+
+  .ticket-search-submit {
+    grid-column: 1 / -1;
+  }
+
+  .ticket-search-btn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .ticket-search-form,
+  .ticket-search-form--wide {
+    grid-template-columns: 1fr;
+  }
+}

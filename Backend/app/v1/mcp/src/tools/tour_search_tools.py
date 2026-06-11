@@ -10,6 +10,8 @@ import numpy as np
 import os
 import unicodedata
 import re
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from langchain_openai import OpenAIEmbeddings
 from supabase import create_client
 from ..core.config import settings
@@ -35,23 +37,81 @@ def _remove_diacritics(text: str) -> str:
     return stripped.strip()
 
 
+def _is_supabase_connection_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return any(
+        token in message
+        for token in (
+            'getaddrinfo failed',
+            'connecterror',
+            'connection refused',
+            'name or service not known',
+        )
+    )
+
+
 # Supabase connection - use settings or env vars
 SUPABASE_URL = os.getenv("SUPABASE_URL") or settings.SUPABASE_URL
 SUPABASE_KEY = os.getenv("SUPABASE_KEY") or settings.SUPABASE_KEY
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+KNOWN_DESTINATIONS = [
+    "Đà Lạt", "Hội An", "Nha Trang", "Đà Nẵng", "Phú Quốc", "Sapa", "Huế", "Vũng Tàu",
+]
+
+
+def _to_float(value, default: float = 0.0) -> float:
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).replace(",", "").strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def _normalize_destination_for_search(text: str) -> str:
+    if not text:
+        return text
+    cleaned = re.sub(r"\s+\d+\s*ngày\s*$", "", text.strip(), flags=re.IGNORECASE)
+    cleaned = _remove_diacritics(cleaned.lower())
+    for known in KNOWN_DESTINATIONS:
+        known_clean = _remove_diacritics(known.lower())
+        if known_clean in cleaned or cleaned in known_clean:
+            return known
+    return text.strip()
+
+
+def _destination_matches_tour(query: str, destination: str) -> bool:
+    if not query or not destination:
+        return False
+    query_norm = _normalize_destination_for_search(query)
+    query_lower = query_norm.lower().strip()
+    dest_lower = (destination or "").lower().strip()
+    query_clean = _remove_diacritics(query_lower)
+    dest_clean = _remove_diacritics(dest_lower)
+    return (
+        query_lower in dest_lower
+        or dest_lower in query_lower
+        or query_clean in dest_clean
+        or dest_clean in query_clean
+    )
+
+
+def _postgres_db_url() -> str:
+    return DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://").replace(
+        "postgres+asyncpg://", "postgresql://"
+    )
 
 
 class TourPackageSearchService:
     """
-    Service for hybrid search of tour packages
+    Service for hybrid search of tour packages.
 
-    Features:
-    - Hybrid search: Semantic (pgvector) + Keyword (full-text) + Filters
-    - OpenAI embeddings (text-embedding-3-small)
-    - Supabase native pgvector search (uses ivfflat index)
-    - PostgreSQL full-text search on package_name, destination, description
-    - Database-level filters for performance
-    - Weighted scoring: 0.7 semantic + 0.3 keyword
-    - Error handling and logging
+    Data source priority:
+    1. Render PostgreSQL (DATABASE_URL) - primary
+    2. Supabase - fallback when Render is unavailable or returns no results
     """
 
     def __init__(self):
@@ -61,23 +121,188 @@ class TourPackageSearchService:
                 api_key=settings.OPENAI_API_KEY,
                 model="text-embedding-3-small"
             )
-            logger.info("✅ OpenAI embeddings initialized")
+            logger.info("OpenAI embeddings initialized")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize embeddings: {e}")
+            logger.error(f"Failed to initialize embeddings: {e}")
             self.embeddings = None
 
         if SUPABASE_URL and SUPABASE_KEY:
             try:
                 self.supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-                logger.info("✅ Supabase client initialized")
+                logger.info("Supabase client initialized (fallback)")
             except Exception as e:
-                logger.error(f"❌ Failed to initialize Supabase: {e}")
+                logger.warning(f"Supabase fallback unavailable: {e}")
                 self.supabase = None
         else:
             self.supabase = None
-            logger.warning("⚠️ Supabase credentials not configured")
 
-        logger.info("✅ TourPackageSearchService initialized")
+        db_url = _postgres_db_url()
+        if db_url:
+            logger.info("Render PostgreSQL configured as primary data source")
+        else:
+            logger.warning("DATABASE_URL not configured; will rely on Supabase if available")
+
+        logger.info("TourPackageSearchService initialized")
+
+    def _search_tours_postgres(
+        self,
+        query: str,
+        filters: Optional[Dict] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Primary keyword search via Render PostgreSQL (DATABASE_URL)."""
+        db_url = _postgres_db_url()
+        if not db_url:
+            logger.warning("DATABASE_URL not configured for Render PostgreSQL tour search")
+            return []
+
+        filters = filters or {}
+        query = (query or "").strip()
+        destination_filter = filters.get("destination")
+        if destination_filter:
+            query = _normalize_destination_for_search(destination_filter)
+        elif query:
+            query = _normalize_destination_for_search(query)
+
+        try:
+            conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+            conn.autocommit = True
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT package_id, package_name, description, destination, duration_days,
+                       price, available_slots, start_date, end_date, image_urls,
+                       is_active
+                FROM tour_packages
+                WHERE is_active = TRUE AND available_slots > 0
+                ORDER BY price ASC
+                """
+            )
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+        except Exception as exc:
+            logger.error(f"Postgres tour search failed: {exc}")
+            return []
+
+        results: List[Dict] = []
+        query_lower = query.lower()
+        query_clean = _remove_diacritics(query_lower)
+
+        for row in rows:
+            pkg = dict(row)
+            pkg["price"] = _to_float(pkg.get("price"))
+            name = (pkg.get("package_name") or "").lower()
+            dest = (pkg.get("destination") or "").lower()
+            desc = (pkg.get("description") or "").lower()
+            name_clean = _remove_diacritics(name)
+            dest_clean = _remove_diacritics(dest)
+            desc_clean = _remove_diacritics(desc)
+
+            matched = False
+            score = 0.0
+            if query:
+                if query_lower in name or query_clean in name_clean:
+                    matched = True
+                    score = max(score, 0.9)
+                if _destination_matches_tour(query, pkg.get("destination") or ""):
+                    matched = True
+                    score = max(score, 1.0)
+                if query_lower in desc or query_clean in desc_clean:
+                    matched = True
+                    score = max(score, 0.5)
+            else:
+                matched = True
+                score = 0.3
+
+            if not matched:
+                continue
+
+            if filters.get("max_price") is not None:
+                if pkg["price"] > _to_float(filters["max_price"]):
+                    continue
+            if filters.get("min_price") is not None:
+                if pkg["price"] < _to_float(filters["min_price"]):
+                    continue
+            if filters.get("duration") is not None:
+                if int(pkg.get("duration_days") or 0) != int(filters["duration"]):
+                    continue
+            if destination_filter and not _destination_matches_tour(
+                destination_filter, pkg.get("destination") or ""
+            ):
+                continue
+
+            pkg["keyword_score"] = score
+            results.append(pkg)
+
+        results.sort(key=lambda item: item.get("keyword_score", 0), reverse=True)
+        logger.info(f"Render PostgreSQL found {len(results[:limit])} tour packages for '{query}'")
+        return results[:limit]
+
+    def _search_tours_by_vector_postgres(
+        self,
+        query_embedding: List[float],
+        filters: Optional[Dict] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Primary vector search via Render PostgreSQL (package_embeddings)."""
+        db_url = _postgres_db_url()
+        if not db_url:
+            return []
+
+        filters = filters or {}
+        try:
+            conn = psycopg2.connect(db_url, cursor_factory=RealDictCursor)
+            conn.autocommit = True
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT tp.*, pe.embedding
+                FROM tour_packages tp
+                INNER JOIN package_embeddings pe ON pe.package_id = tp.package_id
+                WHERE tp.is_active = TRUE AND tp.available_slots > 0
+                """
+            )
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+        except Exception as exc:
+            logger.warning(f"Render PostgreSQL vector search unavailable: {exc}")
+            return []
+
+        query_vec = np.array(query_embedding)
+        results: List[Dict] = []
+
+        for row in rows:
+            pkg = dict(row)
+            embedding_raw = pkg.pop("embedding", None)
+            if embedding_raw is None:
+                continue
+            try:
+                if isinstance(embedding_raw, str):
+                    pkg_emb = [float(x) for x in embedding_raw.strip("[]").split(",")]
+                else:
+                    pkg_emb = embedding_raw
+                pkg_vec = np.array(pkg_emb)
+            except Exception:
+                continue
+
+            similarity = float(
+                np.dot(query_vec, pkg_vec) / (np.linalg.norm(query_vec) * np.linalg.norm(pkg_vec))
+            )
+            if similarity <= 0.3:
+                continue
+
+            pkg["price"] = _to_float(pkg.get("price"))
+            pkg["similarity_score"] = similarity
+            results.append(pkg)
+
+        if filters:
+            results = self._apply_filters(results, filters)
+
+        results.sort(key=lambda item: item.get("similarity_score", 0), reverse=True)
+        logger.info(f"Render PostgreSQL vector search found {len(results[:limit])} packages")
+        return results[:limit]
 
     def _generate_embedding(self, text: str) -> List[float]:
         """Generate embedding vector from text"""
@@ -92,23 +317,20 @@ class TourPackageSearchService:
             logger.error(f"Error generating embedding: {str(e)}")
             raise
 
-    def _search_tours_by_vector_native(
+    def _search_tours_by_vector_supabase(
         self,
         query_embedding: List[float],
         filters: Optional[Dict] = None,
         limit: int = 10
     ) -> List[Dict]:
         """
-        Search tours using Supabase native pgvector search (uses ivfflat index)
-
-        Uses pgvector <=> operator for cosine distance, much faster than Python loop
+        Fallback vector search via Supabase pgvector.
         """
         if not self.supabase:
-            logger.error("❌ Supabase not configured")
             return []
 
         try:
-            logger.info(f"🔍 Starting native vector search (limit: {limit})")
+            logger.info(f"Supabase vector search fallback (limit: {limit})")
 
             # Build base query with filters applied at database level
             base_query = self.supabase.table("tour_packages").select("*")
@@ -224,28 +446,41 @@ class TourPackageSearchService:
             return results
 
         except Exception as e:
-            logger.error(f"❌ Vector search error: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+            if _is_supabase_connection_error(e):
+                logger.warning(f"Supabase unavailable for vector search: {e}")
+            else:
+                logger.error(f"Vector search error: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
             return []
 
-    def _search_tours_by_keyword(
+    def _search_tours_by_vector(
+        self,
+        query_embedding: List[float],
+        filters: Optional[Dict] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Primary: Render PostgreSQL vector. Fallback: Supabase."""
+        results = self._search_tours_by_vector_postgres(query_embedding, filters, limit)
+        if results:
+            return results
+        if self.supabase:
+            logger.info("Render vector search empty, falling back to Supabase")
+            return self._search_tours_by_vector_supabase(query_embedding, filters, limit)
+        return []
+
+    def _search_tours_by_keyword_supabase(
         self,
         query: str,
         filters: Optional[Dict] = None,
         limit: int = 10
     ) -> List[Dict]:
-        """
-        Search tours using PostgreSQL full-text search on package_name, destination, description
-
-        Uses tsvector and tsquery for efficient keyword matching
-        """
+        """Fallback keyword search via Supabase."""
         if not self.supabase:
-            logger.error("❌ Supabase not configured")
             return []
 
         try:
-            logger.info(f"🔍 Starting keyword search: '{query[:50]}...' (limit: {limit})")
+            logger.info(f"Supabase keyword search fallback: '{query[:50]}...' (limit: {limit})")
 
             # Helper function to build base query with filters (need fresh query for each field)
             def build_base_query():
@@ -268,6 +503,7 @@ class TourPackageSearchService:
                 # Search in package_name, destination, description using multiple queries
                 # Supabase doesn't support complex OR in single query, so we'll search each field
                 results_by_field = []
+                supabase_unreachable = False
 
                 # Search package_name (highest priority) - BUILD FRESH QUERY
                 try:
@@ -277,7 +513,10 @@ class TourPackageSearchService:
                         results_by_field.extend(name_results.data)
                         logger.debug(f"Found {len(name_results.data)} packages in package_name")
                 except Exception as e:
-                    logger.warning(f"⚠️ Search package_name failed: {e}")
+                    if _is_supabase_connection_error(e):
+                        supabase_unreachable = True
+                    else:
+                        logger.warning(f"Search package_name failed: {e}")
 
                 # Search destination - BUILD FRESH QUERY
                 try:
@@ -287,7 +526,10 @@ class TourPackageSearchService:
                         results_by_field.extend(dest_results.data)
                         logger.debug(f"Found {len(dest_results.data)} packages in destination")
                 except Exception as e:
-                    logger.warning(f"⚠️ Search destination failed: {e}")
+                    if _is_supabase_connection_error(e):
+                        supabase_unreachable = True
+                    else:
+                        logger.warning(f"Search destination failed: {e}")
 
                 # Search description - BUILD FRESH QUERY
                 try:
@@ -297,7 +539,14 @@ class TourPackageSearchService:
                         results_by_field.extend(desc_results.data)
                         logger.debug(f"Found {len(desc_results.data)} packages in description")
                 except Exception as e:
-                    logger.warning(f"⚠️ Search description failed: {e}")
+                    if _is_supabase_connection_error(e):
+                        supabase_unreachable = True
+                    else:
+                        logger.warning(f"Search description failed: {e}")
+
+                if supabase_unreachable and not results_by_field:
+                    logger.warning("Supabase keyword search unreachable")
+                    return []
 
                 # Deduplicate by package_id
                 seen_ids = set()
@@ -342,32 +591,35 @@ class TourPackageSearchService:
                     scored_packages.sort(key=lambda x: x.get('keyword_score', 0), reverse=True)
                     scored_packages = scored_packages[:limit]
 
-                    logger.info(f"✅ Keyword search found {len(scored_packages)} packages")
+                    logger.info(f"Supabase keyword search found {len(scored_packages)} packages")
                     return scored_packages
-                else:
-                    logger.info("No packages found in keyword search")
-                    return []
+
+                logger.info("Supabase keyword search returned no packages")
+                return []
 
             except Exception as e:
-                logger.warning(f"⚠️ Keyword search error: {e}")
-                # Fallback: simple LIKE search with fresh query
-                try:
-                    fallback_query = build_base_query()
-                    result = fallback_query.ilike('package_name', f'%{query}%').limit(limit).execute()
-                    if result.data:
-                        for pkg in result.data:
-                            pkg['keyword_score'] = 0.5  # Default score
-                        logger.info(f"✅ Fallback keyword search found {len(result.data)} packages")
-                        return result.data
-                except Exception as fallback_error:
-                    logger.error(f"❌ Fallback keyword search also failed: {fallback_error}")
+                logger.warning(f"Supabase keyword search error: {e}")
                 return []
 
         except Exception as e:
-            logger.error(f"❌ Keyword search error: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"Supabase keyword search error: {str(e)}")
             return []
+
+    def _search_tours_by_keyword(
+        self,
+        query: str,
+        filters: Optional[Dict] = None,
+        limit: int = 10,
+    ) -> List[Dict]:
+        """Primary: Render PostgreSQL keyword. Fallback: Supabase."""
+        logger.info(f"Keyword search: '{query[:50]}...' (limit: {limit})")
+        results = self._search_tours_postgres(query, filters, limit)
+        if results:
+            return results
+        if self.supabase:
+            logger.info("Render PostgreSQL keyword empty, falling back to Supabase")
+            return self._search_tours_by_keyword_supabase(query, filters, limit)
+        return []
 
     def _apply_database_filters(self, query, filters: Dict):
         """
@@ -512,25 +764,24 @@ class TourPackageSearchService:
         filtered = tours.copy()
 
         if filters.get("max_price"):
-            max_price = float(filters["max_price"])
+            max_price = _to_float(filters["max_price"])
             before = len(filtered)
-            filtered = [t for t in filtered if t.get("price", 0) <= max_price]
+            filtered = [t for t in filtered if _to_float(t.get("price")) <= max_price]
             logger.debug(f"Price filter ({max_price}): {before} -> {len(filtered)}")
 
         if filters.get("duration"):
             duration = int(filters["duration"])
             before = len(filtered)
-            filtered = [t for t in filtered if t.get("duration_days") == duration]
+            filtered = [t for t in filtered if int(t.get("duration_days") or 0) == duration]
             logger.debug(f"Duration filter ({duration}): {before} -> {len(filtered)}")
 
         if filters.get("destination"):
-            destination = filters["destination"].lower()
-            destination_ascii = _remove_diacritics(destination).lower()
+            destination = filters["destination"]
             before = len(filtered)
-            filtered = [t for t in filtered if (
-                destination in t.get("destination", "").lower() or
-                destination_ascii in _remove_diacritics(t.get("destination", "")).lower()
-            )]
+            filtered = [
+                t for t in filtered
+                if _destination_matches_tour(destination, t.get("destination", ""))
+            ]
             logger.debug(f"Destination filter ({destination}): {before} -> {len(filtered)}")
 
         return filtered
@@ -558,17 +809,18 @@ class TourPackageSearchService:
             # Step 1: Generate embedding for semantic search
             embedding = self._generate_embedding(user_message)
 
-            # Step 2: Run semantic search (native pgvector)
-            semantic_results = self._search_tours_by_vector_native(
+            # Step 2: Semantic search (Render PostgreSQL first, Supabase fallback)
+            semantic_results = self._search_tours_by_vector(
                 query_embedding=embedding,
                 filters=filters,
-                limit=limit * 2  # Get more for combination
+                limit=limit * 2
             )
 
-            # Step 3: Run keyword search using destination name only (not full sentence)
-            keyword_query = user_message
+            # Step 3: Keyword search (Render PostgreSQL first, Supabase fallback)
             if filters and filters.get("destination"):
-                keyword_query = filters["destination"]
+                keyword_query = _normalize_destination_for_search(filters["destination"])
+            else:
+                keyword_query = _normalize_destination_for_search(user_message)
             keyword_results = self._search_tours_by_keyword(
                 query=keyword_query,
                 filters=filters,
@@ -593,19 +845,23 @@ class TourPackageSearchService:
                     logger.debug(f"Post-filtering: {len(combined_results)} -> {len(filtered_results)}")
                 combined_results = filtered_results
 
-            logger.info(f"✅ Hybrid search completed: {len(combined_results)} packages found")
+            logger.info(f"Hybrid search completed: {len(combined_results)} packages found")
             logger.info(
-                f"   - Semantic: {
-                    len(semantic_results)}, Keyword: {
-                    len(keyword_results)}, Combined: {
-                    len(combined_results)}")
+                f"   - Semantic: {len(semantic_results)}, Keyword: {len(keyword_results)}, Combined: {len(combined_results)}"
+            )
 
             return combined_results
 
         except Exception as e:
-            logger.error(f"❌ Hybrid search failed: {str(e)}")
-            import traceback
-            logger.error(traceback.format_exc())
+            logger.error(f"Hybrid search failed: {str(e)}")
+            keyword_query = _normalize_destination_for_search(
+                filters.get("destination") if filters and filters.get("destination") else user_message
+            )
+            results = self._search_tours_postgres(keyword_query, filters, limit)
+            if results:
+                return results
+            if self.supabase:
+                return self._search_tours_by_keyword_supabase(keyword_query, filters, limit)
             return []
 
 
@@ -627,10 +883,14 @@ def register_tour_search_tools(mcp: FastMCP):
         """
         Search for tour packages using hybrid search (semantic + keyword + filters).
 
+        Data source priority:
+        - Primary: Render PostgreSQL (DATABASE_URL)
+        - Fallback: Supabase
+
         Uses:
-        - Semantic search: Supabase native pgvector search (text-embedding-3-small)
-        - Keyword search: PostgreSQL full-text search on package_name, destination, description
-        - Filters: Database-level filters for price, duration, destination
+        - Semantic search: pgvector on Render PostgreSQL, Supabase fallback
+        - Keyword search: Render PostgreSQL, Supabase fallback
+        - Filters: price, duration, destination
         - Scoring: Weighted combination (0.7 semantic + 0.3 keyword)
 
         Returns:

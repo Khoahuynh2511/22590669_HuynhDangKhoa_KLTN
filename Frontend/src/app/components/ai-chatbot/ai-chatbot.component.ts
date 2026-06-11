@@ -1,14 +1,20 @@
-import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit, OnDestroy, SecurityContext, AfterViewChecked } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Output, ViewChild, ChangeDetectorRef, OnInit, OnDestroy, SecurityContext, AfterViewChecked, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ChatService } from '../../services/chat.service';
 import { ChatRoomService } from '../../services/chat-room.service';
+import { TripPlannerService } from '../../services/trip-planner.service';
+import { PaymentService } from '../../services/payment.service';
 import { TourService } from '../../services/tour.service';
 import { AuthStateService } from '../../services/auth-state.service';
 import { TourCardComponent } from '../tour-card/tour-card.component';
+import { OtpPopupComponent } from '../../shared/otp-popup/otp-popup.component';
+import { BookingService } from '../../services/booking.service';
 import { Tour } from '../../shared/models/tour.model';
+import { ActivitySlot, ItineraryDay, TripPlanStreamEvent } from '../../shared/models/trip-planning.model';
+import { firstValueFrom } from 'rxjs';
 
 interface TourSelection {
   name: string;
@@ -31,6 +37,17 @@ interface Message {
   mcpUiResource?: McpUiResource;
   mcpUiHtml?: string;
   showTourCards?: boolean;
+  // Trip planning fields
+  tripStep?: number;
+  itineraryData?: Record<string, ItineraryDay>;
+  availableActivities?: ActivitySlot[];
+  showItineraryBuilder?: boolean;
+  transportData?: { flights?: any[]; trains?: any[] };
+  showTransport?: boolean;
+  checkoutData?: any;
+  showCheckout?: boolean;
+  tripTotalPrice?: number;
+  quickSuggestions?: string[];
 }
 
 interface Conversation {
@@ -40,11 +57,12 @@ interface Conversation {
   updatedAt: number;
   remoteConversationId: string | null;
   userId: string | null;
+  conversationType: 'general_chat' | 'trip_planning';
 }
 
 @Component({
   selector: 'app-ai-chatbot',
-  imports: [CommonModule, FormsModule, TourCardComponent],
+  imports: [CommonModule, FormsModule, TourCardComponent, OtpPopupComponent],
   templateUrl: './ai-chatbot.component.html',
   styleUrl: './ai-chatbot.component.scss'
 })
@@ -73,14 +91,39 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   userHasScrolledUp: boolean = false;
   isProcessingPayment: boolean = false;
 
+  // Agent OTP popup state
+  showOtpPopup = false;
+  otpBookingId = '';
+  otpEmail = '';
+  returnedOtpCode = '';
+  isVerifyingOTP = false;
+  isResendingOTP = false;
+  otpError = '';
+  otpSuccess = '';
+  otpCountdown = 300;
+  private otpCountdownInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Trip planning state
+  currentTripStep = signal(1);
+  isTripComplete = signal(false);
+  tripConversationId: string | null = null;
+  draggedActivity: { dayKey: string; slot: string; activity: ActivitySlot | null } | null = null;
+  activeReplacePanel: { msgIndex: number; dayKey: string; slot: string } | null = null;
+  dragOverSlot: { dayKey: string; slot: string } | null = null;
+  composerQuickSuggestions: string[] = [];
+  private lastRecommendedTours: Tour[] = [];
+
   constructor(
     private chatService: ChatService,
     private chatRoomService: ChatRoomService,
+    private tripPlannerService: TripPlannerService,
+    private paymentService: PaymentService,
     private cdr: ChangeDetectorRef,
     private router: Router,
     private route: ActivatedRoute,
     private tourService: TourService,
     private authStateService: AuthStateService,
+    private bookingService: BookingService,
     private sanitizer: DomSanitizer
   ) { }
 
@@ -139,6 +182,9 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     // Check query param payment_success để hiển thị message chúc mừng
     const paymentSuccess = this.route.snapshot.queryParamMap.get('payment_success');
 
+    // Check query param mode=planning để mở trip planning mode
+    const planningMode = this.route.snapshot.queryParamMap.get('mode');
+
     // Load conversations list trước, sau đó mới quyết định tạo mới hay load conversation cũ
     this.loadConversationsList(async () => {
       if (urlRoomId) {
@@ -155,6 +201,18 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
             });
           }, 500);
         }
+        return;
+      }
+
+      // If mode=planning, start a new trip planning conversation
+      if (planningMode === 'planning') {
+        this.startNewTripPlanning();
+        // Clean up query param
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: {},
+          replaceUrl: true
+        });
         return;
       }
 
@@ -205,8 +263,16 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
     if (this.isStreaming || !this.userMessage.trim()) return;
 
-    const message = this.userMessage.trim();
     const conversation = this.ensureActiveConversation();
+
+    // Route to trip planning or general chat based on conversation type
+    if (conversation.conversationType === 'trip_planning') {
+      await this.sendTripPlanningMessage(conversation);
+      return;
+    }
+
+    // === General Chat (existing logic) ===
+    const message = this.userMessage.trim();
 
     // Nếu conversation chưa có room (chưa gửi message nào), tạo room trước
     if (!conversation.remoteConversationId) {
@@ -304,23 +370,25 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
                 case 'recommendations':
                   console.log('Recommendations received:', event.data);
-                  if (assistantMessage && event.data) {
-                    assistantMessage.tourPackages = event.data;
-                    assistantMessage.tours = event.data;
-                    assistantMessage.showTourCards = true;
-                    console.log('Tours assigned to message:', assistantMessage.tourPackages);
-                    if (assistantMessage.tourPackages && assistantMessage.tourPackages.length > 0) {
-                      console.log('First tour data:', JSON.stringify(assistantMessage.tourPackages[0], null, 2));
-                      console.log('Tour fields:', Object.keys(assistantMessage.tourPackages[0]));
-                    }
-                    this.cdr.detectChanges();
-                    this.touchConversation(conversation, false);
+                  if (!assistantMessage) {
+                    this.isTyping = false;
+                    assistantMessage = { content: '', isUser: false };
+                    this.messages.push(assistantMessage);
+                    isFirstToken = false;
                   }
+                  this.applyTourPackagesToMessage(assistantMessage!, event.data);
+                  this.touchConversation(conversation, false);
                   setTimeout(() => this.scrollToBottom(), 100);
                   break;
 
                 case 'mcp_ui':
                   console.log('MCP UI received:', event);
+                  if (!assistantMessage) {
+                    this.isTyping = false;
+                    assistantMessage = { content: '', isUser: false };
+                    this.messages.push(assistantMessage);
+                    isFirstToken = false;
+                  }
                   if (assistantMessage) {
                     if (event.ui_resource) {
                       assistantMessage.mcpUiResource = event.ui_resource;
@@ -329,8 +397,7 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
                       assistantMessage.mcpUiHtml = event.html;
                     }
                     if (event.tourPackages) {
-                      assistantMessage.tourPackages = event.tourPackages;
-                      assistantMessage.showTourCards = true;
+                      this.applyTourPackagesToMessage(assistantMessage, event.tourPackages);
                     }
                     this.cdr.detectChanges();
                     this.touchConversation(conversation, false);
@@ -347,6 +414,12 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
                     }, 500);
                   }
                   setTimeout(() => this.scrollToBottom(), 100);
+                  break;
+
+                case 'otp_required':
+                  if (event.data) {
+                    this.openOtpPopup(event.data);
+                  }
                   break;
 
                 case 'complete':
@@ -375,6 +448,10 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
             }
           }
         }
+      }
+
+      if (assistantMessage) {
+        await this.hydrateTourCardsForMessage(assistantMessage, message);
       }
 
       this.headerStatus = 'Online';
@@ -424,6 +501,669 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
   }
 
+  // ====================================================================
+  // TRIP PLANNING METHODS
+  // ====================================================================
+
+  /**
+   * Send a message in trip planning mode using TripPlannerService.
+   */
+  async sendTripPlanningMessage(conversation: Conversation): Promise<void> {
+    const message = this.userMessage.trim();
+    if (!message) return;
+
+    // Create room if needed (same pattern as general chat)
+    if (!conversation.remoteConversationId) {
+      try {
+        await this.createRoomForConversation(conversation);
+      } catch (e: any) {
+        if (e?.status === 401) {
+          this.authStateService.logout();
+          this.router.navigate(['/login']);
+        }
+        return;
+      }
+    }
+
+    // Invalidate cache
+    if (conversation.remoteConversationId) {
+      this.messagesCache.delete(conversation.remoteConversationId);
+    }
+
+    // Add user message to UI
+    const userMessageObj: Message = { content: message, isUser: true };
+    this.messages.push(userMessageObj);
+    this.userMessage = '';
+    this.userHasScrolledUp = false;
+    this.composerQuickSuggestions = [];
+
+    if (this.messageInputRef && this.messageInputRef.nativeElement) {
+      this.messageInputRef.nativeElement.style.height = 'auto';
+    }
+
+    this.touchConversation(conversation);
+    if (!this.messages.some(m => !m.isUser)) {
+      conversation.title = this.generateConversationTitle(message);
+    }
+
+    this.isStreaming = true;
+    this.isTyping = true;
+    this.headerStatus = 'Planning...';
+
+    setTimeout(() => this.scrollToBottom(), 100);
+
+    try {
+      const roomId = conversation.remoteConversationId;
+      this.tripConversationId = roomId;
+      const reader = await this.tripPlannerService.sendMessage(
+        message,
+        roomId,
+        roomId
+      );
+
+      let assistantMessage: Message | null = null;
+      let isFirstToken = true;
+
+      await this.tripPlannerService.parseStream(reader, (event: TripPlanStreamEvent) => {
+        switch (event.type) {
+          case 'start':
+            this.tripConversationId = event.room_id || event.conversation_id || null;
+            if (event.room_id && !conversation.remoteConversationId) {
+              conversation.remoteConversationId = event.room_id;
+              conversation.id = event.room_id;
+              this.conversationId = event.room_id;
+            }
+            this.touchConversation(conversation);
+            // Navigate to room URL
+            if (conversation.remoteConversationId) {
+              this.router.navigate(['/chat-room', conversation.remoteConversationId], { replaceUrl: true });
+            }
+            break;
+
+          case 'token':
+            if (isFirstToken) {
+              this.isTyping = false;
+              assistantMessage = { content: '', isUser: false };
+              this.messages.push(assistantMessage);
+              isFirstToken = false;
+            }
+            if (assistantMessage) {
+              assistantMessage.content += event.content || '';
+            }
+            setTimeout(() => this.scrollToBottom(), 0);
+            break;
+
+          case 'step':
+            this.applyTripStepEvent(event, assistantMessage);
+            break;
+
+          case 'activities':
+            if (assistantMessage && event.data) {
+              assistantMessage.itineraryData = event.data.suggested_itinerary || {};
+              assistantMessage.availableActivities = event.data.available || [];
+              assistantMessage.showItineraryBuilder = true;
+              assistantMessage.tripTotalPrice = event.data.total_price || 0;
+              assistantMessage.tripStep = 4;
+              this.cdr.detectChanges();
+            }
+            setTimeout(() => this.scrollToBottom(), 100);
+            break;
+
+          case 'itinerary_confirmed':
+            if (assistantMessage && event.data) {
+              assistantMessage.tripTotalPrice = event.data.total_price || 0;
+            }
+            break;
+
+          case 'flights':
+            if (assistantMessage) {
+              if (!assistantMessage.transportData) {
+                assistantMessage.transportData = {};
+              }
+              assistantMessage.transportData.flights = event.data || [];
+              assistantMessage.showTransport = true;
+              this.cdr.detectChanges();
+            }
+            setTimeout(() => this.scrollToBottom(), 100);
+            break;
+
+          case 'trains':
+            if (assistantMessage) {
+              if (!assistantMessage.transportData) {
+                assistantMessage.transportData = {};
+              }
+              assistantMessage.transportData.trains = event.data || [];
+              assistantMessage.showTransport = true;
+              this.cdr.detectChanges();
+            }
+            setTimeout(() => this.scrollToBottom(), 100);
+            break;
+
+          case 'checkout':
+            if (assistantMessage && event.data) {
+              assistantMessage.checkoutData = event.data;
+              assistantMessage.showCheckout = true;
+              assistantMessage.tripStep = 6;
+              this.currentTripStep.set(6);
+              if (event.data.booking_completed) {
+                this.isTripComplete.set(true);
+              }
+              this.cdr.detectChanges();
+            }
+            setTimeout(() => this.scrollToBottom(), 100);
+            break;
+
+          case 'done':
+            this.isStreaming = false;
+            this.isTyping = false;
+            this.headerStatus = 'Online';
+            if (event.is_complete) {
+              this.isTripComplete.set(true);
+              this.composerQuickSuggestions = [];
+            }
+            this.touchConversation(conversation);
+            break;
+
+          case 'error':
+            this.isStreaming = false;
+            this.isTyping = false;
+            this.headerStatus = 'Error';
+            if (isFirstToken) {
+              assistantMessage = { content: `❌ Lỗi: ${event.error || 'Không xác định'}`, isUser: false, isError: true };
+              this.messages.push(assistantMessage);
+              isFirstToken = false;
+            } else if (assistantMessage) {
+              assistantMessage.content += `\n\n❌ Lỗi: ${event.error || 'Không xác định'}`;
+              assistantMessage.isError = true;
+            }
+            this.touchConversation(conversation);
+            break;
+        }
+      });
+
+      // Finalize
+      this.headerStatus = 'Online';
+      this.isStreaming = false;
+      this.isTyping = false;
+      this.refreshComposerQuickSuggestions();
+      this.touchConversation(conversation);
+
+      const activeRoomId = this.activeConversation?.remoteConversationId;
+      if (activeRoomId) {
+        this.messagesCache.set(activeRoomId, [...this.messages]);
+      }
+    } catch (error: any) {
+      this.isStreaming = false;
+      this.isTyping = false;
+      const errorMsg: Message = {
+        content: `❌ Lỗi kết nối: ${error.message}`,
+        isUser: false,
+        isError: true
+      };
+      this.messages.push(errorMsg);
+      this.headerStatus = 'Error';
+    }
+  }
+
+  /**
+   * Confirm the itinerary and advance to next step.
+   */
+  confirmItinerary(msgIndex: number): void {
+    const msg = this.messages[msgIndex];
+    if (msg?.itineraryData) {
+      void this.sendTripPlanningWithItinerary(msgIndex, 'xác nhận');
+      return;
+    }
+    this.userMessage = 'xác nhận';
+    void this.sendMessage();
+  }
+
+  toggleReplacePanel(msgIndex: number, dayKey: string, slot: string): void {
+    const current = this.activeReplacePanel;
+    if (
+      current &&
+      current.msgIndex === msgIndex &&
+      current.dayKey === dayKey &&
+      current.slot === slot
+    ) {
+      this.activeReplacePanel = null;
+      return;
+    }
+    this.activeReplacePanel = { msgIndex, dayKey, slot };
+  }
+
+  isReplacePanelOpen(msgIndex: number, dayKey: string, slot: string): boolean {
+    const panel = this.activeReplacePanel;
+    return !!panel && panel.msgIndex === msgIndex && panel.dayKey === dayKey && panel.slot === slot;
+  }
+
+  getReplaceCandidates(msgIndex: number, dayKey: string, slot: string): ActivitySlot[] {
+    const msg = this.messages[msgIndex];
+    if (!msg?.availableActivities?.length) return [];
+
+    const usedIds = new Set<string>();
+    if (msg.itineraryData) {
+      for (const day of Object.values(msg.itineraryData)) {
+        for (const activity of [day.morning, day.afternoon, day.evening]) {
+          if (activity?.activity_id) {
+            usedIds.add(activity.activity_id);
+          }
+        }
+      }
+    }
+
+    const currentActivity = msg.itineraryData?.[dayKey]?.[slot as keyof ItineraryDay] as ActivitySlot | null;
+
+    return msg.availableActivities.filter((activity) => {
+      if (currentActivity?.activity_id && activity.activity_id === currentActivity.activity_id) {
+        return false;
+      }
+      return !usedIds.has(activity.activity_id);
+    });
+  }
+
+  selectReplacement(msgIndex: number, dayKey: string, slot: string, activity: ActivitySlot): void {
+    this.replaceActivity(msgIndex, dayKey, slot, activity);
+    this.activeReplacePanel = null;
+  }
+
+  onActivityDragOver(event: DragEvent, dayKey: string, slot: string): void {
+    event.preventDefault();
+    this.dragOverSlot = { dayKey, slot };
+  }
+
+  onActivityDragLeave(dayKey: string, slot: string): void {
+    if (
+      this.dragOverSlot?.dayKey === dayKey &&
+      this.dragOverSlot?.slot === slot
+    ) {
+      this.dragOverSlot = null;
+    }
+  }
+
+  isDragOver(dayKey: string, slot: string): boolean {
+    return this.dragOverSlot?.dayKey === dayKey && this.dragOverSlot?.slot === slot;
+  }
+
+  /**
+   * Handle drag start for an activity slot.
+   */
+  onActivityDragStart(dayKey: string, slot: string, activity: ActivitySlot | null): void {
+    this.draggedActivity = { dayKey, slot, activity };
+  }
+
+  /**
+   * Handle drop on an activity slot — swap activities.
+   */
+  onActivityDrop(targetDayKey: string, targetSlot: string, msgIndex: number): void {
+    if (!this.draggedActivity || !this.messages[msgIndex]) return;
+
+    const msg = this.messages[msgIndex];
+    if (!msg.itineraryData) return;
+
+    const fromDay = this.draggedActivity.dayKey;
+    const fromSlot = this.draggedActivity.slot;
+    const fromActivity = this.draggedActivity.activity;
+
+    // Get target activity
+    const targetDay = msg.itineraryData[targetDayKey];
+    if (!targetDay) return;
+
+    const targetActivity = (targetDay as any)[targetSlot] as ActivitySlot | null;
+
+    // Swap
+    const itinerary = { ...msg.itineraryData };
+
+    // Deep clone the affected days
+    const fromDayData = { ...(itinerary[fromDay] || {}) };
+    const toDayData = { ...(itinerary[targetDayKey] || {}) };
+
+    (fromDayData as any)[fromSlot] = targetActivity;
+    (toDayData as any)[targetSlot] = fromActivity;
+
+    itinerary[fromDay] = fromDayData as ItineraryDay;
+    itinerary[targetDayKey] = toDayData as ItineraryDay;
+
+    msg.itineraryData = itinerary;
+
+    // Recalculate price
+    msg.tripTotalPrice = this.recalculateItineraryPrice(itinerary);
+
+    this.draggedActivity = null;
+    this.dragOverSlot = null;
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Replace an activity in a slot with another from the available pool.
+   */
+  replaceActivity(msgIndex: number, dayKey: string, slot: string, newActivity: ActivitySlot): void {
+    const msg = this.messages[msgIndex];
+    if (!msg.itineraryData) return;
+
+    const itinerary = { ...msg.itineraryData };
+    const dayData = { ...(itinerary[dayKey] || {}) };
+    (dayData as any)[slot] = newActivity;
+    itinerary[dayKey] = dayData as ItineraryDay;
+
+    msg.itineraryData = itinerary;
+    msg.tripTotalPrice = this.recalculateItineraryPrice(itinerary);
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Remove an activity from a slot.
+   */
+  removeActivity(msgIndex: number, dayKey: string, slot: string): void {
+    const msg = this.messages[msgIndex];
+    if (!msg.itineraryData) return;
+
+    const itinerary = { ...msg.itineraryData };
+    const dayData = { ...(itinerary[dayKey] || {}) };
+    (dayData as any)[slot] = null;
+    itinerary[dayKey] = dayData as ItineraryDay;
+
+    msg.itineraryData = itinerary;
+    msg.tripTotalPrice = this.recalculateItineraryPrice(itinerary);
+    this.cdr.detectChanges();
+  }
+
+  /**
+   * Send trip planning message with optional updated itinerary payload.
+   */
+  private async sendTripPlanningWithItinerary(
+    msgIndex: number,
+    messageText: string
+  ): Promise<void> {
+    const conversation = this.ensureActiveConversation();
+    if (conversation.conversationType !== 'trip_planning') return;
+
+    const msg = this.messages[msgIndex];
+    if (!msg?.itineraryData) return;
+
+    if (!conversation.remoteConversationId) {
+      try {
+        await this.createRoomForConversation(conversation);
+      } catch (e: any) {
+        if (e?.status === 401) {
+          this.authStateService.logout();
+          this.router.navigate(['/login']);
+        }
+        return;
+      }
+    }
+
+    if (conversation.remoteConversationId) {
+      this.messagesCache.delete(conversation.remoteConversationId);
+    }
+
+    this.messages.push({ content: messageText, isUser: true });
+    this.userHasScrolledUp = false;
+    this.isStreaming = true;
+    this.isTyping = true;
+    this.headerStatus = 'Updating...';
+
+    setTimeout(() => this.scrollToBottom(), 100);
+
+    try {
+      const roomId = conversation.remoteConversationId;
+      this.tripConversationId = roomId;
+      const reader = await this.tripPlannerService.sendMessage(
+        messageText,
+        roomId,
+        roomId,
+        msg.itineraryData
+      );
+
+      let assistantMessage: Message | null = null;
+      let isFirstToken = true;
+
+      await this.tripPlannerService.parseStream(reader, (event: TripPlanStreamEvent) => {
+        switch (event.type) {
+          case 'start':
+            this.tripConversationId = event.room_id || event.conversation_id || null;
+            break;
+          case 'token':
+            if (isFirstToken) {
+              this.isTyping = false;
+              assistantMessage = { content: '', isUser: false };
+              this.messages.push(assistantMessage);
+              isFirstToken = false;
+            }
+            if (assistantMessage) {
+              assistantMessage.content += event.content || '';
+            }
+            setTimeout(() => this.scrollToBottom(), 0);
+            break;
+          case 'step':
+            this.applyTripStepEvent(event, assistantMessage);
+            break;
+          case 'itinerary_confirmed':
+            if (assistantMessage && event.data) {
+              assistantMessage.tripTotalPrice = event.data.total_price || 0;
+            }
+            break;
+          case 'flights':
+            if (assistantMessage) {
+              if (!assistantMessage.transportData) assistantMessage.transportData = {};
+              assistantMessage.transportData.flights = event.data || [];
+              assistantMessage.showTransport = true;
+              this.cdr.detectChanges();
+            }
+            break;
+          case 'trains':
+            if (assistantMessage) {
+              if (!assistantMessage.transportData) assistantMessage.transportData = {};
+              assistantMessage.transportData.trains = event.data || [];
+              assistantMessage.showTransport = true;
+              this.cdr.detectChanges();
+            }
+            break;
+          case 'checkout':
+            if (assistantMessage && event.data) {
+              assistantMessage.checkoutData = event.data;
+              assistantMessage.showCheckout = true;
+              this.cdr.detectChanges();
+            }
+            break;
+          case 'done':
+            this.isStreaming = false;
+            this.isTyping = false;
+            this.headerStatus = 'Online';
+            if (event.is_complete) this.isTripComplete.set(true);
+            this.touchConversation(conversation);
+            break;
+          case 'error':
+            this.isStreaming = false;
+            this.isTyping = false;
+            this.headerStatus = 'Error';
+            break;
+        }
+      });
+
+      this.isStreaming = false;
+      this.isTyping = false;
+      this.headerStatus = 'Online';
+      this.touchConversation(conversation);
+
+      const activeRoomId = this.activeConversation?.remoteConversationId;
+      if (activeRoomId) {
+        this.messagesCache.set(activeRoomId, [...this.messages]);
+      }
+    } catch {
+      this.isStreaming = false;
+      this.isTyping = false;
+      this.headerStatus = 'Error';
+    }
+  }
+
+  /**
+   * Send the updated itinerary (after drag-drop/replace) to the backend.
+   */
+  async sendUpdatedItinerary(msgIndex: number): Promise<void> {
+    await this.sendTripPlanningWithItinerary(msgIndex, 'Tôi đã sắp xếp lại lịch trình');
+  }
+
+  /**
+   * Select a flight and send to backend.
+   */
+  selectFlightAndSend(flightIndex: number): void {
+    this.userMessage = `${flightIndex + 1}`;
+    this.sendMessage();
+  }
+
+  /**
+   * Select a train and send to backend.
+   */
+  selectTrainAndSend(trainIndex: number, totalFlights: number): void {
+    this.userMessage = `${totalFlights + trainIndex + 1}`;
+    this.sendMessage();
+  }
+
+  /**
+   * Skip transportation.
+   */
+  skipTransport(): void {
+    this.userMessage = 'bỏ qua';
+    this.sendMessage();
+  }
+
+  /**
+   * Proceed to checkout — create booking then redirect to VNPay (same as My Bookings).
+   */
+  proceedToCheckout(): void {
+    const checkoutMsg = [...this.messages].reverse().find(m => !m.isUser && m.showCheckout && m.checkoutData);
+    const checkout = checkoutMsg?.checkoutData;
+
+    if (checkout?.payment_url) {
+      this.redirectToTripPayment(checkout.payment_url);
+      return;
+    }
+
+    if (checkout?.booking_id) {
+      this.paymentService.createPayment({
+        booking_id: checkout.booking_id,
+        payment_method: 'vnpay',
+      }).subscribe({
+        next: (response) => {
+          if (response.EC === 0 && response.data?.payment_url) {
+            if (checkoutMsg?.checkoutData) {
+              checkoutMsg.checkoutData = {
+                ...checkoutMsg.checkoutData,
+                payment_url: response.data.payment_url,
+                payment_id: response.data.payment_id,
+              };
+            }
+            this.redirectToTripPayment(response.data.payment_url);
+          }
+        },
+        error: () => {
+          this.userMessage = 'thanh toán';
+          void this.sendMessage();
+        },
+      });
+      return;
+    }
+
+    this.userMessage = 'thanh toán';
+    void this.sendMessage();
+  }
+
+  private redirectToTripPayment(paymentUrl: string): void {
+    sessionStorage.setItem('payment_return_url', window.location.href);
+    window.location.href = paymentUrl;
+  }
+
+  /**
+   * Calculate total price from itinerary data.
+   */
+  recalculateItineraryPrice(itinerary: Record<string, ItineraryDay>): number {
+    let total = 0;
+    for (const dayKey of Object.keys(itinerary)) {
+      const day = itinerary[dayKey];
+      if (!day) continue;
+      for (const slot of ['morning', 'afternoon', 'evening'] as const) {
+        const activity = day[slot];
+        if (activity && activity.price) {
+          total += activity.price;
+        }
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Get itinerary days as array for iteration.
+   */
+  getItineraryDays(itinerary: Record<string, ItineraryDay>): { key: string; num: number; day: ItineraryDay }[] {
+    const days: { key: string; num: number; day: ItineraryDay }[] = [];
+    for (let i = 1; i <= 10; i++) {
+      const key = `day_${i}`;
+      if (itinerary[key]) {
+        days.push({ key, num: i, day: itinerary[key] });
+      }
+    }
+    return days;
+  }
+
+  /**
+   * Get the conversation type of the active conversation.
+   */
+  getActiveConversationType(): 'general_chat' | 'trip_planning' {
+    return this.activeConversation?.conversationType || 'general_chat';
+  }
+
+  /**
+   * Check if active conversation is trip planning mode.
+   */
+  isTripPlanningMode(): boolean {
+    return this.getActiveConversationType() === 'trip_planning';
+  }
+
+  get messagePlaceholder(): string {
+    if (this.isTripPlanningMode()) {
+      return 'Cho mình biết bạn muốn đi đâu và trong bao lâu...';
+    }
+    return 'Đặt câu hỏi về hành trình, điểm đến hay các ưu đãi du lịch...';
+  }
+
+  applyQuickReply(text: string): void {
+    if (this.isStreaming || !text.trim()) return;
+    this.userMessage = text.trim();
+    void this.sendMessage();
+  }
+
+  getVisibleQuickSuggestions(): string[] {
+    const lastMsg = this.messages[this.messages.length - 1];
+    if (lastMsg && !lastMsg.isUser && lastMsg.quickSuggestions?.length) {
+      return lastMsg.quickSuggestions;
+    }
+    return this.composerQuickSuggestions;
+  }
+
+  private refreshComposerQuickSuggestions(): void {
+    const lastMsg = this.messages[this.messages.length - 1];
+    if (lastMsg && !lastMsg.isUser && lastMsg.quickSuggestions?.length) {
+      this.composerQuickSuggestions = [...lastMsg.quickSuggestions];
+      return;
+    }
+    this.composerQuickSuggestions = [];
+  }
+
+  private applyTripStepEvent(event: TripPlanStreamEvent, assistantMessage: Message | null): void {
+    if (event.step) {
+      this.currentTripStep.set(event.step);
+    }
+    const waiting = event.waiting_for_input !== false;
+    const suggestions = waiting && event.suggestions?.length ? [...event.suggestions] : [];
+    if (assistantMessage) {
+      assistantMessage.tripStep = event.step;
+      assistantMessage.quickSuggestions = suggestions;
+    }
+    this.composerQuickSuggestions = suggestions;
+    this.cdr.detectChanges();
+  }
+
   formatPrice(price: number): string {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -467,11 +1207,54 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       remoteConversationId: null,
-      userId: null
+      userId: null,
+      conversationType: 'general_chat'
     };
 
     this.conversations = [conversation, ...this.conversations];
     this.selectConversation(conversation.id);
+  }
+
+  /**
+   * Start a new trip planning conversation.
+   */
+  startNewTripPlanning(): void {
+    if (this.isStreaming) return;
+
+    const conversation: Conversation = {
+      id: this.generateId(),
+      title: 'Lập kế hoạch du lịch',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      remoteConversationId: null,
+      userId: null,
+      conversationType: 'trip_planning'
+    };
+
+    this.conversations = [conversation, ...this.conversations];
+    this.selectConversation(conversation.id);
+
+    // Reset trip planning state
+    this.currentTripStep.set(1);
+    this.isTripComplete.set(false);
+    this.tripConversationId = null;
+
+    // Add welcome message
+    const welcomeMsg: Message = {
+      content: 'Xin chào! Tôi là trợ lý lên kế hoạch du lịch.\n\nBạn muốn đi đâu và bao lâu? Chọn gợi ý bên dưới hoặc gõ tự do:',
+      isUser: false,
+      tripStep: 1,
+      quickSuggestions: [
+        'Đà Lạt 3 ngày',
+        'Hội An 2 ngày',
+        'Nha Trang 4 ngày',
+        'Đà Nẵng 3 ngày',
+        'Phú Quốc 3 ngày',
+      ],
+    };
+    this.messages.push(welcomeMsg);
+    this.composerQuickSuggestions = welcomeMsg.quickSuggestions || [];
+    this.cdr.detectChanges();
   }
 
   selectConversation(conversationId: string): void {
@@ -486,7 +1269,20 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     this.isTyping = false;
     this.isStreaming = false;
     this.currentStreamContent = '';
-    this.userHasScrolledUp = false; // Reset scroll state khi chuyển conversation
+    this.userHasScrolledUp = false;
+    this.activeReplacePanel = null;
+    this.dragOverSlot = null;
+    this.draggedActivity = null;
+    this.composerQuickSuggestions = [];
+
+    if (conversation.conversationType === 'trip_planning') {
+      this.tripConversationId = conversation.remoteConversationId;
+      this.isTripComplete.set(false);
+    } else {
+      this.currentTripStep.set(1);
+      this.isTripComplete.set(false);
+      this.tripConversationId = null;
+    }
 
     // Navigate to the chat room URL
     this.router.navigate(['/chat-room', conversation.remoteConversationId || conversation.id]);
@@ -512,7 +1308,11 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
    */
   private async createRoomForConversation(conversation: Conversation): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.chatRoomService.createRoom().subscribe({
+      const defaultTitle = conversation.conversationType === 'trip_planning'
+        ? 'Lập kế hoạch du lịch'
+        : 'New conversation';
+
+      this.chatRoomService.createRoom(defaultTitle).subscribe({
         next: (response) => {
           if (response.EC === 0 && response.data) {
             const room = response.data;
@@ -524,9 +1324,19 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
             conversation.createdAt = new Date(room.created_at).getTime();
             conversation.updatedAt = new Date(room.updated_at).getTime();
 
+            if (conversation.conversationType === 'trip_planning' && !room.title?.startsWith('🗺️')) {
+              conversation.title = room.title?.startsWith('🗺️') ? room.title : `🗺️ ${room.title}`;
+            } else {
+              conversation.title = room.title || conversation.title;
+            }
+
             // Update conversationId và userId để dùng cho chat
             this.conversationId = room.room_id;
             this.userId = room.user_id;
+
+            if (conversation.conversationType === 'trip_planning') {
+              this.tripConversationId = room.room_id;
+            }
 
             resolve();
           } else {
@@ -568,13 +1378,14 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     this.chatRoomService.getRooms(false, 50, 0).subscribe({
       next: (response) => {
         if (response.EC === 0 && response.data) {
-          const apiConversations = response.data.map(room => ({
+          const apiConversations = response.data.map((room: any) => ({
             id: room.room_id,
             title: room.title,
             createdAt: new Date(room.created_at).getTime(),
             updatedAt: new Date(room.updated_at).getTime(),
             remoteConversationId: room.room_id,
-            userId: room.user_id
+            userId: room.user_id,
+            conversationType: room.title?.startsWith('🗺️') ? 'trip_planning' as const : 'general_chat' as const
           }));
 
           this.conversations = apiConversations.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -629,7 +1440,8 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
           createdAt: new Date(room.created_at).getTime(),
           updatedAt: new Date(room.updated_at).getTime(),
           remoteConversationId: room.room_id,
-          userId: room.user_id
+          userId: room.user_id,
+          conversationType: room.title?.startsWith('🗺️') ? 'trip_planning' : 'general_chat',
         };
         this.conversations.unshift(conv);
         this.selectConversation(conv.id);
@@ -661,11 +1473,12 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
 
         if (response.EC === 0 && response.data) {
           // Convert API messages to local message format
-          const loadedMessages = response.data.map(msg => {
+          const loadedMessages = response.data.map((msg: any) => {
             const tourPackages = msg.entities?.tour_packages || [];
             // Parse content - backend may store as JSON array like [{"type":"text","text":"..."}]
             const parsedContent = this.parseMessageContent(msg.content);
-            return {
+
+            const messageObj: Message = {
               content: parsedContent,
               isUser: msg.role === 'user',
               tourPackages: tourPackages,
@@ -673,11 +1486,46 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
               mcpUiResource: msg.entities?.mcp_ui_resource,
               mcpUiHtml: msg.entities?.mcp_ui_html
             };
+
+            // Restore trip planning data from entities
+            if (msg.entities?.trip_planning) {
+              messageObj.tripStep = msg.entities.step;
+              if (msg.entities.itinerary_data) {
+                messageObj.itineraryData = msg.entities.itinerary_data;
+                messageObj.showItineraryBuilder = true;
+              }
+              if (msg.entities.available_activities) {
+                messageObj.availableActivities = msg.entities.available_activities;
+              }
+              if (msg.entities.total_price !== undefined) {
+                messageObj.tripTotalPrice = msg.entities.total_price;
+              }
+              if (msg.entities.flights || msg.entities.trains) {
+                messageObj.transportData = {
+                  flights: msg.entities.flights || [],
+                  trains: msg.entities.trains || []
+                };
+                messageObj.showTransport = !!(msg.entities.flights?.length || msg.entities.trains?.length);
+              }
+              if (msg.entities.checkout_data) {
+                messageObj.checkoutData = msg.entities.checkout_data;
+                messageObj.showCheckout = true;
+              }
+              if (msg.entities.suggestions?.length) {
+                messageObj.quickSuggestions = msg.entities.suggestions;
+              }
+            }
+
+            return messageObj;
           });
 
           // Update messages
           this.messages = loadedMessages;
           this.messagesCache.set(roomId, [...loadedMessages]);
+          this.rebuildLastRecommendedTours(loadedMessages);
+
+          // Restore trip planning state from loaded messages
+          this.restoreTripPlanningFromHistory(loadedMessages);
 
           // Trigger change detection và scroll
           this.cdr.detectChanges();
@@ -875,20 +1723,164 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     return selections;
   }
 
-  selectTour(tourName: string, price: string): void {
-    this.userMessage = `Toi muon dat tour "${tourName}" voi gia ${this.formatPrice(parseInt(price.replace(/,/g, '')))}`;
-
-    if (this.messageInputRef && this.messageInputRef.nativeElement) {
-      const textarea = this.messageInputRef.nativeElement;
-      textarea.focus();
-      textarea.style.borderColor = 'var(--primary)';
-      textarea.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-
-      setTimeout(() => {
-        textarea.style.borderColor = '';
-        textarea.style.boxShadow = '';
-      }, 2000);
+  private applyTourPackagesToMessage(message: Message, data: unknown): void {
+    const packages = this.normalizeTourPackages(data);
+    if (!packages.length) {
+      return;
     }
+
+    message.tourPackages = packages;
+    message.tours = packages;
+    message.showTourCards = true;
+    this.rememberRecommendedTours(packages);
+    this.cdr.detectChanges();
+  }
+
+  private normalizeTourPackages(data: unknown): Tour[] {
+    if (!Array.isArray(data) || data.length === 0) {
+      return [];
+    }
+
+    if (typeof data[0] === 'string') {
+      return data
+        .map((id) => this.lastRecommendedTours.find((tour) => tour.package_id === id))
+        .filter((tour): tour is Tour => !!tour);
+    }
+
+    return (data as Tour[]).filter((tour) => !!tour?.package_id || !!tour?.package_name);
+  }
+
+  private rememberRecommendedTours(packages: Tour[]): void {
+    const merged = new Map<string, Tour>();
+    for (const tour of [...this.lastRecommendedTours, ...packages]) {
+      const key = tour.package_id || tour.package_name;
+      if (key) {
+        merged.set(key, tour);
+      }
+    }
+    this.lastRecommendedTours = Array.from(merged.values());
+  }
+
+  private rebuildLastRecommendedTours(messages: Message[]): void {
+    const merged = new Map<string, Tour>();
+    for (const message of messages) {
+      for (const tour of message.tourPackages || []) {
+        const key = tour.package_id || tour.package_name;
+        if (key) {
+          merged.set(key, tour);
+        }
+      }
+    }
+    this.lastRecommendedTours = Array.from(merged.values());
+  }
+
+  private matchToursByNames(names: string[], source: Tour[]): Tour[] {
+    const normalizedNames = names.map((name) => name.toLowerCase().trim()).filter(Boolean);
+    if (!normalizedNames.length || !source.length) {
+      return [];
+    }
+
+    const matched: Tour[] = [];
+    for (const tour of source) {
+      const tourName = (tour.package_name || '').toLowerCase().trim();
+      if (!tourName) {
+        continue;
+      }
+
+      const isMatch = normalizedNames.some((name) =>
+        tourName === name ||
+        tourName.includes(name) ||
+        name.includes(tourName)
+      );
+
+      if (isMatch) {
+        matched.push(tour);
+      }
+    }
+
+    return matched;
+  }
+
+  private matchToursFromUserText(text: string, source: Tour[]): Tour[] {
+    const normalizedText = text.toLowerCase();
+    const selectionHints = ['chọn', 'chon', 'đặt tour', 'dat tour', 'muốn đặt', 'muon dat', 'book tour', 'tour này', 'tour nay'];
+    const looksLikeSelection = selectionHints.some((hint) => normalizedText.includes(hint));
+
+    if (!looksLikeSelection || !source.length) {
+      return [];
+    }
+
+    const matched = source.filter((tour) => {
+      const tourName = (tour.package_name || '').toLowerCase().trim();
+      return tourName.length > 0 && normalizedText.includes(tourName);
+    });
+
+    return matched.slice(0, 1);
+  }
+
+  private async resolveToursByNames(names: string[]): Promise<Tour[]> {
+    const fromCache = this.matchToursByNames(names, this.lastRecommendedTours);
+    if (fromCache.length) {
+      return fromCache;
+    }
+
+    for (const message of [...this.messages].reverse()) {
+      const fromHistory = this.matchToursByNames(names, message.tourPackages || []);
+      if (fromHistory.length) {
+        return fromHistory;
+      }
+    }
+
+    try {
+      const allTours = await this.tourService.getTours();
+      const matched = this.matchToursByNames(names, allTours);
+      if (matched.length) {
+        return matched;
+      }
+    } catch (error) {
+      console.warn('Could not resolve tours by name:', error);
+    }
+
+    return [];
+  }
+
+  private async hydrateTourCardsForMessage(message: Message, userMessage?: string): Promise<void> {
+    if (message.showTourCards && message.tourPackages?.length) {
+      return;
+    }
+
+    if (message.tourSelections?.length) {
+      const resolved = await this.resolveToursByNames(message.tourSelections.map((item) => item.name));
+      if (resolved.length) {
+        this.applyTourPackagesToMessage(message, resolved);
+        return;
+      }
+    }
+
+    if (userMessage) {
+      const selected = this.matchToursFromUserText(userMessage, this.lastRecommendedTours);
+      if (selected.length) {
+        this.applyTourPackagesToMessage(message, selected);
+        return;
+      }
+
+      const quotedMatch = userMessage.match(/"([^"]+)"/);
+      if (quotedMatch?.[1]) {
+        const resolved = await this.resolveToursByNames([quotedMatch[1]]);
+        if (resolved.length) {
+          this.applyTourPackagesToMessage(message, resolved);
+        }
+      }
+    }
+  }
+
+  selectTour(tourName: string, price: string): void {
+    if (this.isStreaming) {
+      return;
+    }
+
+    this.userMessage = `Tôi muốn đặt tour "${tourName}" với giá ${this.formatPrice(parseInt(price.replace(/,/g, '')))}`;
+    void this.sendMessage();
   }
 
   async viewTourDetails(tourName: string): Promise<void> {
@@ -985,6 +1977,35 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
     return this.activeConversation!;
   }
 
+  /**
+   * Load messages from chat history — restore trip planning data from entities.
+   */
+  private restoreTripPlanningFromHistory(messages: Message[]): void {
+    let latestStep = 1;
+    let hasCheckout = false;
+
+    for (const msg of messages) {
+      if (!msg.isUser && msg.tripStep) {
+        latestStep = msg.tripStep;
+      }
+      if (!msg.isUser && msg.showCheckout) {
+        hasCheckout = true;
+      }
+    }
+
+    this.currentTripStep.set(latestStep);
+    this.isTripComplete.set(
+      messages.some(m => !m.isUser && m.checkoutData?.booking_completed)
+    );
+
+    if (this.activeConversation?.conversationType === 'trip_planning') {
+      this.tripConversationId = this.activeConversation.remoteConversationId;
+    }
+
+    const lastAssistant = [...messages].reverse().find(m => !m.isUser && m.quickSuggestions?.length);
+    this.composerQuickSuggestions = lastAssistant?.quickSuggestions || [];
+  }
+
   private generateConversationTitle(message: string): string {
     const cleaned = message.replace(/\s+/g, ' ').trim();
     if (!cleaned) {
@@ -1022,7 +2043,11 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
       const timestamp = parsed.timestamp || 0;
       if (Date.now() - timestamp > this.conversationsCacheTTL) return [];
       const conversations = parsed.conversations as Conversation[] || [];
-      return conversations;
+      return conversations.map((conversation) => ({
+        ...conversation,
+        conversationType: conversation.conversationType
+          || (conversation.title?.startsWith('🗺️') ? 'trip_planning' : 'general_chat'),
+      }));
     } catch (e) {
       console.warn('Failed to load conversations cache', e);
       return [];
@@ -1074,6 +2099,99 @@ export class AiChatbotComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     // Clean up event listeners
     window.removeEventListener('message', this.paymentButtonClickHandler);
+    this.clearOtpCountdown();
+  }
+
+  openOtpPopup(data: { booking_id?: string; otp_code?: string; email?: string }): void {
+    this.otpBookingId = data.booking_id || '';
+    this.returnedOtpCode = data.otp_code || '';
+    this.otpEmail = data.email || '';
+    this.otpError = '';
+    this.otpSuccess = '';
+    this.showOtpPopup = true;
+    this.startOtpCountdown();
+    this.cdr.detectChanges();
+  }
+
+  private startOtpCountdown(): void {
+    this.clearOtpCountdown();
+    this.otpCountdown = 300;
+    this.otpCountdownInterval = setInterval(() => {
+      this.otpCountdown--;
+      if (this.otpCountdown <= 0) {
+        this.clearOtpCountdown();
+        this.otpError = 'Mã OTP đã hết hạn. Vui lòng gửi lại.';
+      }
+    }, 1000);
+  }
+
+  private clearOtpCountdown(): void {
+    if (this.otpCountdownInterval) {
+      clearInterval(this.otpCountdownInterval);
+      this.otpCountdownInterval = null;
+    }
+  }
+
+  async verifyAgentOTP(code: string): Promise<void> {
+    if (!code || code.length !== 6 || !this.otpBookingId) {
+      this.otpError = 'Vui lòng nhập đủ 6 số OTP';
+      return;
+    }
+
+    this.isVerifyingOTP = true;
+    this.otpError = '';
+    this.otpSuccess = '';
+
+    try {
+      const response = await firstValueFrom(
+        this.bookingService.verifyOTP(this.otpBookingId, code)
+      );
+      if (response.EC === 0) {
+        this.clearOtpCountdown();
+        this.showOtpPopup = false;
+        this.otpSuccess = '';
+        this.messages.push({
+          content: 'Xác thực OTP thành công! Đặt tour của bạn đã được xác nhận. Bạn có thể tiếp tục thanh toán.',
+          isUser: false,
+        });
+        this.cdr.detectChanges();
+        setTimeout(() => this.scrollToBottom(), 100);
+      } else {
+        this.otpError = response.EM || 'Mã OTP không đúng';
+      }
+    } catch (error: any) {
+      this.otpError = error?.error?.detail || error?.error?.EM || 'Xác thực OTP thất bại';
+    } finally {
+      this.isVerifyingOTP = false;
+    }
+  }
+
+  async resendAgentOTP(): Promise<void> {
+    if (!this.otpBookingId) {
+      this.otpError = 'Không tìm thấy thông tin booking';
+      return;
+    }
+
+    this.isResendingOTP = true;
+    this.otpError = '';
+    this.otpSuccess = '';
+
+    try {
+      const response = await firstValueFrom(
+        this.bookingService.resendOTP(this.otpBookingId)
+      );
+      if (response.EC === 0) {
+        this.returnedOtpCode = response.data?.otp_code || '';
+        this.otpSuccess = 'Mã OTP mới đã được tạo';
+        this.startOtpCountdown();
+      } else {
+        this.otpError = response.EM || 'Không thể gửi lại OTP';
+      }
+    } catch (error: any) {
+      this.otpError = error?.error?.detail || 'Không thể gửi lại OTP';
+    } finally {
+      this.isResendingOTP = false;
+    }
   }
 
   /**

@@ -354,6 +354,58 @@ class ChatAgentNodes:
                                 state["latest_payment"] = result_obj
                                 logger.info("✅ Stored latest payment data in state for payment UI generation")
 
+                        if tool_name == "create_booking" and isinstance(result_obj, dict):
+                            if result_obj.get("success") and result_obj.get("awaiting_otp"):
+                                booking_id = result_obj.get("booking_id")
+                                otp_code = result_obj.get("otp_code")
+                                contact_email = (
+                                    result_obj.get("contact_email")
+                                    or (result_obj.get("confirmation") or {}).get("email")
+                                )
+                                if booking_id:
+                                    state["pending_booking_id"] = str(booking_id)
+                                    state["user_email"] = contact_email
+                                    if otp_code:
+                                        state["pending_otp_code"] = str(otp_code)
+                                    logger.info(
+                                        f"OTP pending for booking {booking_id} (agent popup will show OTP)"
+                                    )
+
+                        if tool_name == "resend_otp" and isinstance(result_obj, dict):
+                            if result_obj.get("success"):
+                                otp_code = result_obj.get("otp_code")
+                                if otp_code:
+                                    state["pending_otp_code"] = str(otp_code)
+                                contact_email = result_obj.get("contact_email")
+                                if contact_email:
+                                    state["user_email"] = contact_email
+                                logger.info("OTP resent - updated pending OTP code in state")
+
+                        if tool_name == "verify_otp_and_confirm_booking" and isinstance(result_obj, dict):
+                            if result_obj.get("success"):
+                                state["pending_booking_id"] = None
+                                state["pending_otp_code"] = None
+                                logger.info("OTP verified - cleared pending OTP state")
+
+                        if tool_name == "search_tour_packages" and isinstance(result_obj, dict):
+                            packages = result_obj.get("packages") or []
+                            if packages:
+                                packages_for_ui = packages[:5]
+                                state["tour_packages"] = packages_for_ui
+                                state["recommended_package_ids"] = [
+                                    pkg.get("package_id")
+                                    for pkg in packages_for_ui
+                                    if pkg.get("package_id")
+                                ]
+                                state["mcp_ui_resource"] = {
+                                    "uri": f"ui://tour-recommendations/{state.get('conversation_id', 'default')}",
+                                    "mimeType": "application/json",
+                                    "text": "",
+                                }
+                                logger.info(
+                                    f"Stored {len(packages_for_ui)} tour packages in state from search_tour_packages"
+                                )
+
                         # === MCP-UI INTEGRATION ===
                         if tool_name in ["generate_tour_ui", "generate_payment_ui"] and isinstance(result_obj, dict):
                             html_content = result_obj.get("html")

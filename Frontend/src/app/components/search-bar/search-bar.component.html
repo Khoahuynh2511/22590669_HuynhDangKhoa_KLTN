@@ -2,40 +2,81 @@
   @if (showTabs) {
     <div class="search-tabs">
       <button
+        type="button"
         class="tab-btn"
         [class.active]="searchType === 'hotel'"
         (click)="switchSearchType('hotel')">
-        <i class="fas fa-hotel"></i>
         Khách sạn
       </button>
       <button
+        type="button"
         class="tab-btn"
         [class.active]="searchType === 'tour'"
         (click)="switchSearchType('tour')">
-        <i class="fas fa-map-marked-alt"></i>
         Tour du lịch
       </button>
     </div>
   }
 
   @if (searchType === 'hotel') {
-    <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">
-      <div>
-        <input type="text" [(ngModel)]="hotelSearchObj.name" placeholder="Hồ Chí Minh" class="w-full p-2 border input-1 bg-white" />
-      </div>
-      <div>
-        <input type="text" [(ngModel)]="hotelSearchObj.date" placeholder="24 Tháng 1 - 25 Tháng 1, 1 đêm" class="w-full p-2 border input-2 bg-white" />
-      </div>
-      <div>
-        <div class="wrapper-input relative">
-          <input type="text" [(ngModel)]="hotelSearchObj.capacity" placeholder="1 Người lớn, 0 Trẻ em, 1 Phòng" class="w-full p-2 border input-3 bg-white" />
-          <button class="absolute bg-blue-500 text-white btn-search absolute right-0 h-full p-2" (click)="bindSearch()">Tìm khách sạn</button>
+    <div class="hotel-search-wrapper">
+      <div class="hotel-search-grid">
+        <div class="search-field">
+          <label class="field-label">Địa điểm</label>
+          <input
+            type="text"
+            [(ngModel)]="hotelSearchObj.name"
+            placeholder="Hồ Chí Minh, Đà Nẵng, Nha Trang..."
+            class="field-input"
+            (keydown.enter)="bindSearch()" />
+        </div>
+
+        <div class="search-field">
+          <label class="field-label">Nhận phòng</label>
+          <input
+            type="date"
+            [(ngModel)]="hotelSearchObj.checkIn"
+            class="field-input" />
+        </div>
+
+        <div class="search-field">
+          <label class="field-label">Trả phòng</label>
+          <input
+            type="date"
+            [(ngModel)]="hotelSearchObj.checkOut"
+            class="field-input" />
+        </div>
+
+        <div class="search-field search-field-sm">
+          <label class="field-label">Khách</label>
+          <input
+            type="number"
+            [(ngModel)]="hotelSearchObj.guests"
+            min="1"
+            max="20"
+            class="field-input" />
+        </div>
+
+        <div class="search-field search-field-sm">
+          <label class="field-label">Phòng</label>
+          <input
+            type="number"
+            [(ngModel)]="hotelSearchObj.rooms"
+            min="1"
+            max="10"
+            class="field-input" />
+        </div>
+
+        <div class="search-field search-action">
+          <label class="field-label field-label-hidden">Tìm kiếm</label>
+          <button type="button" class="hotel-search-btn" (click)="bindSearch()">
+            Tìm khách sạn
+          </button>
         </div>
       </div>
     </div>
   } @else {
     <div class="tour-search-wrapper">
-      <!-- AI Promotion Badge - Redesigned -->
       <div class="ai-promotion-section">
         <div class="ai-badge-content">
           <div class="ai-icon-wrapper">
@@ -45,33 +86,31 @@
             <div class="ai-title">Tìm kiếm thông minh với AI</div>
             <div class="ai-subtitle">Trợ lý AI sẽ gợi ý tour phù hợp nhất dành cho bạn</div>
           </div>
-          <button class="ai-cta-btn" (click)="openAIChatbot()" title="Trò chuyện với AI">
+          <button type="button" class="ai-cta-btn" (click)="openAIChatbot()" title="Trò chuyện với AI">
             <span>Thử ngay</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
       </div>
 
-      <!-- Search Input - Redesigned -->
       <div class="search-input-container">
         <div class="search-input-wrapper">
           <div class="search-icon">
             <i class="fas fa-search"></i>
           </div>
-          <input 
-            type="text" 
-            [(ngModel)]="queryText" 
-            placeholder="Ví dụ: Tour Đà Lạt 3 ngày 2 đêm, giá dưới 5 triệu..." 
+          <input
+            type="text"
+            [(ngModel)]="queryText"
+            placeholder="Ví dụ: Tour Đà Lạt 3 ngày 2 đêm, giá dưới 5 triệu..."
             class="search-input-field"
             (keydown.enter)="bindSearch()" />
-          <button class="search-submit-btn" (click)="bindSearch()">
+          <button type="button" class="search-submit-btn" (click)="bindSearch()">
             <span>Tìm tour</span>
             <i class="fas fa-arrow-right"></i>
           </button>
         </div>
       </div>
 
-      <!-- Quick Tips - Redesigned -->
       <div class="quick-tips">
         <div class="tip-item">
           <i class="fas fa-lightbulb"></i>

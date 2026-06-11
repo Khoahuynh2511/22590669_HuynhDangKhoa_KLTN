@@ -2,7 +2,7 @@
 Booking Tools Schema
 Input schemas for booking-related MCP tools
 """
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 
@@ -31,18 +31,16 @@ class CreateBookingInput(BaseModel):
         default="", description="Special requests or dietary restrictions, you must ask user for this information")
     user_id: Optional[str] = Field(None, description="User ID if available (for authenticated users)")
 
-    @validator("user_phone")
+    @field_validator("user_phone")
+    @classmethod
     def validate_phone_number(cls, v: str) -> str:
-        """
-        Validate phone number must be exactly 10 digits.
-        """
-        # Remove any non-digit characters
         digits_only = ''.join(filter(str.isdigit, v))
         if len(digits_only) != 10:
             raise ValueError("Số điện thoại phải có đúng 10 số")
         return digits_only
 
-    @validator("user_email")
+    @field_validator("user_email")
+    @classmethod
     def validate_real_email(cls, v: str) -> str:
         """
         Reject placeholder emails (e.g., email@example.com) to force collecting real email.

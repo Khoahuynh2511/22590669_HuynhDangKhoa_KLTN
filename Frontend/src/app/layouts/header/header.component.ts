@@ -25,7 +25,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   topMenuPublic: Menu[] = [
     { label: 'Trang chủ', url: '/home' },
     { label: 'Tour du lịch', url: '/tours' },
-    { label: 'Lập kế hoạch', url: '/trip-planner' },
     { label: 'Tin tức & Cẩm nang', url: '/travel-news' },
     { label: 'Đánh giá', url: '/reviews' },
   ]
@@ -35,8 +34,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
     { label: 'V\u00e9 m\u00e1y bay', url: '/flights', icon: 'icon/air-plane.png' },
     { label: 'V\u00e9 t\u00e0u h\u1ecfa', url: '/trains', icon: 'icon/train.png' },
     { label: 'V\u00e9 xe kh\u00e1ch', url: '/buses', icon: 'icon/car.png' },
-    { label: '\u0110\u01b0a \u0111\u00f3n s\u00e2n bay', url: '/airport-transfer', icon: 'icon/plane.png' },
-    { label: 'Thu\u00ea xe', url: '/car-rental', icon: 'icon/car.png' },
     { label: 'Ho\u1ea1t \u0111\u1ed9ng', url: '/activities', icon: 'icon/car.png' },
   ];
 
@@ -137,6 +134,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 interface Menu {
   label: string;
   url: string;
+  queryParams?: Record<string, string>;
 }
 
 interface ServiceMenu extends Menu {

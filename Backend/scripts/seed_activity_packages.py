@@ -27,15 +27,34 @@ load_dotenv(project_root / ".env")
 import psycopg2
 from psycopg2.extras import execute_values
 
+from scripts.activity_seed_extra import EXTRA_ACTIVITIES
+
+
+def normalize_db_url(db_url: str) -> str:
+    """Convert asyncpg-style URL to psycopg2-compatible URL."""
+    return (
+        db_url.replace("postgresql+asyncpg://", "postgresql://")
+        .replace("postgres+asyncpg://", "postgresql://")
+    )
+
 
 def get_connection():
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         print("ERROR: DATABASE_URL must be set in .env")
         sys.exit(1)
-    conn = psycopg2.connect(db_url)
+    conn = psycopg2.connect(normalize_db_url(db_url))
     conn.autocommit = True
     return conn
+
+
+def merge_activities() -> dict:
+    """Merge base and extended activity data."""
+    merged = {dest: list(items) for dest, items in ACTIVITIES.items()}
+    for destination, activities in EXTRA_ACTIVITIES.items():
+        merged.setdefault(destination, [])
+        merged[destination].extend(activities)
+    return merged
 
 
 # ============================================================
@@ -570,8 +589,9 @@ def seed_activities(conn):
     total_inserted = 0
     total_skipped = 0
     cur = conn.cursor()
+    all_activities = merge_activities()
 
-    for destination, activities in ACTIVITIES.items():
+    for destination, activities in all_activities.items():
         print(f"\nSeeding activities for {destination}...")
 
         # Check existing
@@ -620,7 +640,7 @@ def seed_activities(conn):
 
     # Summary
     print(f"\nSummary by destination:")
-    for dest in ACTIVITIES.keys():
+    for dest in sorted(all_activities.keys()):
         cur.execute(
             "SELECT COUNT(*) FROM activity_packages WHERE destination = %s AND is_active = TRUE",
             (dest,)

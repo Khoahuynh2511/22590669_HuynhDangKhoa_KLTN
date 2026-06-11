@@ -3,6 +3,19 @@
   padding-top: 126px;
 }
 
+@import '../../styles/ticket-search-form.scss';
+
+.ticket-search-swap {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.ticket-search-input:focus,
+.ticket-search-select:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+}
+
 @media (max-width: 768px) {
   :host {
     padding-top: 114px;

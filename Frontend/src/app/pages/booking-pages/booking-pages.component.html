@@ -214,81 +214,9 @@
 
     <!-- OTP Verification Form -->
     @if (showOTPForm) {
-    <div class="bg-white rounded-lg shadow-md p-6 border-2 border-blue-500">
-      <div class="flex items-center gap-3 mb-4">
-        <div class="flex-shrink-0">
-          <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-xl font-bold text-gray-800">Xác nhận mã OTP</h3>
-          <p class="text-gray-600 text-sm">Nhập mã OTP 6 số để xác nhận đặt tour</p>
-        </div>
-      </div>
-
-      @if (otpSuccessMessage) {
-      <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
-        <p class="text-green-800 text-sm">{{ otpSuccessMessage }}</p>
-      </div>
-      }
-
-      @if (returnedOtpCode) {
-      <div class="mb-4 bg-amber-50 border-2 border-dashed border-amber-300 rounded-lg p-4 text-center">
-        <p class="text-xs text-amber-600 mb-1">Mã OTP của bạn (chế độ demo)</p>
-        <p class="text-3xl font-bold font-mono tracking-[0.5em] text-amber-700 select-all">{{ returnedOtpCode }}</p>
-      </div>
-      }
-
-      @if (otpErrorMessage) {
-      <div class="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
-        <p class="text-red-800 text-sm">{{ otpErrorMessage }}</p>
-      </div>
-      }
-
-      <div class="mb-4">
-        <label for="otpCode" class="block text-gray-700 font-medium mb-2">Mã OTP</label>
-        <input type="text" id="otpCode" [(ngModel)]="otpCode" name="otpCode" (input)="onOTPInput($event)"
-          (keydown.enter)="onOTPEnter()" maxlength="6" placeholder="000000"
-          class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-bold tracking-widest focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          [disabled]="isVerifyingOTP">
-        <p class="text-sm text-gray-500 mt-2">Nhập 6 số từ email của bạn (nhấn Enter để xác nhận)</p>
-      </div>
-
-      <div class="flex gap-3">
-        <button (click)="verifyOTP()" [disabled]="isVerifyingOTP || otpCode.length !== 6"
-          class="flex-1 bg-blue-600 text-white rounded-lg py-3 px-4 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
-          @if (isVerifyingOTP) {
-          <span class="flex items-center justify-center gap-2">
-            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-              </path>
-            </svg>
-            Đang xác nhận...
-          </span>
-          } @else {
-          Xác nhận OTP
-          }
-        </button>
-        <button (click)="resendOTP()" [disabled]="isResendingOTP"
-          class="px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium">
-          @if (isResendingOTP) {
-          <span class="flex items-center gap-2">
-            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-              </path>
-            </svg>
-          </span>
-          } @else {
-          Gửi lại OTP
-          }
-        </button>
-      </div>
+    <div class="bg-white rounded-lg shadow-md p-6 border-2 border-blue-500 text-center text-gray-600">
+      <p class="text-lg font-medium">Vui lòng xác thực OTP trong hộp thoại</p>
+      <p class="text-sm mt-2">Mã OTP đã được gửi đến {{ email }}</p>
     </div>
     }
 
@@ -300,4 +228,16 @@
     <app-booking-card [tourPackage]="tourPackage" [numberOfPeople]="numberOfPeople"></app-booking-card>
   </div>
 </div>
+
+<app-otp-popup
+  [visible]="showOTPForm"
+  [otpCode]="returnedOtpCode"
+  [email]="email"
+  [isVerifying]="isVerifyingOTP"
+  [isResending]="isResendingOTP"
+  [errorMessage]="otpErrorMessage"
+  [successMessage]="otpSuccessMessage"
+  (verify)="verifyOTP($event)"
+  (resend)="resendOTP()">
+</app-otp-popup>
 </div>
