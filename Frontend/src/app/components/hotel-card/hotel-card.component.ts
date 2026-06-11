@@ -20,7 +20,7 @@ export class HotelCardComponent {
   constructor(private router: Router, private decimalPipe: DecimalPipe) { }
 
   toDetail(param: any) {
-    this.router.navigate(['hotel/detail'], { queryParams: { id: this.hotel.hotel_id, param: param } })
+    this.router.navigate(['hotel/detail', this.hotel.hotel_id])
   }
 
   formatPrice(price: number): string {

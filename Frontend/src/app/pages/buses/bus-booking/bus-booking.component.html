@@ -1,0 +1,360 @@
+<!-- Bus Booking Page -->
+<div class="min-h-screen bg-gray-50">
+
+  <!-- Header Banner -->
+  <div class="bg-gradient-to-r from-orange-500 to-amber-600 py-8">
+    <div class="max-w-5xl mx-auto px-4">
+      <button (click)="goBack()" class="flex items-center gap-2 text-orange-200 hover:text-white mb-4 text-sm transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Quay lại tìm kiếm chuyến xe
+      </button>
+      <h1 class="text-3xl font-bold text-white mb-2">Đặt vé xe khách</h1>
+      @if (bus) {
+        <p class="text-orange-200">{{ bus.departure.code }} → {{ bus.arrival.code }} · {{ getDepartureDate() }}</p>
+      }
+    </div>
+  </div>
+
+  <!-- Progress Steps -->
+  <div class="max-w-5xl mx-auto px-4 -mt-5">
+    <div class="bg-white rounded-xl shadow-lg p-4 flex items-center justify-center gap-4">
+      <div class="flex items-center gap-2" [class.opacity-100]="currentStep === 1" [class.opacity-50]="currentStep !== 1">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+          [class.bg-orange-500]="currentStep === 1" [class.text-white]="currentStep === 1"
+          [class.bg-orange-400]="currentStep > 1" [class.text-white]="currentStep > 1">1</div>
+        <span class="font-medium text-sm">Thông tin đặt vé</span>
+      </div>
+      <div class="w-16 h-0.5" [class.bg-orange-300]="currentStep >= 2" [class.bg-gray-200]="currentStep < 2"></div>
+      <div class="flex items-center gap-2" [class.opacity-100]="currentStep >= 2" [class.opacity-50]="currentStep < 2">
+        <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+          [class.bg-orange-500]="currentStep === 2" [class.text-white]="currentStep === 2"
+          [class.bg-gray-300]="currentStep < 2" [class.text-gray-500]="currentStep < 2">2</div>
+        <span class="font-medium text-sm">Xác nhận OTP</span>
+      </div>
+      <div class="w-16 h-0.5 bg-gray-200"></div>
+      <div class="flex items-center gap-2 opacity-50">
+        <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-sm font-bold text-gray-500">3</div>
+        <span class="font-medium text-sm">Hoàn tất</span>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage && !showOTPForm) {
+    <div class="max-w-5xl mx-auto px-4 mt-4">
+      <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2">
+        <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+        {{ errorMessage }}
+      </div>
+    </div>
+  }
+
+  <div class="max-w-5xl mx-auto px-4 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+      <div class="lg:col-span-2">
+        @if (!showOTPForm) {
+          <!-- Bus Info Card -->
+          @if (bus) {
+            <div class="bg-white rounded-xl shadow-md border p-5 mb-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <span class="text-lg">🚌</span>
+                  </div>
+                  <div>
+                    <span class="bg-orange-100 text-orange-800 text-xs font-semibold px-2 py-0.5 rounded">{{ bus.bus_number }}</span>
+                    <span class="text-sm text-gray-600 ml-2">{{ bus.company.name }}</span>
+                    <span class="text-xs text-gray-400 ml-1">· {{ bus.bus_type.name }}</span>
+                  </div>
+                </div>
+                @if (bus.company.rating) {
+                  <div class="flex items-center gap-1 text-sm">
+                    <span class="text-yellow-500">⭐</span>
+                    <span class="font-medium text-gray-700">{{ bus.company.rating }}</span>
+                  </div>
+                }
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="text-center flex-1">
+                  <div class="font-bold text-2xl text-gray-900">{{ bus.departure.time }}</div>
+                  <div class="text-sm font-medium text-gray-700 mt-0.5">{{ bus.departure.code }}</div>
+                  <div class="text-xs text-gray-500">{{ bus.departure.city || bus.departure.station }}</div>
+                </div>
+                <div class="flex-1 flex flex-col items-center px-4">
+                  <span class="text-xs text-gray-400 mb-1">{{ bus.duration_formatted }}</span>
+                  <div class="w-full flex items-center gap-1">
+                    <div class="w-2 h-2 rounded-full bg-orange-400"></div>
+                    <div class="flex-1 border-t-2 border-dashed border-orange-300"></div>
+                    <span class="text-orange-500">🚌</span>
+                    <div class="flex-1 border-t-2 border-dashed border-orange-300"></div>
+                    <div class="w-2 h-2 rounded-full bg-orange-400"></div>
+                  </div>
+                  <span class="text-xs text-gray-500 mt-1">{{ getDepartureDate() }}</span>
+                </div>
+                <div class="text-center flex-1">
+                  <div class="font-bold text-2xl text-gray-900">{{ bus.arrival.time }}</div>
+                  <div class="text-sm font-medium text-gray-700 mt-0.5">{{ bus.arrival.code }}</div>
+                  <div class="text-xs text-gray-500">{{ bus.arrival.city || bus.arrival.station }}</div>
+                </div>
+              </div>
+              @if (bus.bus_type.amenities.length) {
+                <div class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+                  @for (a of bus.bus_type.amenities; track $index) {
+                    <span class="text-xs bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">{{ a }}</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Seat Type Selection -->
+          <div class="bg-white rounded-xl shadow-md border p-5 mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <span class="text-orange-600">①</span> Chọn loại ghế / giường
+            </h2>
+            <div class="space-y-3">
+              @for (seat of getSeatTypeEntries(); track seat.key) {
+                <button (click)="selectedSeatType = seat.key; updatePrice()"
+                  class="w-full p-4 rounded-xl border-2 transition-all text-left"
+                  [class.border-orange-500]="selectedSeatType === seat.key"
+                  [class.ring-2]="selectedSeatType === seat.key"
+                  [class.ring-orange-200]="selectedSeatType === seat.key"
+                  [class.bg-orange-50]="selectedSeatType === seat.key"
+                  [class.border-gray-200]="selectedSeatType !== seat.key"
+                  [class.hover:border-orange-300]="selectedSeatType !== seat.key">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <div class="font-semibold text-gray-800">{{ seat.name }}</div>
+                      @if (seat.desc) {
+                        <div class="text-xs text-gray-500 mt-0.5">{{ seat.desc }}</div>
+                      }
+                    </div>
+                    <div class="text-right">
+                      <div class="text-orange-600 font-bold text-lg">{{ formatPrice(seat.price) }}</div>
+                      <div class="text-xs text-gray-500">/ vé</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <span class="text-xs text-gray-400">Còn {{ seat.available }} chỗ trống</span>
+                    @if (selectedSeatType === seat.key) {
+                      <svg class="w-5 h-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    }
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Contact Info Form -->
+          <div class="bg-white rounded-xl shadow-md border p-5 space-y-5">
+            <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <span class="text-orange-600">②</span> Thông tin hành khách
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Họ và tên <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">👤</span>
+                  <input type="text" [(ngModel)]="passengerName" placeholder="Nguyễn Văn A"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Email <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">📧</span>
+                  <input type="email" [(ngModel)]="passengerEmail" placeholder="email@example.com"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                </div>
+                <p class="text-xs text-gray-400 mt-1">Mã OTP sẽ được gửi về email này</p>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số điện thoại <span class="text-red-500">*</span></label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">📱</span>
+                  <input type="tel" [(ngModel)]="passengerPhone" placeholder="0901234567" maxlength="15"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1.5">Số hành khách</label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">👥</span>
+                  <input type="number" [(ngModel)]="numPassengers" min="1" max="9" placeholder="1"
+                    (ngModelChange)="updatePrice()"
+                    class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1.5">Ghi chú (tùy chọn)</label>
+              <textarea [(ngModel)]="specialRequests" rows="2" placeholder="VD: Cần đón tại nhà, mang theo hành lý cồng kềnh..."
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-sm"></textarea>
+            </div>
+
+            <!-- Booking Details -->
+            <div class="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
+              <h3 class="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Chi tiết đặt vé
+              </h3>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="flex justify-between"><span class="text-gray-500">Chuyến xe:</span> <span class="font-semibold">{{ bus?.bus_number }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Hãng xe:</span> <span class="font-semibold">{{ bus?.company?.name }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Loại ghế:</span> <span class="font-semibold">{{ bus?.seats?.[selectedSeatType]?.name || 'Chưa chọn' }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Giá/vé:</span> <span class="font-semibold">{{ formatPrice(unitPrice) }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Ngày đi:</span> <span class="font-semibold">{{ getDepartureDate() }}</span></div>
+                <div class="flex justify-between"><span class="text-gray-500">Loại xe:</span> <span class="font-semibold">{{ bus?.bus_type?.name }}</span></div>
+              </div>
+            </div>
+
+            <!-- Cancellation Policy -->
+            <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
+              <h3 class="font-semibold text-gray-800 mb-2 flex items-center gap-2 text-sm">
+                <span>⚠️</span> Chính sách hoàn/hủy vé
+              </h3>
+              <ul class="text-xs text-gray-600 space-y-1">
+                <li>• Hủy vé trước 24h: Hoàn 100% tiền</li>
+                <li>• Hủy vé trước 12h: Hoàn 80% tiền</li>
+                <li>• Hủy vé trong vòng 12h: Không hoàn tiền</li>
+              </ul>
+            </div>
+
+            <button (click)="submitBooking()" [disabled]="isSubmitting || !bus"
+              class="w-full py-4 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl text-lg transition-all shadow-lg hover:shadow-xl">
+              @if (isSubmitting) {
+                <span class="flex items-center justify-center gap-2">
+                  <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Đang xử lý...
+                </span>
+              } @else {
+                Xác nhận đặt vé — {{ formatPrice(totalPrice) }}
+              }
+            </button>
+          </div>
+        }
+
+        @if (showOTPForm) {
+          <!-- OTP Verification -->
+          <div class="bg-white rounded-xl shadow-md border p-8">
+            <div class="text-center mb-6">
+              <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-10 h-10 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+              </div>
+              <h2 class="text-2xl font-bold text-gray-900 mb-2">Xác thực email</h2>
+              <p class="text-gray-500">Mã OTP 6 số đã được gửi đến</p>
+              <p class="font-semibold text-orange-600 text-lg mt-1">{{ otpEmail }}</p>
+            </div>
+
+            @if (returnedOtpCode) {
+              <div class="bg-amber-50 border-2 border-dashed border-amber-300 rounded-xl p-4 mb-6 text-center">
+                <p class="text-xs text-amber-600 mb-1">Mã OTP của bạn (chế độ demo)</p>
+                <p class="text-3xl font-bold font-mono tracking-[0.5em] text-amber-700 select-all">{{ returnedOtpCode }}</p>
+              </div>
+            }
+
+            <div class="flex justify-center mb-6">
+              <input type="text" [(ngModel)]="otpCode" maxlength="6" placeholder="Nhập 6 số OTP"
+                (keyup.enter)="otpCode.length === 6 && verifyOTP()"
+                class="w-56 px-4 py-4 border-2 border-gray-300 rounded-xl text-center text-2xl tracking-[0.5em] focus:ring-2 focus:ring-orange-500 focus:border-orange-500 font-mono">
+            </div>
+
+            @if (otpError) {
+              <p [class.text-red-600]="otpError.includes('sai') || otpError.includes('thất bại') || otpError.includes('hết hạn')"
+                [class.text-green-600]="otpError.includes('đã được gửi')"
+                class="text-sm text-center mb-4">{{ otpError }}</p>
+            }
+
+            <div class="text-center text-sm text-gray-500 mb-4">
+              @if (otpCountdown > 0) {
+                Mã hết hạn sau <span class="font-bold text-orange-600">{{ formatCountdown() }}</span>
+              } @else {
+                <span class="text-red-500 font-medium">Mã OTP đã hết hạn</span>
+              }
+            </div>
+
+            <button (click)="verifyOTP()" [disabled]="isVerifyingOTP || otpCode.length !== 6"
+              class="w-full py-3.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:bg-gray-400 text-white font-bold rounded-xl transition-all text-lg">
+              @if (isVerifyingOTP) {
+                <span class="flex items-center justify-center gap-2">
+                  <div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Đang xác thực...
+                </span>
+              } @else {
+                Xác nhận đặt vé
+              }
+            </button>
+
+            <div class="mt-4 flex items-center justify-center gap-4 text-sm">
+              <span class="text-gray-500">Không nhận được mã?</span>
+              <button (click)="resendOTP()" [disabled]="otpCountdown > 240"
+                class="text-orange-600 hover:text-orange-800 font-medium disabled:text-gray-400 disabled:cursor-not-allowed">Gửi lại OTP</button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Right: Summary Card -->
+      <div class="lg:col-span-1">
+        <div class="sticky top-4 bg-white rounded-xl shadow-md border overflow-hidden">
+          <div class="bg-gradient-to-r from-orange-500 to-amber-600 p-5 text-white">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-xs bg-white/20 px-2 py-0.5 rounded font-medium">{{ bus?.bus_number }}</span>
+              <span class="text-sm opacity-90">{{ bus?.company?.name }}</span>
+            </div>
+            <div class="flex items-center">
+              <div class="text-center flex-1">
+                <div class="font-bold text-2xl">{{ bus?.departure?.code }}</div>
+                <div class="text-xs opacity-75 mt-0.5">{{ bus?.departure?.time }}</div>
+                <div class="text-xs opacity-60">{{ bus?.departure?.city || '' }}</div>
+              </div>
+              <div class="px-3 text-center">
+                <div class="text-xs opacity-60 mb-1">{{ bus?.duration_formatted }}</div>
+                <div class="w-12 h-px bg-white/40 mx-auto"></div>
+                <div class="mt-1">🚌</div>
+              </div>
+              <div class="text-center flex-1">
+                <div class="font-bold text-2xl">{{ bus?.arrival?.code }}</div>
+                <div class="text-xs opacity-75 mt-0.5">{{ bus?.arrival?.time }}</div>
+                <div class="text-xs opacity-60">{{ bus?.arrival?.city || '' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="p-5">
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between"><span class="text-gray-500">Ngày đi</span><span class="font-medium">{{ getDepartureDate() }}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Loại ghế</span><span class="font-medium">{{ bus?.seats?.[selectedSeatType]?.name || '—' }}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Loại xe</span><span class="font-medium">{{ bus?.bus_type?.name || '—' }}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Số hành khách</span><span class="font-medium">{{ numPassengers }}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Giá/vé</span><span class="font-medium">{{ formatPrice(unitPrice) }}</span></div>
+              @if (bus?.bus_type?.amenities?.length) {
+                <div class="flex justify-between"><span class="text-gray-500">Tiện ích</span><span class="font-medium text-xs">{{ bus?.bus_type?.amenities?.slice(0, 3)?.join(', ') }}</span></div>
+              }
+            </div>
+            <div class="border-t mt-4 pt-4 space-y-2">
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500">{{ bus?.seats?.[selectedSeatType]?.name || 'Vé' }} × {{ numPassengers }}</span>
+                <span class="font-medium">{{ formatPrice(unitPrice * numPassengers) }}</span>
+              </div>
+              <div class="flex justify-between text-sm">
+                <span class="text-gray-500">Thuế & phí</span><span class="font-medium text-green-600">Miễn phí</span>
+              </div>
+            </div>
+            <div class="border-t mt-4 pt-4">
+              <div class="flex justify-between items-end">
+                <span class="text-gray-700 font-semibold">Tổng cộng</span>
+                <span class="text-2xl font-bold text-orange-600">{{ formatPrice(totalPrice) }}</span>
+              </div>
+            </div>
+            <div class="mt-5 bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+              <p class="text-sm text-green-700 font-semibold">🔒 Thanh toán an toàn</p>
+              <p class="text-xs text-green-600 mt-1">Xác nhận qua OTP · Không thu phí ẩn</p>
+            </div>
+            <div class="mt-3 text-center"><p class="text-xs text-gray-400">Hỗ trợ: 1900 1234 (24/7)</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

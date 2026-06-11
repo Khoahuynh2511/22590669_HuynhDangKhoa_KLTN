@@ -224,6 +224,125 @@ class AdminHotelService:
             return 0
 
 
+    async def manage_images(
+        self,
+        hotel_id: str,
+        images: List[UploadFile],
+        replace_existing: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Quản lý ảnh khách sạn: thêm mới hoặc thay thế
+
+        Args:
+            hotel_id: ID khách sạn
+            images: Danh sách file ảnh upload
+            replace_existing: True = thay thế tất cả, False = thêm vào
+
+        Returns:
+            Dict với danh sách image_urls mới
+        """
+        try:
+            # Kiểm tra khách sạn tồn tại
+            hotel = self.get_hotel_by_id(hotel_id)
+            if hotel["EC"] != 0:
+                return hotel
+
+            existing_urls = []
+            if hotel["data"].get("image_urls"):
+                existing_urls = [
+                    u.strip() for u in hotel["data"]["image_urls"].split("|") if u.strip()
+                ]
+
+            # Nếu thay thế: xóa ảnh cũ trên Cloudinary
+            if replace_existing and existing_urls:
+                self.delete_images_from_urls(hotel["data"]["image_urls"])
+
+            # Upload ảnh mới lên Cloudinary
+            new_urls = await self.upload_images(images)
+            if not new_urls:
+                if replace_existing:
+                    # Không upload được ảnh mới, cập nhật DB thành rỗng
+                    self.update_hotel(hotel_id, {"image_urls": ""})
+                    return {"EC": 0, "EM": "Xóa ảnh cũ thành công nhưng không upload được ảnh mới", "image_urls": []}
+                return {"EC": 2, "EM": "Không thể upload ảnh", "image_urls": existing_urls}
+
+            # Gộp URL
+            if replace_existing:
+                final_urls = new_urls
+            else:
+                final_urls = existing_urls + new_urls
+
+            # Cập nhật DB
+            image_urls_str = "|".join(final_urls)
+            self.update_hotel(hotel_id, {"image_urls": image_urls_str})
+
+            logger.info(f"Updated images for hotel {hotel_id}: {len(final_urls)} images (replace={replace_existing})")
+            return {"EC": 0, "EM": "Cập nhật ảnh thành công", "image_urls": final_urls}
+
+        except Exception as e:
+            logger.error(f"✗ Error managing images: {str(e)}")
+            return {"EC": 2, "EM": f"Lỗi quản lý ảnh: {str(e)}", "image_urls": []}
+
+    def create_hotels_bulk(self, hotels_data: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Tao nhieu khach san cung luc tu danh sach dict
+        """
+        successful = 0
+        failed = 0
+        created_hotels = []
+        errors = []
+
+        for i, hotel_data in enumerate(hotels_data):
+            try:
+                # Parse amenities
+                if 'amenities' in hotel_data and isinstance(hotel_data['amenities'], str):
+                    amenities_str = hotel_data['amenities'].strip()
+                    if amenities_str:
+                        hotel_data['amenities'] = '{' + ','.join(
+                            f'"{a.strip()}"' for a in amenities_str.split('|') if a.strip()
+                        ) + '}'
+                    else:
+                        hotel_data['amenities'] = '{}'
+
+                # Parse is_active
+                if 'is_active' in hotel_data and isinstance(hotel_data['is_active'], str):
+                    hotel_data['is_active'] = hotel_data['is_active'].lower() in ('true', '1', 'yes')
+
+                # Parse numeric fields
+                for field in ['star_rating', 'review_score', 'price', 'original_price']:
+                    if field in hotel_data and hotel_data[field] is not None:
+                        hotel_data[field] = float(hotel_data[field])
+                for field in ['review_count', 'discount', 'available_rooms']:
+                    if field in hotel_data and hotel_data[field] is not None:
+                        hotel_data[field] = int(float(hotel_data[field]))
+
+                # Remove None values
+                hotel_data = {k: v for k, v in hotel_data.items() if v is not None}
+
+                result = self.create_hotel(hotel_data)
+                if result["EC"] == 0:
+                    successful += 1
+                    created_hotels.append(result["data"])
+                else:
+                    failed += 1
+                    errors.append(f"Dòng {i + 1}: {result['EM']}")
+            except Exception as e:
+                failed += 1
+                errors.append(f"Dòng {i + 1}: {str(e)}")
+
+        return {
+            "EC": 0,
+            "EM": f"Đã xử lý {len(hotels_data)} khách sạn: {successful} thành công, {failed} thất bại",
+            "data": {
+                "total_processed": len(hotels_data),
+                "successful": successful,
+                "failed": failed,
+                "created_hotels": created_hotels,
+                "errors": errors
+            }
+        }
+
+
 def get_admin_hotel_service() -> AdminHotelService:
     """Dependency to get AdminHotelService instance"""
     return AdminHotelService()

@@ -124,3 +124,17 @@ async def update_bus_status(
     if result["EC"] != 0:
         raise HTTPException(status_code=400 if result["EC"] == 1 else 500, detail=result["EM"])
     return result
+
+
+@router.post("/csv")
+async def create_buses_from_csv(
+    body: Dict[str, Any],
+    current_admin: Dict[str, Any] = Depends(get_current_admin),
+    service: AdminBusService = Depends(get_admin_bus_service)
+):
+    """Tạo nhiều chuyến xe từ CSV"""
+    csv_text = body.get("csv_text", "")
+    if not csv_text:
+        raise HTTPException(status_code=400, detail="Thiếu dữ liệu CSV")
+    result = service.create_buses_from_csv(csv_text)
+    return result

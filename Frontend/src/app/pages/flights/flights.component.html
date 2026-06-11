@@ -1,96 +1,117 @@
 <div class="flights-page min-h-screen bg-gray-50">
   <!-- Search Section -->
-  <div class="bg-gradient-to-r from-blue-600 to-blue-800 py-10">
-    <div class="container mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white mb-6">Tìm kiếm vé máy bay</h1>
+  <div class="bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 py-10 relative overflow-hidden">
+    <!-- Decorative background -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-4 left-10 text-8xl">✈</div>
+      <div class="absolute bottom-4 right-10 text-6xl rotate-12">🌍</div>
+    </div>
+
+    <div class="container mx-auto px-6 relative z-10">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-white mb-2">✈️ Tìm kiếm vé máy bay</h1>
+        <p class="text-blue-200 text-sm">So sánh giá từ nhiều hãng bay — Đặt vé dễ dàng, nhanh chóng</p>
+      </div>
 
       <!-- Trip Type Toggle -->
-      <div class="flex gap-4 mb-6">
-        <button
+      <div class="flex justify-center gap-3 mb-6">
+        <button type="button"
           (click)="tripType = 'round-trip'"
-          [class.bg-white]="tripType === 'round-trip'"
-          [class.text-blue-700]="tripType === 'round-trip'"
-          [class.bg-blue-700]="tripType !== 'round-trip'"
-          [class.text-white]="tripType !== 'round-trip'"
-          class="px-4 py-2 rounded-full font-medium transition-colors border border-white/30">
-          Khứ hồi
+          [ngClass]="tripType === 'round-trip' ? 'bg-white text-blue-700 shadow-md' : 'bg-white/10 text-white'"
+          class="px-5 py-2 rounded-full font-medium transition-all border border-white/30 text-sm">
+          Kh&#7913; h&#7891;i
         </button>
-        <button
+        <button type="button"
           (click)="tripType = 'one-way'"
-          [class.bg-white]="tripType === 'one-way'"
-          [class.text-blue-700]="tripType === 'one-way'"
-          [class.bg-blue-700]="tripType !== 'one-way'"
-          [class.text-white]="tripType !== 'one-way'"
-          class="px-4 py-2 rounded-full font-medium transition-colors border border-white/30">
-          Một chiều
+          [ngClass]="tripType === 'one-way' ? 'bg-white text-blue-700 shadow-md' : 'bg-white/10 text-white'"
+          class="px-5 py-2 rounded-full font-medium transition-all border border-white/30 text-sm">
+          M&#7897;t chi&#7873;u
         </button>
       </div>
 
       <!-- Search Form -->
-      <div class="bg-white rounded-lg p-6 shadow-xl">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div class="bg-white rounded-2xl p-6 shadow-2xl max-w-4xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+          <!-- Departure -->
           <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-600 mb-1">Sân bay đi</label>
-            <select [(ngModel)]="departure" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="">-- Chọn sân bay đi --</option>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">🛫 Sân bay đi</label>
+            <select [(ngModel)]="departure" class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm">
+              <option value="">Chọn sân bay đi</option>
               @for (a of airports; track a.code) {
-                <option [value]="a.code">{{ a.name }} ({{ a.city }})</option>
+                <option [value]="a.code">{{ a.city }} — {{ a.name }}</option>
               }
             </select>
           </div>
+
+          <!-- Swap button -->
+          <div class="hidden lg:flex items-center justify-center pb-1">
+            <button type="button" (click)="swapAirports()" class="w-10 h-10 rounded-full bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 flex items-center justify-center transition-all hover:scale-110 hover:border-blue-400" title="Đổi chiều">
+              <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Arrival -->
           <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-600 mb-1">Sân bay đến</label>
-            <select [(ngModel)]="destination" class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="">-- Chọn sân bay đến --</option>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">🛬 Sân bay đến</label>
+            <select [(ngModel)]="destination" class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm">
+              <option value="">Chọn sân bay đến</option>
               @for (a of airports; track a.code) {
-                <option [value]="a.code">{{ a.name }} ({{ a.city }})</option>
+                <option [value]="a.code">{{ a.city }} — {{ a.name }}</option>
               }
             </select>
           </div>
+
+          <!-- Date -->
           <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-600 mb-1">Ngày đi</label>
+            <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">📅 Ngày đi</label>
             <input type="date" [(ngModel)]="departureDate"
-              class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              class="p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
           </div>
-          @if (tripType === 'round-trip') {
-            <div class="flex flex-col">
-              <label class="text-sm font-medium text-gray-600 mb-1">Ngày về</label>
-              <input type="date" [(ngModel)]="returnDate"
-                class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+
+          <!-- Passengers + Search -->
+          <div class="flex flex-col gap-2">
+            @if (tripType === 'round-trip') {
+              <div>
+                <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">📅 Ngày về</label>
+                <input type="date" [(ngModel)]="returnDate"
+                  class="w-full p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
+              </div>
+            }
+            <div>
+              <label class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">👤 Hành khách</label>
+              <div class="flex gap-2">
+                <input type="number" [(ngModel)]="passengers" min="1" max="9"
+                  class="flex-1 p-3 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:bg-white transition-all text-sm" />
+                <button type="button" (click)="onSearch()"
+                  class="px-5 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold transition-all shadow-md hover:shadow-lg text-sm whitespace-nowrap">
+                  Tìm chuyến
+                </button>
+              </div>
             </div>
-          }
-          <div class="flex flex-col">
-            <label class="text-sm font-medium text-gray-600 mb-1">Hành khách</label>
-            <input type="number" [(ngModel)]="passengers" min="1" max="9"
-              class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
-        </div>
-        <div class="mt-4 flex justify-end">
-          <button (click)="onSearch()"
-            class="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition-colors shadow-md">
-            Tìm chuyến bay
-          </button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- AI Assistant Banner -->
-  <div class="container mx-auto px-6 py-6">
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-5 flex items-center justify-between">
+  <div class="container mx-auto px-6 py-5">
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+        <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
           <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
           </svg>
         </div>
         <div>
-          <h3 class="font-semibold text-blue-900">AI Agent hỗ trợ tìm vé máy bay</h3>
-          <p class="text-sm text-blue-700">Chat với AI để tìm chuyến bay phù hợp nhất với nhu cầu của bạn</p>
+          <h3 class="font-semibold text-blue-900 text-sm">AI Agent hỗ trợ tìm vé máy bay</h3>
+          <p class="text-xs text-blue-600">Chat với AI để tìm chuyến bay phù hợp nhất với nhu cầu của bạn</p>
         </div>
       </div>
-      <button (click)="openAIChat()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
-        Chat ngay
+      <button type="button" (click)="openAIChat()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg font-medium transition-colors text-sm">
+        Chat ngay →
       </button>
     </div>
   </div>
@@ -99,46 +120,113 @@
   @if (hasSearched && !isSearching) {
     <div class="container mx-auto px-6 pb-6">
       @if (errorMessage) {
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">{{ errorMessage }}</div>
+        <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 flex items-center gap-3">
+          <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+          </svg>
+          {{ errorMessage }}
+        </div>
       } @else if (searchResults.length > 0) {
-        <h2 class="text-xl font-bold text-gray-800 mb-4">Kết quả tìm kiếm ({{ searchResults.length }} chuyến)</h2>
-        <div class="space-y-4">
+        <!-- Results header with sort -->
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-bold text-gray-800">Kết quả tìm kiếm <span class="text-blue-600">({{ searchResults.length }} chuyến)</span></h2>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-500">Sắp xếp:</span>
+            <select [(ngModel)]="sortBy" (ngModelChange)="sortResults()"
+              class="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-500">
+              <option value="price">Giá thấp nhất</option>
+              <option value="departure">Giờ sớm nhất</option>
+              <option value="duration">Ngắn nhất</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="space-y-3">
           @for (flight of searchResults; track flight.flight_id) {
-            <div class="bg-white rounded-lg shadow-md p-5 border border-gray-100 hover:shadow-lg transition-shadow">
-              <div class="flex items-center justify-between flex-wrap gap-4">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2 mb-1">
-                    <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-0.5 rounded">{{ flight.flight_number }}</span>
-                    <span class="text-sm text-gray-500">{{ flight.airline.name }}</span>
-                    <span class="text-xs text-gray-400">· {{ flight.aircraft }}</span>
+            <div class="bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 overflow-hidden group">
+              <div class="flex items-stretch">
+                <!-- Airline column -->
+                <div class="w-44 flex-shrink-0 flex flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white border-r border-gray-100 p-4">
+                  <div class="w-10 h-10 bg-white rounded-lg shadow-sm flex items-center justify-center mb-2 border border-gray-100">
+                    <span class="text-lg">✈️</span>
                   </div>
-                  <div class="flex items-center gap-3 text-gray-800">
-                    <div class="text-center">
-                      <div class="font-bold text-lg">{{ flight.departure.time }}</div>
-                      <div class="text-xs text-gray-500">{{ flight.departure.iata }}</div>
+                  <span class="text-xs font-bold text-blue-700">{{ flight.flight_number }}</span>
+                  <span class="text-xs text-gray-500 mt-0.5 text-center">{{ flight.airline.name }}</span>
+                  <span class="text-[10px] text-gray-400">{{ flight.aircraft }}</span>
+                </div>
+
+                <!-- Route & Time column -->
+                <div class="flex-1 p-4 flex items-center">
+                  <div class="flex items-center flex-1 gap-4">
+                    <!-- Departure -->
+                    <div class="text-center min-w-[80px]">
+                      <div class="text-xl font-bold text-gray-900">{{ flight.departure.time }}</div>
+                      <div class="text-xs font-semibold text-blue-600 mt-0.5">{{ flight.departure.iata }}</div>
+                      <div class="text-[10px] text-gray-400">{{ flight.departure.city }}</div>
                     </div>
-                    <div class="flex-1 flex flex-col items-center">
-                      <span class="text-xs text-gray-400">{{ flight.duration_formatted }}</span>
-                      <div class="w-full h-px bg-gray-300 my-1"></div>
+
+                    <!-- Duration line -->
+                    <div class="flex-1 flex flex-col items-center px-2">
+                      <span class="text-[10px] text-gray-400 mb-1 font-medium">{{ flight.duration_formatted }}</span>
+                      <div class="w-full flex items-center gap-0.5">
+                        <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                        <div class="flex-1 h-px bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
+                        <span class="text-blue-500 text-xs">✈</span>
+                        <div class="flex-1 h-px bg-gradient-to-r from-blue-300 via-blue-400 to-blue-300"></div>
+                        <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                      </div>
+                      <span class="text-[10px] text-green-600 font-medium mt-1">Bay thẳng</span>
                     </div>
-                    <div class="text-center">
-                      <div class="font-bold text-lg">{{ flight.arrival.time }}</div>
-                      <div class="text-xs text-gray-500">{{ flight.arrival.iata }}</div>
+
+                    <!-- Arrival -->
+                    <div class="text-center min-w-[80px]">
+                      <div class="text-xl font-bold text-gray-900">{{ flight.arrival.time }}</div>
+                      <div class="text-xs font-semibold text-blue-600 mt-0.5">{{ flight.arrival.iata }}</div>
+                      <div class="text-[10px] text-gray-400">{{ flight.arrival.city }}</div>
                     </div>
                   </div>
                 </div>
-                <div class="text-right">
-                  <div class="text-xs text-gray-500">Từ</div>
-                  <div class="text-orange-600 font-bold text-xl">{{ formatPrice(getLowestPrice(flight)) }}</div>
-                  <div class="text-xs text-gray-400 mt-1">{{ flight.baggage.carry_on }} xách tay · {{ flight.baggage.checked }} ký gửi</div>
-                  <button (click)="openAIChat()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded text-sm font-medium transition-colors">Đặt vé</button>
+
+                <!-- Price & Book column -->
+                <div class="w-52 flex-shrink-0 flex flex-col items-center justify-center border-l border-gray-100 bg-gradient-to-l from-orange-50/50 to-transparent p-4">
+                  <div class="text-[10px] text-gray-400 uppercase tracking-wider">Từ</div>
+                  <div class="text-xl font-bold text-orange-600">{{ formatPrice(getLowestPrice(flight)) }}</div>
+                  <div class="text-[10px] text-gray-400 mt-1 space-x-1">
+                    <span>🧳 {{ flight.baggage.carry_on }}</span>
+                    <span>·</span>
+                    <span>📦 {{ flight.baggage.checked }}</span>
+                  </div>
+                  <!-- Seat availability bar -->
+                  <div class="w-full mt-2">
+                    <div class="flex justify-between text-[10px] text-gray-400 mb-0.5">
+                      <span>Còn {{ flight.available_seats }} ghế</span>
+                      @if (flight.available_seats < 10) {
+                        <span class="text-red-500 font-semibold">Sắp hết!</span>
+                      }
+                    </div>
+                    <div class="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div class="h-full rounded-full transition-all"
+                        [class.bg-green-400]="flight.available_seats > 20"
+                        [class.bg-yellow-400]="flight.available_seats > 5 && flight.available_seats <= 20"
+                        [class.bg-red-400]="flight.available_seats <= 5"
+                        [style.width.%]="Math.min(100, (flight.available_seats / 180) * 100)"></div>
+                    </div>
+                  </div>
+                  <button type="button" (click)="bookFlight(flight)"
+                    class="mt-3 w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md group-hover:scale-105">
+                    Chọn chuyến →
+                  </button>
                 </div>
               </div>
             </div>
           }
         </div>
       } @else {
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-700">Không tìm thấy chuyến bay nào cho tuyến này.</div>
+        <div class="text-center py-16">
+          <div class="text-6xl mb-4">🔍</div>
+          <h3 class="text-lg font-semibold text-gray-700 mb-2">Không tìm thấy chuyến bay</h3>
+          <p class="text-gray-400 text-sm">Thử thay đổi ngày đi hoặc chọn tuyến khác</p>
+        </div>
       }
     </div>
   }
@@ -146,9 +234,10 @@
   <!-- Loading -->
   @if (isSearching) {
     <div class="container mx-auto px-6 pb-6">
-      <div class="flex items-center justify-center py-10">
-        <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <span class="ml-3 text-gray-600">Đang tìm kiếm...</span>
+      <div class="flex flex-col items-center justify-center py-16">
+        <div class="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <span class="text-gray-600 font-medium">Đang tìm kiếm chuyến bay...</span>
+        <span class="text-gray-400 text-sm mt-1">Vui lòng đợi trong giây lát</span>
       </div>
     </div>
   }
@@ -156,23 +245,45 @@
   <!-- Popular Routes (only when no search) -->
   @if (!hasSearched) {
     <div class="container mx-auto px-6 py-8">
-      <h2 class="text-2xl font-bold text-gray-800 mb-6">Các tuyến bay phổ biến</h2>
+      <div class="text-center mb-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">✈️ Các tuyến bay phổ biến</h2>
+        <p class="text-gray-400 text-sm">Chọn tuyến bay để xem ngay các chuyến bay tốt nhất</p>
+      </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         @for (route of popularRoutes; track $index) {
-          <div class="bg-white rounded-lg shadow-md p-5 hover:shadow-lg transition-shadow cursor-pointer border border-gray-100" (click)="selectRoute(route)">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="font-semibold text-gray-800">{{ route.fromCity }}</span>
-                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
-                </svg>
-                <span class="font-semibold text-gray-800">{{ route.toCity }}</span>
+          <div class="bg-white rounded-xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-gray-100 overflow-hidden group" (click)="selectRoute(route)">
+            <!-- Route gradient header -->
+            <div class="h-2 bg-gradient-to-r from-blue-400 to-indigo-500 group-hover:from-blue-500 group-hover:to-indigo-600 transition-all"></div>
+            <div class="p-5">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                  <div class="text-center">
+                    <div class="font-bold text-lg text-gray-800">{{ route.from }}</div>
+                    <div class="text-xs text-gray-500">{{ route.fromCity }}</div>
+                  </div>
+                  <div class="flex items-center gap-1 text-gray-300">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                    <div class="w-8 h-px bg-blue-300"></div>
+                    <span class="text-blue-400 text-xs">✈</span>
+                    <div class="w-8 h-px bg-blue-300"></div>
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+                  </div>
+                  <div class="text-center">
+                    <div class="font-bold text-lg text-gray-800">{{ route.to }}</div>
+                    <div class="text-xs text-gray-500">{{ route.toCity }}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div class="text-sm text-gray-500 mb-2">{{ route.airline }}</div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm text-gray-500">{{ route.duration }}</span>
-              <span class="text-orange-600 font-bold">{{ formatPrice(route.price) }}</span>
+              <div class="flex items-center justify-between">
+                <div class="text-xs text-gray-400 space-y-0.5">
+                  <div>{{ route.airline }}</div>
+                  <div>⏱ {{ route.duration }}</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-[10px] text-gray-400">Từ</div>
+                  <div class="text-orange-600 font-bold text-lg">{{ formatPrice(route.price) }}</div>
+                </div>
+              </div>
             </div>
           </div>
         }

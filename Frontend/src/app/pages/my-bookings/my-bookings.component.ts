@@ -1,10 +1,14 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, NavigationEnd } from '@angular/router';
+import { Router, RouterLink, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
 import { BookingService, MyBooking, MyBookingDetail, BookingUpdateRequest } from '../../services/booking.service';
 import { PaymentService, PaymentData } from '../../services/payment.service';
+import { TrainBookingService } from '../../services/train-booking.service';
+import { BusBookingService } from '../../services/bus-booking.service';
+import { FlightBookingService } from '../../services/flight-booking.service';
+import { HotelBookingService } from '../../services/hotel-booking.service';
 
 @Component({
   selector: 'app-my-bookings',
@@ -14,8 +18,11 @@ import { PaymentService, PaymentData } from '../../services/payment.service';
   styleUrl: './my-bookings.component.scss'
 })
 export class MyBookingsComponent implements OnInit, OnDestroy {
+  activeTab: 'tour' | 'train' | 'bus' | 'flight' | 'hotel' = 'tour';
+
   bookings: MyBooking[] = [];
   filteredBookings: MyBooking[] = [];
+  transportBookings: any[] = [];  // for train/bus/flight/hotel data
   isLoading = false;
   errorMessage = '';
 
@@ -66,12 +73,29 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   constructor(
     private bookingService: BookingService,
     private paymentService: PaymentService,
-    private router: Router
+    private trainBookingService: TrainBookingService,
+    private busBookingService: BusBookingService,
+    private flightBookingService: FlightBookingService,
+    private hotelBookingService: HotelBookingService,
+    private router: Router,
+    private route: ActivatedRoute
   ) { }
 
   ngOnInit(): void {
-    this.loadAllStats(); // Load stats first
-    this.loadBookings();
+    // Check query param for initial tab
+    this.route.queryParams.subscribe(params => {
+      const tab = params['tab'] as 'tour' | 'train' | 'bus' | 'flight' | 'hotel';
+      if (tab && ['tour', 'train', 'bus', 'flight', 'hotel'].includes(tab)) {
+        this.activeTab = tab;
+      }
+    });
+
+    if (this.activeTab === 'tour') {
+      this.loadAllStats(); // Load stats first
+      this.loadBookings();
+    } else {
+      this.loadTransportBookings();
+    }
 
     // Subscribe to router events to refresh data when navigating to this page
     this.routerSubscription = this.router.events
@@ -90,7 +114,129 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Load all bookings for stats (no filter)
+  // Switch between booking type tabs
+  switchTab(tab: 'tour' | 'train' | 'bus' | 'flight' | 'hotel'): void {
+    this.activeTab = tab;
+    this.currentPage = 1;
+    this.statusFilter = '';
+    this.errorMessage = '';
+    if (tab === 'tour') {
+      this.loadBookings();
+      this.loadAllStats();
+    } else {
+      this.loadTransportBookings();
+    }
+  }
+
+  // Load transport bookings (train/bus/flight/hotel)
+  loadTransportBookings(): void {
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    let serviceCall: any;
+
+    switch (this.activeTab) {
+      case 'train':
+        serviceCall = this.trainBookingService.getMyBookings();
+        break;
+      case 'bus':
+        serviceCall = this.busBookingService.getMyBookings();
+        break;
+      case 'flight':
+        serviceCall = this.flightBookingService.getMyBookings();
+        break;
+      case 'hotel':
+        serviceCall = this.hotelBookingService.getMyBookings();
+        break;
+      default:
+        this.isLoading = false;
+        return;
+    }
+
+    serviceCall.subscribe({
+      next: (response: any) => {
+        if (response.EC === 0) {
+          this.transportBookings = response.data || [];
+          this.total = response.total || 0;
+        } else {
+          this.errorMessage = response.EM || 'Có lỗi xảy ra khi tải danh sách đặt chỗ';
+          this.transportBookings = [];
+        }
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error(`Error loading ${this.activeTab} bookings:`, error);
+        this.errorMessage = 'Không thể tải danh sách đặt chỗ. Vui lòng thử lại sau.';
+        this.transportBookings = [];
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // Cancel transport booking (train/bus/flight/hotel)
+  cancelTransportBooking(bookingId: string | null): void {
+    if (!bookingId) return;
+    if (!confirm('Bạn có chắc chắn muốn hủy đặt chỗ này?')) {
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    let serviceCall: any;
+
+    switch (this.activeTab) {
+      case 'train':
+        serviceCall = this.trainBookingService.cancelBooking(bookingId);
+        break;
+      case 'bus':
+        serviceCall = this.busBookingService.cancelBooking(bookingId);
+        break;
+      case 'flight':
+        serviceCall = this.flightBookingService.cancelBooking(bookingId);
+        break;
+      case 'hotel':
+        serviceCall = this.hotelBookingService.cancelBooking(bookingId);
+        break;
+      default:
+        this.isLoading = false;
+        return;
+    }
+
+    serviceCall.subscribe({
+      next: (response: any) => {
+        if (response.EC === 0) {
+          // Refresh the transport bookings list
+          this.loadTransportBookings();
+        } else {
+          this.errorMessage = response.EM || 'Không thể hủy đặt chỗ';
+        }
+        this.isLoading = false;
+      },
+      error: (error: any) => {
+        console.error(`Error cancelling ${this.activeTab} booking:`, error);
+        this.errorMessage = 'Có lỗi xảy ra khi hủy đặt chỗ. Vui lòng thử lại sau.';
+        this.isLoading = false;
+      }
+    });
+  }
+
+  // Helper method to check if current tab is a transport booking
+  isTransportTab(): boolean {
+    return this.activeTab !== 'tour';
+  }
+
+  getTabLabel(tab: string): string {
+    const labels: { [key: string]: string } = {
+      'train': 'tàu hỏa',
+      'bus': 'xe khách',
+      'flight': 'máy bay',
+      'hotel': 'khách sạn'
+    };
+    return labels[tab] || tab;
+  }
+
+  // Load all bookings for stats (no filter) - tour bookings only
   loadAllStats(): void {
     // Call API with high limit to get all bookings for stats
     this.bookingService.getMyBookings({ limit: 100, offset: 0 }).subscribe({
@@ -144,7 +290,11 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
 
   onStatusFilterChange(): void {
     this.currentPage = 1;
-    this.loadBookings();
+    if (this.activeTab === 'tour') {
+      this.loadBookings();
+    } else {
+      this.loadTransportBookings();
+    }
   }
 
   calculateStats(): void {
@@ -215,19 +365,31 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   goToPage(page: number): void {
     if (page >= 1 && page <= this.getTotalPages()) {
       this.currentPage = page;
-      this.loadBookings();
+      if (this.activeTab === 'tour') {
+        this.loadBookings();
+      } else {
+        this.loadTransportBookings();
+      }
     }
   }
 
   refresh(): void {
-    this.loadBookings();
-    this.loadAllStats();
+    if (this.activeTab === 'tour') {
+      this.loadBookings();
+      this.loadAllStats();
+    } else {
+      this.loadTransportBookings();
+    }
   }
 
   // Helper method to refresh both bookings list and stats
   refreshAll(): void {
-    this.loadBookings();
-    this.loadAllStats();
+    if (this.activeTab === 'tour') {
+      this.loadBookings();
+      this.loadAllStats();
+    } else {
+      this.loadTransportBookings();
+    }
   }
 
   getPageNumbers(): number[] {

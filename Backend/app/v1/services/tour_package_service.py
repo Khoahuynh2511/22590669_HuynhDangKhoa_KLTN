@@ -92,8 +92,8 @@ class TourPackageService:
         if not packages:
             return packages
 
-        # If no user_id, set all to False
-        if not user_id:
+        # If no user_id or anonymous user, set all to False
+        if not user_id or user_id == 'anonymous':
             for pkg in packages:
                 pkg['is_favorite'] = False
             return packages

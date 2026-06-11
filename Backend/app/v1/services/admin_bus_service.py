@@ -5,6 +5,8 @@ from typing import Dict, Any, Optional
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import uuid
+import csv
+import io
 from ..core.config import settings
 
 
@@ -257,6 +259,57 @@ class AdminBusService:
                 return {"EC": 0, "EM": "Success", "data": stations}
         except Exception as e:
             return {"EC": 2, "EM": f"Lỗi server: {str(e)}", "data": None}
+
+    def create_buses_from_csv(self, csv_text: str) -> Dict[str, Any]:
+        """Tạo nhiều chuyến xe từ CSV"""
+        try:
+            reader = csv.DictReader(io.StringIO(csv_text))
+            success_count = 0
+            fail_count = 0
+            errors = []
+
+            for row_num, row in enumerate(reader, start=2):
+                try:
+                    bus_data = {
+                        "bus_id": f"BS-{uuid.uuid4().hex[:8].upper()}",
+                        "bus_number": row.get("bus_number", "").strip(),
+                        "company_id": row.get("company_id", "").strip(),
+                        "bus_type_id": row.get("bus_type_id", "").strip(),
+                        "departure_station": row.get("departure_station", "").strip(),
+                        "arrival_station": row.get("arrival_station", "").strip(),
+                        "departure_time": row.get("departure_time", "").strip(),
+                        "arrival_time": row.get("arrival_time", "").strip(),
+                        "duration_hours": float(row.get("duration_hours", 0) or 0),
+                        "total_seats": int(row.get("total_seats", 40) or 40),
+                        "available_seats": int(row.get("available_seats", 40) or 40),
+                        "base_price": int(row.get("base_price", 0) or 0),
+                        "status": row.get("status", "scheduled").strip() or "scheduled",
+                    }
+
+                    if not bus_data["bus_number"]:
+                        raise ValueError("Thiếu bus_number")
+
+                    result = self.create_bus(bus_data)
+                    if result["EC"] == 0:
+                        success_count += 1
+                    else:
+                        fail_count += 1
+                        errors.append({"row": row_num, "error": result["EM"]})
+                except Exception as e:
+                    fail_count += 1
+                    errors.append({"row": row_num, "error": str(e)})
+
+            return {
+                "EC": 0,
+                "EM": f"Import hoàn tất: {success_count} thành công, {fail_count} thất bại",
+                "data": {
+                    "success_count": success_count,
+                    "fail_count": fail_count,
+                    "errors": errors
+                }
+            }
+        except Exception as e:
+            return {"EC": 2, "EM": f"Lỗi đọc CSV: {str(e)}", "data": None}
 
 
 def get_admin_bus_service() -> AdminBusService:

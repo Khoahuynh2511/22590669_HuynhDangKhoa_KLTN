@@ -41,6 +41,7 @@ export class BookingPagesComponent implements OnInit {
   isResendingOTP = false;
   otpErrorMessage = '';
   otpSuccessMessage = '';
+  returnedOtpCode: string = '';  // OTP code returned from API (for demo)
 
   // Promotion state
   availablePromotions: Promotion[] = [];
@@ -254,8 +255,9 @@ export class BookingPagesComponent implements OnInit {
           // Always show OTP form for create-with-otp endpoint
           if (bookingId) {
             this.bookingIdForOTP = bookingId;
+            this.returnedOtpCode = data.otp_code || '';
             this.showOTPForm = true;
-            this.successMessage = response.EM || 'Mã OTP đã được gửi đến email của bạn. Vui lòng nhập mã OTP để xác nhận đặt tour.';
+            this.successMessage = response.EM || 'Vui lòng nhập mã OTP để xác nhận đặt tour.';
             this.errorMessage = '';
             this.isLoading = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -396,7 +398,8 @@ export class BookingPagesComponent implements OnInit {
     this.bookingService.resendOTP(this.bookingIdForOTP).subscribe({
       next: (response) => {
         if (response.EC === 0) {
-          this.otpSuccessMessage = 'Mã OTP mới đã được gửi đến email của bạn.';
+          this.returnedOtpCode = response.data?.otp_code || '';
+          this.otpSuccessMessage = 'Mã OTP mới đã được tạo.';
           this.otpErrorMessage = '';
           this.otpCode = ''; // Clear old OTP
           this.isResendingOTP = false;

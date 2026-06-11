@@ -2,7 +2,7 @@
 Main API Router
 """
 from fastapi import APIRouter
-from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, flights, trains, buses, admin_buses, hotels, admin_hotels
+from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, flights, trains, buses, admin_buses, admin_flights, admin_trains, hotels, admin_hotels, hotel_bookings, flight_bookings, train_bookings, bus_bookings, trip_planning, activity_packages
 
 api_router = APIRouter()
 
@@ -33,6 +33,16 @@ api_router.include_router(flights.router, prefix="/flights", tags=["Flights"])
 api_router.include_router(trains.router, prefix="/trains", tags=["Trains"])
 api_router.include_router(buses.router, prefix="/buses", tags=["Buses"])
 api_router.include_router(admin_buses.router, prefix="/admin/buses", tags=["Admin - Bus Management"])
+api_router.include_router(admin_flights.router, prefix="/admin/flights", tags=["Admin - Flight Management"])
+api_router.include_router(admin_trains.router, prefix="/admin/trains", tags=["Admin - Train Management"])
 
 api_router.include_router(hotels.router, prefix="/hotels", tags=["Hotels"])
 api_router.include_router(admin_hotels.router, prefix="/admin/hotels", tags=["Admin - Hotel Management"])
+api_router.include_router(hotel_bookings.router, prefix="/hotel-bookings", tags=["Hotel Bookings"])
+api_router.include_router(flight_bookings.router, prefix="/flight-bookings", tags=["Flight Bookings"])
+api_router.include_router(train_bookings.router, prefix="/train-bookings", tags=["Train Bookings"])
+api_router.include_router(bus_bookings.router, prefix="/bus-bookings", tags=["Bus Bookings"])
+
+# Trip Planning & Activity Packages
+api_router.include_router(trip_planning.router, prefix="/trip-planning", tags=["Trip Planning"])
+api_router.include_router(activity_packages.router, prefix="/activity-packages", tags=["Activity Packages"])

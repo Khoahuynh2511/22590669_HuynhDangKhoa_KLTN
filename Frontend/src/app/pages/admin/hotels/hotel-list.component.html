@@ -1,240 +1,967 @@
-<div class="p-6">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <div>
-      <h1 class="text-2xl font-bold text-gray-800">Quản lý Khách Sạn</h1>
-      <p class="text-gray-500 text-sm mt-1">Quản lý thông tin, giá phòng và tiện ích</p>
+<div class="space-y-6">
+  <!-- Stats Header -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+    <div class="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl shadow-md p-6 border border-blue-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-blue-600 text-sm font-medium">Tổng Khách Sạn</p>
+          <p class="text-3xl font-bold mt-1 text-blue-700">{{ hotels.length }}</p>
+        </div>
+        <div class="w-12 h-12 bg-blue-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </div>
+      </div>
     </div>
-    <button type="button" (click)="openAddModal()"
-      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
-      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-      </svg>
-      Thêm khách sạn
-    </button>
+
+    <div class="bg-gradient-to-br from-green-100 to-emerald-200 rounded-xl shadow-md p-6 border border-green-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-green-600 text-sm font-medium">Đang Hoạt Động</p>
+          <p class="text-3xl font-bold mt-1 text-green-700">{{ getActiveHotels() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-green-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl shadow-md p-6 border border-orange-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-orange-600 text-sm font-medium">Tạm Dừng</p>
+          <p class="text-3xl font-bold mt-1 text-orange-700">{{ getInactiveHotels() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-orange-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-gradient-to-br from-purple-100 to-pink-200 rounded-xl shadow-md p-6 border border-purple-200">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-purple-600 text-sm font-medium">Giá TB/Phòng</p>
+          <p class="text-2xl font-bold mt-1 text-purple-700">{{ getAveragePrice() }}</p>
+        </div>
+        <div class="w-12 h-12 bg-purple-300 bg-opacity-30 rounded-lg flex items-center justify-center">
+          <svg class="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="flex justify-between items-center">
+    <h2 class="text-2xl font-bold text-gray-800">Quản lý Khách Sạn</h2>
+    <div class="flex gap-3">
+      <button (click)="openBulkUploadModal()"
+        class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+        </svg>
+        Upload CSV
+      </button>
+      <button (click)="openAddModal()"
+        class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Thêm khách sạn
+      </button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+    {{ errorMessage }}
   </div>
 
   <!-- Filters -->
-  <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-center">
-    <div class="flex-1 min-w-[200px]">
-      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
-        placeholder="Tìm theo tên, địa điểm..."
-        class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
+  <div class="bg-white rounded-lg shadow-lg p-6 space-y-5">
+    <h3 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+      <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+      </svg>
+      Bộ Lọc Khách Sạn
+    </h3>
+
+    <!-- Basic filters -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
+        <input type="text" [(ngModel)]="searchTerm" placeholder="Tìm theo tên, địa điểm..."
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Trạng thái</label>
+        <select [(ngModel)]="statusFilter"
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white">
+          <option value="">Tất cả trạng thái</option>
+          <option value="active">Hoạt động</option>
+          <option value="inactive">Tạm dừng</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Địa điểm</label>
+        <input type="text" [(ngModel)]="locationFilter" placeholder="Lọc theo địa điểm..."
+          class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+      </div>
     </div>
-    <select [(ngModel)]="activeFilter" (ngModelChange)="applyFilters()"
-      class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
-      <option value="">Tất cả trạng thái</option>
-      <option value="active">Đang hoạt động</option>
-      <option value="inactive">Đã vô hiệu</option>
-    </select>
-    <span class="text-sm text-gray-500">{{ filteredHotels.length }} khách sạn</span>
+
+    <!-- Action Buttons -->
+    <div class="flex justify-end gap-3 pt-3 border-t border-gray-200">
+      <button (click)="onFilterChange()"
+        class="px-5 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+        </svg>
+        Áp dụng lọc
+      </button>
+      <button (click)="loadHotels()"
+        class="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all flex items-center gap-2 font-medium shadow-md hover:shadow-lg text-sm">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="white" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        Tải lại
+      </button>
+    </div>
+
+    <!-- Advanced Filters Toggle -->
+    <div class="border-t pt-4">
+      <button (click)="showAdvancedFilters = !showAdvancedFilters"
+        class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+          </svg>
+          <span class="text-sm font-semibold text-gray-700">Bộ lọc nâng cao</span>
+          <span *ngIf="isPriceFilterActive || isStarFilterActive || isRoomFilterActive"
+            class="px-2 py-0.5 bg-blue-600 text-white text-xs rounded-full">
+            {{ (isPriceFilterActive ? 1 : 0) + (isStarFilterActive ? 1 : 0) + (isRoomFilterActive ? 1 : 0) }}
+          </span>
+        </div>
+        <svg class="w-5 h-5 text-gray-500 transition-transform" [class.rotate-180]="showAdvancedFilters" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+      </button>
+
+      <!-- Advanced Filters Content -->
+      <div *ngIf="showAdvancedFilters" class="mt-4 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Price Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              Lọc theo giá/phòng
+            </h4>
+            <div class="space-y-2">
+              <select [(ngModel)]="priceSegmentFilter" (change)="onPriceSegmentChange()"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                <option value="">Chọn phân khúc</option>
+                <option value="budget">Tiết kiệm (&lt; 500k)</option>
+                <option value="mid">Trung bình (500k - 2tr)</option>
+                <option value="premium">Cao cấp (&gt; 2tr)</option>
+                <option value="custom">Tùy chỉnh khoảng giá</option>
+              </select>
+              <div *ngIf="priceSegmentFilter === 'custom'" class="space-y-2">
+                <input type="number" [(ngModel)]="minPriceFilter" min="0" placeholder="Giá tối thiểu (VND)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+                <input type="number" [(ngModel)]="maxPriceFilter" min="0" placeholder="Giá tối đa (VND)"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm">
+              </div>
+            </div>
+          </div>
+
+          <!-- Star Rating Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+              </svg>
+              Lọc theo sao
+            </h4>
+            <select [(ngModel)]="starRatingFilter"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 text-sm">
+              <option value="">Tất cả sao</option>
+              <option [value]="5">5 sao trở lên</option>
+              <option [value]="4">4 sao trở lên</option>
+              <option [value]="3">3 sao trở lên</option>
+              <option [value]="2">2 sao trở lên</option>
+              <option [value]="1">1 sao trở lên</option>
+            </select>
+          </div>
+
+          <!-- Room Filter -->
+          <div class="rounded-lg p-4 border border-gray-200">
+            <h4 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+              </svg>
+              Lọc theo phòng trống
+            </h4>
+            <div class="space-y-2">
+              <input type="number" [(ngModel)]="minRoomFilter" min="0" placeholder="Phòng tối thiểu"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+              <input type="number" [(ngModel)]="maxRoomFilter" min="0" placeholder="Phòng tối đa"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 text-sm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Filter Indicators -->
+        <div class="space-y-2">
+          <div *ngIf="isPriceFilterActive" class="bg-gradient-to-r from-orange-50 to-orange-100 border-2 border-orange-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-orange-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Lọc giá: <span class="text-orange-900">{{ priceSegmentFilter === 'budget' ? '< 500k' : priceSegmentFilter === 'mid' ? '500k - 2tr' : priceSegmentFilter === 'premium' ? '> 2tr' : (minPriceFilter || '0') + ' - ' + (maxPriceFilter || '∞') + ' VND' }}</span>
+              </span>
+              <button (click)="clearPriceFilter()" class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded-md">Xóa</button>
+            </div>
+          </div>
+          <div *ngIf="isStarFilterActive" class="bg-gradient-to-r from-yellow-50 to-yellow-100 border-2 border-yellow-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-yellow-700 flex items-center gap-2">
+                <span class="text-yellow-500">★</span> Lọc sao: <span class="text-yellow-900">{{ starRatingFilter }} sao trở lên</span>
+              </span>
+              <button (click)="clearStarFilter()" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-white text-xs rounded-md">Xóa</button>
+            </div>
+          </div>
+          <div *ngIf="isRoomFilterActive" class="bg-gradient-to-r from-purple-50 to-purple-100 border-2 border-purple-300 rounded-lg p-3 shadow-sm">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-purple-700 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+                Phòng: <span class="text-purple-900">{{ minRoomFilter || '0' }} - {{ maxRoomFilter || '∞' }}</span>
+              </span>
+              <button (click)="clearRoomFilter()" class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-md">Xóa</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Basic Filters Active -->
+    <div *ngIf="searchTerm || statusFilter || locationFilter"
+      class="mt-4 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-lg p-3 shadow-sm">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-sm font-semibold text-amber-700">Bộ lọc cơ bản:</span>
+          <span *ngIf="searchTerm" class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">"{{ searchTerm }}"</span>
+          <span *ngIf="statusFilter" class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">{{ statusFilter === 'active' ? 'Hoạt động' : 'Tạm dừng' }}</span>
+          <span *ngIf="locationFilter" class="px-2 py-1 bg-white border border-amber-300 rounded-md text-xs font-medium text-amber-800">"{{ locationFilter }}"</span>
+        </div>
+        <button (click)="searchTerm = ''; statusFilter = ''; locationFilter = ''; onFilterChange()"
+          class="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-md">Xóa</button>
+      </div>
+    </div>
   </div>
 
-  <!-- Loading -->
-  @if (isLoading) {
-    <div class="flex items-center justify-center py-20">
-      <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      <span class="ml-3 text-gray-600">Đang tải...</span>
-    </div>
-  }
+  <!-- Pagination Info -->
+  <div class="text-sm text-gray-600">
+    Hiển thị {{ filteredHotels.length > 0 ? 1 : 0 }} - {{ filteredHotels.length }} trong tổng số {{ hotels.length }} khách sạn
+  </div>
 
-  <!-- Table -->
-  @if (!isLoading) {
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 border-b">
-            <tr>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">STT</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Tên khách sạn</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Địa điểm</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Sao</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Điểm đánh giá</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giá/phòng</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Phòng trống</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
-              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (hotel of filteredHotels; track hotel.hotel_id; let i = $index) {
-              <tr class="border-b hover:bg-gray-50 transition-colors">
-                <td class="px-4 py-3 text-gray-500">{{ i + 1 }}</td>
-                <td class="px-4 py-3 font-medium text-gray-800">{{ hotel.hotel_name }}</td>
-                <td class="px-4 py-3 text-gray-600">{{ hotel.location }}</td>
-                <td class="px-4 py-3 text-yellow-500">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" class="text-center py-8">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <p class="mt-2 text-gray-600">Đang tải dữ liệu...</p>
+  </div>
+
+  <!-- Hotels Table -->
+  <div *ngIf="!isLoading" class="bg-white rounded-lg shadow overflow-hidden">
+    <table class="w-full">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Khách sạn</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Địa điểm</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đánh giá</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá/phòng</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phòng trống</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <tr *ngFor="let hotel of filteredHotels" class="hover:bg-gray-50">
+          <td class="px-6 py-4">
+            <div class="flex items-center">
+              <img [src]="getImageUrl(hotel.image_urls)" [alt]="hotel.hotel_name"
+                class="w-16 h-16 rounded-lg object-cover mr-4">
+              <div>
+                <div class="text-sm font-medium text-gray-900 truncate max-w-[260px]" [title]="hotel.hotel_name">{{ hotel.hotel_name }}</div>
+                <div class="text-yellow-500 text-sm">
                   @for (star of [1,2,3,4,5]; track star) {
                     <span>{{ star <= hotel.star_rating ? '★' : '☆' }}</span>
                   }
-                </td>
-                <td class="px-4 py-3 text-gray-600">{{ hotel.review_score }}/10 ({{ hotel.review_count }})</td>
-                <td class="px-4 py-3 font-medium text-orange-600">{{ formatPrice(hotel.price) }}</td>
-                <td class="px-4 py-3 text-gray-600">{{ hotel.available_rooms }}</td>
-                <td class="px-4 py-3">
-                  <button type="button" (click)="toggleActive(hotel)"
-                    class="px-2 py-1 rounded-full text-xs font-medium cursor-pointer"
-                    [class]="hotel.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'">
-                    {{ hotel.is_active ? 'Hoạt động' : 'Vô hiệu' }}
-                  </button>
-                </td>
-                <td class="px-4 py-3">
-                  <div class="flex items-center gap-2">
-                    <button type="button" (click)="openEditModal(hotel)"
-                      class="text-blue-600 hover:text-blue-800 p-1" title="Chỉnh sửa">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                      </svg>
-                    </button>
-                    <button type="button" (click)="confirmDelete(hotel)"
-                      class="text-red-600 hover:text-red-800 p-1" title="Xóa">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-600 truncate max-w-[200px]" [title]="hotel.location">{{ hotel.location }}</td>
+          <td class="px-6 py-4 text-sm text-gray-600">
+            <span class="font-semibold text-blue-600">{{ hotel.review_score }}</span>/10
+            <span class="text-gray-400 text-xs">({{ hotel.review_count }})</span>
+          </td>
+          <td class="px-6 py-4">
+            <div class="text-sm font-semibold text-green-600 whitespace-nowrap">{{ formatPrice(hotel.price) }}</div>
+            <div *ngIf="hotel.discount > 0" class="text-xs text-red-500">-{{ hotel.discount }}%</div>
+          </td>
+          <td class="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{{ hotel.available_rooms }}</td>
+          <td class="px-6 py-4 whitespace-nowrap">
+            <button (click)="toggleActive(hotel)"
+              class="px-3 py-1 rounded-full text-xs font-semibold cursor-pointer"
+              [class]="hotel.is_active ? 'bg-green-100 text-green-800 hover:opacity-80' : 'bg-red-100 text-red-700 hover:opacity-80'">
+              {{ hotel.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+            </button>
+          </td>
+          <td class="px-6 py-4 text-sm font-medium whitespace-nowrap">
+            <div class="flex space-x-2">
+              <button (click)="openDetailModal(hotel)" class="text-purple-600 hover:text-purple-800 p-1" title="Xem chi tiết">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+              </button>
+              <button (click)="openEditModal(hotel)" class="text-blue-600 hover:text-blue-800 p-1" title="Chỉnh sửa">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+              </button>
+              <button (click)="confirmDelete(hotel)" class="text-red-600 hover:text-red-800 p-1" title="Xóa">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr *ngIf="filteredHotels.length === 0">
+          <td colspan="7" class="px-6 py-8 text-center text-gray-500">
+            @if (hotels.length === 0) {
+              Chưa có khách sạn nào. Nhấn "Thêm khách sạn" để bắt đầu.
+            } @else {
+              Không tìm thấy khách sạn phù hợp.
             }
-            @if (filteredHotels.length === 0) {
-              <tr>
-                <td colspan="9" class="px-4 py-8 text-center text-gray-500">
-                  @if (hotels.length === 0) {
-                    Chưa có khách sạn nào. Nhấn "Thêm khách sạn" để bắt đầu.
-                  } @else {
-                    Không tìm thấy khách sạn phù hợp.
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </div>
-  }
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 
-<!-- Add/Edit Modal -->
+<!-- ==================== ADD/EDIT MODAL ==================== -->
 @if (showAddModal || showEditModal) {
-  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
-    (click.self)="closeModal()">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-      <!-- Header -->
-      <div class="flex items-center justify-between px-6 py-4 border-b">
-        <h2 class="text-xl font-bold text-gray-800">
-          {{ showAddModal ? 'Thêm khách sạn mới' : 'Chỉnh sửa khách sạn' }}
-        </h2>
-        <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
+<div class="bg-black bg-opacity-50 flex items-center justify-center"
+  style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important;"
+  (click)="closeModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[95vh] overflow-hidden" (click)="$event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200 px-8 py-6 sticky top-0 z-10">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-2xl font-bold text-gray-900">{{ showAddModal ? 'Tạo khách sạn mới' : 'Chỉnh sửa khách sạn' }}</h3>
+            <p class="text-gray-600 text-sm mt-1">{{ showAddModal ? 'Điền thông tin để tạo khách sạn mới' : 'Cập nhật thông tin khách sạn' }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="togglePreview()" [class.bg-blue-600]="showPreview" [class.text-white]="showPreview"
+            [class.bg-gray-100]="!showPreview" [class.text-gray-700]="!showPreview"
+            class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 font-medium hover:shadow-md">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+            </svg>
+            {{ showPreview ? 'Ẩn preview' : 'Xem preview' }}
+          </button>
+          <button (click)="closeModal()" class="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-2 rounded-lg transition-all">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Upload Progress Overlay -->
+    <div *ngIf="isUploading" class="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center" style="z-index: 10000;">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+        <div class="text-center mb-6">
+          <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+          <h4 class="text-xl font-bold text-gray-900 mb-2">Đang tạo khách sạn</h4>
+          <p class="text-gray-600 text-sm">{{ uploadStatus }}</p>
+        </div>
+        <div class="space-y-3">
+          <div class="flex justify-between text-sm font-medium">
+            <span class="text-gray-700">Tiến trình</span>
+            <span class="text-blue-600">{{ uploadProgress }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden shadow-inner">
+            <div class="h-full bg-gradient-to-r from-blue-500 via-blue-600 to-blue-500 rounded-full transition-all duration-300 ease-out"
+              [style.width.%]="uploadProgress"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Content -->
+    <div class="overflow-y-auto max-h-[calc(90vh-180px)] px-8 py-6">
+      <div [class.grid]="showPreview" [class.grid-cols-2]="showPreview" [class.gap-6]="showPreview">
+
+        <!-- Left Column: Form -->
+        <div [class.pr-4]="showPreview" [class.border-r]="showPreview" [class.border-gray-200]="showPreview">
+          <form>
+            <!-- Metadata Section (Edit only) -->
+            <div *ngIf="showEditModal && currentHotel.hotel_id" class="mb-8">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/>
+                  </svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Thông tin hệ thống</h4>
+              </div>
+              <div class="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-purple-600 mb-1">HOTEL ID</label>
+                    <div class="flex items-center gap-2">
+                      <code class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200 font-mono flex-1 truncate">{{ currentHotel.hotel_id }}</code>
+                      <button type="button" (click)="copyToClipboard(currentHotel.hotel_id!)" class="p-2 text-purple-600 hover:bg-white rounded-lg transition-all" title="Copy ID">
+                        <svg *ngIf="!copiedHotelId" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        <svg *ngIf="copiedHotelId" class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-purple-600 mb-1">NGÀY TẠO</label>
+                    <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200">{{ formatDateTime(currentHotel.created_at!) }}</div>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-purple-600 mb-1">CẬP NHẬT CUỐI</label>
+                    <div class="text-sm text-gray-700 bg-white px-3 py-2 rounded-lg border border-purple-200">{{ formatDateTime(currentHotel.updated_at!) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Basic Information -->
+            <div class="mb-8">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Thông tin cơ bản</h4>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Tên khách sạn <span class="text-red-500">*</span></label>
+                  <input type="text" [(ngModel)]="currentHotel.hotel_name" name="hotel_name" required placeholder="VD: Grand Hotel Da Nang"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Địa điểm <span class="text-red-500">*</span></label>
+                  <input type="text" [(ngModel)]="currentHotel.location" name="location" required placeholder="VD: Đà Nẵng, Việt Nam"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ</label>
+                  <input type="text" [(ngModel)]="currentHotel.address" name="address" placeholder="VD: 123 Nguyễn Văn Linh"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Mô tả <span class="text-red-500">*</span></label>
+                  <textarea [(ngModel)]="currentHotel.description" name="description" rows="3" required placeholder="Mô tả chi tiết khách sạn..."
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400 resize-none"></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- Rating Section -->
+            <div class="mb-8">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-yellow-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                  </svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Xếp hạng & Đánh giá</h4>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Hạng sao</label>
+                  <input type="number" [(ngModel)]="currentHotel.star_rating" name="star_rating" min="1" max="5" step="0.5"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Điểm đánh giá</label>
+                  <input type="number" [(ngModel)]="currentHotel.review_score" name="review_score" min="0" max="10" step="0.1"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Số đánh giá</label>
+                  <input type="number" [(ngModel)]="currentHotel.review_count" name="review_count" min="0"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+              </div>
+            </div>
+
+            <!-- Pricing & Availability -->
+            <div class="mb-8">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Giá & Khả dụng</h4>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Giá/phòng/đêm (VND) <span class="text-red-500">*</span></label>
+                  <div class="relative">
+                    <input type="number" [(ngModel)]="currentHotel.price" name="price" required min="0"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                    <span class="absolute right-4 top-3 text-gray-500 font-medium">VNĐ</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Giá gốc (VND)</label>
+                  <div class="relative">
+                    <input type="number" [(ngModel)]="currentHotel.original_price" name="original_price" min="0"
+                      class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                    <span class="absolute right-4 top-3 text-gray-500 font-medium">VNĐ</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Giảm giá (%)</label>
+                  <input type="number" [(ngModel)]="currentHotel.discount" name="discount" min="0" max="100"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div>
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Phòng trống <span class="text-red-500">*</span></label>
+                  <input type="number" [(ngModel)]="currentHotel.available_rooms" name="available_rooms" required min="0"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+                </div>
+                <div class="md:col-span-2">
+                  <label class="block text-sm font-semibold text-gray-700 mb-2">Trạng thái</label>
+                  <select [(ngModel)]="currentHotel.is_active" name="is_active"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all appearance-none bg-white">
+                    <option [ngValue]="true">Hoạt động</option>
+                    <option [ngValue]="false">Tạm dừng</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Amenities -->
+            <div class="mb-8">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Tiện ích</h4>
+              </div>
+              <input type="text" [(ngModel)]="amenitiesText" name="amenities" placeholder="VD: Spa, Pool, WiFi, Breakfast (ngăn cách bằng dấu phẩy)"
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all hover:border-blue-400">
+            </div>
+
+            <!-- Media Section -->
+            <div class="mb-6">
+              <div class="flex items-center mb-4">
+                <div class="w-8 h-8 bg-pink-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg class="w-5 h-5 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <h4 class="text-lg font-semibold text-gray-800">Hình Ảnh</h4>
+              </div>
+
+              <!-- Upload -->
+              <div class="mb-4">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                  Tải lên hình ảnh <span class="text-gray-500">(Tối đa 10 ảnh - Hiện tại: {{ imageUrls.length }}/10)</span>
+                </label>
+                <label class="flex-1 block" [class.cursor-pointer]="imageUrls.length < 10" [class.cursor-not-allowed]="imageUrls.length >= 10">
+                  <div [class]="imageUrls.length >= 10 ? 'border-2 border-dashed border-gray-200 rounded-xl p-6 text-center bg-gray-100 opacity-50' : 'border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50 transition-all'">
+                    <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <p class="text-sm" [class.text-gray-600]="imageUrls.length < 10" [class.text-gray-400]="imageUrls.length >= 10">
+                      <span *ngIf="imageUrls.length < 10" class="text-blue-600 font-semibold">Nhấn để chọn ảnh</span>
+                      <span *ngIf="imageUrls.length >= 10" class="text-gray-500 font-semibold">Đã đủ 10 ảnh</span>
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">JPEG, JPG, PNG, WebP</p>
+                  </div>
+                  <input type="file" (change)="onFileSelect($event)" accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="hidden" [disabled]="imageUrls.length >= 10">
+                </label>
+              </div>
+
+              <!-- Image Gallery with Drag & Drop -->
+              <div *ngIf="imageUrls.length > 0" class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <label class="block text-sm font-semibold text-gray-700">Hình ảnh đã chọn ({{ imageUrls.length }})</label>
+                  <p class="text-xs text-gray-500">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>
+                    Kéo thả để sắp xếp
+                  </p>
+                </div>
+                <div class="grid grid-cols-5 gap-4">
+                  <div *ngFor="let url of imageUrls; let i = index" draggable="true" (dragstart)="onDragStart(i)"
+                    (dragover)="onDragOver($event)" (drop)="onDrop($event, i)" (dragend)="onDragEnd()"
+                    [class.opacity-50]="draggedImageIndex === i"
+                    class="relative group border-2 border-gray-200 rounded-xl overflow-hidden hover:border-blue-500 transition-all cursor-move">
+                    <div class="aspect-video bg-gray-100">
+                      <img [src]="url" [alt]="'Image ' + (i + 1)" class="w-full h-full object-cover">
+                    </div>
+                    <div class="absolute top-2 left-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">#{{ i + 1 }}</div>
+                    <button type="button" (click)="removeImage(i)"
+                      class="absolute top-2 right-2 bg-red-600 text-white p-1.5 rounded-full shadow-lg hover:bg-red-700 transition-all opacity-0 group-hover:opacity-100">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div *ngIf="imageUrls.length === 0" class="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300">
+                <svg class="w-16 h-16 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                <p class="text-gray-600 font-medium">Chưa có hình ảnh nào</p>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <!-- Right Column: Preview Panel -->
+        <div *ngIf="showPreview" class="pl-4 sticky top-0 max-h-[calc(90vh-180px)] overflow-y-auto">
+          <div class="bg-gray-50 rounded-lg p-4 h-full">
+            <div class="mb-4">
+              <h4 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                Preview giao diện User
+              </h4>
+            </div>
+
+            <!-- Hotel Card Preview -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+              <!-- Image -->
+              <div class="relative h-48 bg-gray-200">
+                <img *ngIf="imageUrls && imageUrls[0]" [src]="imageUrls[0]" [alt]="currentHotel.hotel_name || 'Hotel'" class="w-full h-full object-cover">
+                <div *ngIf="!imageUrls || imageUrls.length === 0" class="w-full h-full flex items-center justify-center text-gray-400">
+                  <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </div>
+                <!-- Discount Badge -->
+                <div *ngIf="currentHotel.discount && currentHotel.discount > 0"
+                  class="absolute top-3 left-3 bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                  -{{ currentHotel.discount }}%
+                </div>
+                <!-- Status Badge -->
+                <div [class]="currentHotel.is_active ? 'absolute top-3 right-3 bg-green-500 text-white text-xs font-semibold px-3 py-1 rounded-full' : 'absolute top-3 right-3 bg-gray-500 text-white text-xs font-semibold px-3 py-1 rounded-full'">
+                  {{ currentHotel.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="p-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-2 line-clamp-2">{{ currentHotel.hotel_name || 'Tên khách sạn' }}</h3>
+
+                <!-- Stars -->
+                <div class="flex items-center gap-2 mb-2">
+                  <div class="text-yellow-500">
+                    @for (star of [1,2,3,4,5]; track star) {
+                      <span>{{ star <= (currentHotel.star_rating || 0) ? '★' : '☆' }}</span>
+                    }
+                  </div>
+                  <span class="text-sm text-gray-600">{{ currentHotel.review_score || 0 }}/10</span>
+                </div>
+
+                <p class="text-sm text-gray-600 mb-3 line-clamp-2">{{ currentHotel.description || 'Mô tả khách sạn' }}</p>
+
+                <div class="space-y-2 mb-4">
+                  <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    <span class="text-gray-700">{{ currentHotel.location || 'Địa điểm' }}</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+                    <span class="text-gray-700">Còn {{ currentHotel.available_rooms || 0 }} phòng</span>
+                  </div>
+                </div>
+
+                <!-- Amenities -->
+                <div *ngIf="amenitiesText" class="flex flex-wrap gap-1 mb-4">
+                  @for (amenity of amenitiesText.split(','); track $index) {
+                    <span class="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-200">{{ amenity.trim() }}</span>
+                  }
+                </div>
+
+                <!-- Price -->
+                <div class="border-t pt-3 mt-3">
+                  <div class="flex items-end justify-between">
+                    <div>
+                      <div class="text-xs text-gray-500">Giá từ</div>
+                      <div class="text-2xl font-bold text-blue-600">{{ formatPreviewPrice(currentHotel.price || 0) }}</div>
+                      <div class="text-xs text-gray-500">/phòng/đêm</div>
+                    </div>
+                    <button class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm cursor-default opacity-80">
+                      Đặt phòng
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Image Gallery Preview -->
+              <div *ngIf="imageUrls && imageUrls.length > 1" class="px-4 pb-4">
+                <div class="text-xs font-semibold text-gray-700 mb-2">Thư viện ảnh ({{ imageUrls.length }} ảnh)</div>
+                <div class="grid grid-cols-4 gap-2">
+                  <div *ngFor="let url of imageUrls.slice(0, 4)" class="aspect-square rounded-lg overflow-hidden bg-gray-200">
+                    <img [src]="url" [alt]="currentHotel.hotel_name" class="w-full h-full object-cover">
+                  </div>
+                  <div *ngIf="imageUrls.length > 4" class="aspect-square rounded-lg bg-gray-700 flex items-center justify-center text-white text-sm font-semibold">
+                    +{{ imageUrls.length - 4 }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="border-t border-gray-200 px-8 py-6 bg-gray-50 sticky bottom-0">
+      <div class="flex justify-between items-center">
+        <p class="text-sm text-gray-500"><span class="text-red-500">*</span> Trường bắt buộc</p>
+        <div class="flex space-x-3">
+          <button type="button" (click)="closeModal()"
+            class="px-6 py-3 border-2 border-gray-300 rounded-xl text-gray-700 font-semibold hover:bg-gray-100 transition-all">
+            Hủy bỏ
+          </button>
+          <button type="button" (click)="showAddModal ? saveHotel() : updateHotel()"
+            [disabled]="showEditModal && !hasChanges()"
+            [class.opacity-50]="showEditModal && !hasChanges()"
+            [class.cursor-not-allowed]="showEditModal && !hasChanges()"
+            class="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center space-x-2">
+            <svg class="w-5 h-5" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            <span class="text-white">{{ showAddModal ? 'Tạo khách sạn' : 'Lưu thay đổi' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ==================== DETAIL MODAL ==================== -->
+@if (showDetailModal) {
+<div class="bg-black bg-opacity-50 flex items-center justify-center"
+  style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important;"
+  (click)="closeDetailModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-6 rounded-t-2xl">
+      <div class="flex items-center justify-between">
+        <h3 class="text-2xl font-bold text-white">Chi tiết khách sạn</h3>
+        <button (click)="closeDetailModal()" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Image Gallery -->
+    <div *ngIf="imageUrls.length > 0" class="p-6">
+      <div class="grid grid-cols-3 gap-3">
+        <div *ngFor="let url of imageUrls" class="aspect-video rounded-lg overflow-hidden bg-gray-200">
+          <img [src]="url" alt="Hotel image" class="w-full h-full object-cover">
+        </div>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="px-8 pb-8 space-y-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">{{ currentHotel.hotel_name }}</h2>
+        <div class="flex items-center gap-3 mt-2">
+          <div class="text-yellow-500">
+            @for (star of [1,2,3,4,5]; track star) {
+              <span>{{ star <= (currentHotel.star_rating || 0) ? '★' : '☆' }}</span>
+            }
+          </div>
+          <span class="text-gray-600">{{ currentHotel.review_score }}/10 ({{ currentHotel.review_count }} đánh giá)</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Địa điểm</p>
+          <p class="font-semibold text-gray-800">{{ currentHotel.location }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Địa chỉ</p>
+          <p class="font-semibold text-gray-800">{{ currentHotel.address || 'N/A' }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Giá/phòng/đêm</p>
+          <p class="font-semibold text-green-600">{{ formatPrice(currentHotel.price || 0) }}</p>
+          <p *ngIf="currentHotel.original_price" class="text-xs text-gray-400 line-through">{{ formatPrice(currentHotel.original_price) }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-xs text-gray-500 mb-1">Phòng trống</p>
+          <p class="font-semibold text-gray-800">{{ currentHotel.available_rooms }}</p>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs text-gray-500 mb-2">Mô tả</p>
+        <p class="text-gray-700">{{ currentHotel.description || 'Không có mô tả' }}</p>
+      </div>
+
+      <div *ngIf="amenitiesText">
+        <p class="text-xs text-gray-500 mb-2">Tiện ích</p>
+        <div class="flex flex-wrap gap-2">
+          @for (amenity of amenitiesText.split(','); track $index) {
+            <span class="px-3 py-1 bg-blue-50 text-blue-700 text-sm rounded-full border border-blue-200">{{ amenity.trim() }}</span>
+          }
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 text-sm text-gray-500">
+        <div>Ngày tạo: {{ formatDateTime(currentHotel.created_at!) }}</div>
+        <div>Cập nhật: {{ formatDateTime(currentHotel.updated_at!) }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ==================== DELETE MODAL ==================== -->
+@if (showDeleteModal) {
+<div class="bg-black bg-opacity-50 flex items-center justify-center"
+  style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important;"
+  (click)="closeDeleteModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4" (click)="$event.stopPropagation()">
+    <div class="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 rounded-t-2xl">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <h3 class="text-xl font-bold text-white">Xác nhận xóa</h3>
+      </div>
+    </div>
+    <div class="p-6">
+      <p class="text-gray-700 mb-6">Bạn có chắc chắn muốn xóa khách sạn này? Hành động này không thể hoàn tác.</p>
+      <div class="flex justify-end gap-3">
+        <button (click)="closeDeleteModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Hủy</button>
+        <button (click)="deleteHotel()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium">Xóa</button>
+      </div>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ==================== CSV UPLOAD MODAL ==================== -->
+@if (showBulkUploadModal) {
+<div class="bg-black bg-opacity-50 flex items-center justify-center"
+  style="position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; z-index: 9999 !important;"
+  (click)="closeBulkUploadModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4 rounded-t-2xl">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </div>
+          <h3 class="text-xl font-bold text-white">Upload CSV Khách Sạn</h3>
+        </div>
+        <button (click)="closeBulkUploadModal()" class="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="p-6 space-y-6">
+      <!-- Download Template -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p class="text-sm text-blue-800 mb-3 font-medium">📋 Tải template CSV và điền thông tin khách sạn:</p>
+        <button (click)="downloadCSVTemplate()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors flex items-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Tải template CSV
         </button>
       </div>
 
-      <!-- Form -->
-      <div class="px-6 py-4 space-y-4">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tên khách sạn *</label>
-            <input type="text" [(ngModel)]="formData.hotel_name" placeholder="VD: Grand Hotel Da Nang"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
-            <input type="text" [(ngModel)]="formData.location" placeholder="VD: Da Nang, Vietnam"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Địa chỉ</label>
-            <input type="text" [(ngModel)]="formData.address" placeholder="Địa chỉ chi tiết"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-            <textarea [(ngModel)]="formData.description" rows="2" placeholder="Mô tả khách sạn..."
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm"></textarea>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Hạng sao</label>
-            <input type="number" [(ngModel)]="formData.star_rating" min="1" max="5" step="0.5"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Điểm đánh giá</label>
-            <input type="number" [(ngModel)]="formData.review_score" min="0" max="10" step="0.1"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Số đánh giá</label>
-            <input type="number" [(ngModel)]="formData.review_count" min="0"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Phòng trống</label>
-            <input type="number" [(ngModel)]="formData.available_rooms" min="0"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giá/phòng/đêm (VND) *</label>
-            <input type="number" [(ngModel)]="formData.price" min="0"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giá gốc (VND)</label>
-            <input type="number" [(ngModel)]="formData.original_price" min="0"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Giảm giá (%)</label>
-            <input type="number" [(ngModel)]="formData.discount" min="0" max="100"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tiện ích (phẩy ngăn cách)</label>
-            <input type="text" [(ngModel)]="amenitiesText" placeholder="VD: Spa, Pool, WiFi, Breakfast"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-          </div>
-          <div class="col-span-2" *ngIf="showAddModal">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Hình ảnh (Tối đa 10 ảnh)</label>
-            <input type="file" multiple accept="image/jpeg,image/jpg,image/png,image/webp"
-              (change)="onImageSelect($event)"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
-            <p class="text-xs text-gray-500 mt-1">Định dạng: JPEG, JPG, PNG, WebP</p>
+      <!-- File Select -->
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-2">Chọn file CSV</label>
+        <input type="file" accept=".csv,text/csv" (change)="onCSVFileSelect($event)"
+          class="w-full p-3 border-2 border-dashed border-gray-300 rounded-lg text-sm hover:border-green-500 transition-colors">
+      </div>
 
-            @if (imagePreviews.length > 0) {
-              <div class="grid grid-cols-5 gap-2 mt-3">
-                @for (preview of imagePreviews; track $index; let i = $index) {
-                  <div class="relative">
-                    <img [src]="preview" alt="Hotel preview image {{ i + 1 }}" class="w-full h-20 object-cover rounded border" />
-                    <button type="button" (click)="removeImage(i)"
-                      class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">
-                      ×
-                    </button>
-                  </div>
-                }
-              </div>
-            }
-          </div>
-          <div class="col-span-2" *ngIf="showEditModal">
-            <label class="block text-sm font-medium text-gray-700 mb-1">URL hình ảnh</label>
-            <input type="text" [(ngModel)]="formData.image_urls" placeholder="img/hotel.jpeg"
-              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+      <!-- Selected File Info -->
+      <div *ngIf="selectedCSVFile" class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="flex items-center gap-3">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <div>
+            <p class="font-medium text-green-800">{{ selectedCSVFile.name }}</p>
+            <p class="text-xs text-green-600">{{ (selectedCSVFile.size / 1024).toFixed(1) }} KB</p>
           </div>
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
-        <button type="button" (click)="closeModal()"
-          class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
-          Hủy
-        </button>
-        <button type="button" (click)="showAddModal ? saveHotel() : updateHotel()"
-          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-          {{ showAddModal ? 'Tạo khách sạn' : 'Cập nhật' }}
+      <!-- Upload Result -->
+      <div *ngIf="bulkUploadResult" class="space-y-3">
+        <div [class]="bulkUploadResult.EC === 0 ? 'bg-green-50 border border-green-200 rounded-lg p-4' : 'bg-red-50 border border-red-200 rounded-lg p-4'">
+          <p class="font-semibold" [class.text-green-800]="bulkUploadResult.EC === 0" [class.text-red-800]="bulkUploadResult.EC !== 0">{{ bulkUploadResult.EM }}</p>
+          <div *ngIf="bulkUploadResult.data" class="mt-2 text-sm grid grid-cols-3 gap-2">
+            <div class="text-center">
+              <p class="text-gray-500 text-xs">Tổng</p>
+              <p class="font-bold text-gray-800">{{ bulkUploadResult.data.total_processed }}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-green-500 text-xs">Thành công</p>
+              <p class="font-bold text-green-600">{{ bulkUploadResult.data.successful }}</p>
+            </div>
+            <div class="text-center">
+              <p class="text-red-500 text-xs">Thất bại</p>
+              <p class="font-bold text-red-600">{{ bulkUploadResult.data.failed }}</p>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="bulkUploadResult.data?.errors?.length" class="bg-red-50 border border-red-200 rounded-lg p-4 max-h-40 overflow-y-auto">
+          <p class="text-sm font-semibold text-red-800 mb-2">Chi tiết lỗi:</p>
+          <ul class="text-xs text-red-700 space-y-1">
+            <li *ngFor="let err of bulkUploadResult.data.errors">{{ err }}</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-4 border-t">
+        <button (click)="closeBulkUploadModal()" class="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Đóng</button>
+        <button (click)="uploadCSV()" [disabled]="!selectedCSVFile || isLoading"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium flex items-center gap-2">
+          <div *ngIf="isLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          Upload CSV
         </button>
       </div>
     </div>
   </div>
+</div>
 }

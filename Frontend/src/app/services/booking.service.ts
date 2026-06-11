@@ -89,6 +89,7 @@ export interface BookingCreateResponse {
     created_at: string;
     updated_at: string;
     awaiting_otp?: boolean; // For OTP flow
+    otp_code?: string;
   };
 }
 

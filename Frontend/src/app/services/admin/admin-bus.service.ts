@@ -119,4 +119,8 @@ export class AdminBusService {
   getStations(): Observable<{ EC: number; EM: string; data: StationItem[] }> {
     return this.http.get<{ EC: number; EM: string; data: StationItem[] }>(`${this.apiBaseUrl}/stations`, { headers: this.getHeaders() });
   }
+
+  createBusesFromCSV(csvText: string): Observable<{ EC: number; EM: string; data: { success_count: number; fail_count: number; errors: { row: number; error: string }[] } }> {
+    return this.http.post<{ EC: number; EM: string; data: { success_count: number; fail_count: number; errors: { row: number; error: string }[] } }>(`${this.apiBaseUrl}/csv`, { csv_text: csvText }, { headers: this.getHeaders() });
+  }
 }

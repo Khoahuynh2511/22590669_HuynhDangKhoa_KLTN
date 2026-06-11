@@ -1,20 +1,22 @@
 <div class="search-container">
-  <div class="search-tabs">
-    <button 
-      class="tab-btn"
-      [class.active]="searchType === 'hotel'"
-      (click)="switchSearchType('hotel')">
-      <i class="fas fa-hotel"></i>
-      Khách sạn
-    </button>
-    <button 
-      class="tab-btn"
-      [class.active]="searchType === 'tour'"
-      (click)="switchSearchType('tour')">
-      <i class="fas fa-map-marked-alt"></i>
-      Tour du lịch
-    </button>
-  </div>
+  @if (showTabs) {
+    <div class="search-tabs">
+      <button
+        class="tab-btn"
+        [class.active]="searchType === 'hotel'"
+        (click)="switchSearchType('hotel')">
+        <i class="fas fa-hotel"></i>
+        Khách sạn
+      </button>
+      <button
+        class="tab-btn"
+        [class.active]="searchType === 'tour'"
+        (click)="switchSearchType('tour')">
+        <i class="fas fa-map-marked-alt"></i>
+        Tour du lịch
+      </button>
+    </div>
+  }
 
   @if (searchType === 'hotel') {
     <div class="grid grid-cols-1 md:grid-cols-3 flex-auto wrapper-form">

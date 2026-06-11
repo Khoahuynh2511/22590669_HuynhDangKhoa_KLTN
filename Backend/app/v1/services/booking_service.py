@@ -6,7 +6,9 @@ import logging
 import random
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from supabase import Client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from ..core.config import settings
 from .promotion_service import PromotionService
 from .otp_service import get_otp_service
 
@@ -16,15 +18,18 @@ logger = logging.getLogger(__name__)
 class BookingService:
     """Service for managing tour bookings"""
 
-    def __init__(self, supabase_client: Client):
-        """
-        Initialize BookingService
+    def __init__(self):
+        """Initialize BookingService"""
+        self.db_url = settings.DATABASE_URL
+        self.promotion_service = PromotionService()
 
-        Args:
-            supabase_client: Supabase client instance
-        """
-        self.supabase = supabase_client
-        self.promotion_service = PromotionService(supabase_client)
+    def _get_conn(self):
+        """Get database connection"""
+        return psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+
+    def _normalize(self, rows):
+        """Normalize rows to list of dicts"""
+        return [dict(r) for r in rows]
 
     async def get_all_bookings(
         self,
@@ -46,31 +51,53 @@ class BookingService:
             Dict with EC, EM, data, and total
         """
         try:
-            query = self.supabase.table('bookings').select('*', count='exact')
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Build query
+                    query = "SELECT * FROM bookings WHERE 1=1"
+                    params = []
 
-            # Apply filters
-            if user_id:
-                query = query.eq('user_id', user_id)
-            if status:
-                query = query.eq('status', status)
+                    # Apply filters
+                    if user_id:
+                        query += " AND user_id = %s"
+                        params.append(user_id)
+                    if status:
+                        query += " AND status = %s"
+                        params.append(status)
 
-            # Apply pagination
-            if limit:
-                query = query.limit(limit)
-            if offset:
-                query = query.offset(offset)
+                    # Count total
+                    count_query = "SELECT COUNT(*) as total FROM bookings WHERE 1=1"
+                    count_params = []
+                    if user_id:
+                        count_query += " AND user_id = %s"
+                        count_params.append(user_id)
+                    if status:
+                        count_query += " AND status = %s"
+                        count_params.append(status)
 
-            # Order by created_at descending
-            query = query.order('created_at', desc=True)
+                    # Add ordering and pagination
+                    query += " ORDER BY created_at DESC"
+                    if limit:
+                        query += " LIMIT %s"
+                        params.append(limit)
+                    if offset:
+                        query += " OFFSET %s"
+                        params.append(offset)
 
-            result = query.execute()
+                    # Execute count query
+                    cur.execute(count_query, count_params)
+                    total = cur.fetchone()['total']
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": result.data,
-                "total": result.count
-            }
+                    # Execute main query
+                    cur.execute(query, params)
+                    data = self._normalize(cur.fetchall())
+
+                    return {
+                        "EC": 0,
+                        "EM": "Success",
+                        "data": data,
+                        "total": total
+                    }
 
         except Exception as e:
             logger.error(f"Error getting bookings: {str(e)}")
@@ -92,23 +119,26 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            result = self.supabase.table('bookings') \
-                .select('*') \
-                .eq('booking_id', booking_id) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT * FROM bookings WHERE booking_id = %s",
+                        (booking_id,)
+                    )
+                    result = cur.fetchone()
 
-            if not result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Booking not found",
-                    "data": None
-                }
+                    if not result:
+                        return {
+                            "EC": 1,
+                            "EM": "Booking not found",
+                            "data": None
+                        }
 
-            return {
-                "EC": 0,
-                "EM": "Success",
-                "data": result.data[0]
-            }
+                    return {
+                        "EC": 0,
+                        "EM": "Success",
+                        "data": dict(result)
+                    }
 
         except Exception as e:
             logger.error(f"Error getting booking {booking_id}: {str(e)}")
@@ -136,115 +166,140 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            # Verify package exists, has available slots, and get price
-            package_result = self.supabase.table('tour_packages') \
-                .select('available_slots, is_active, price') \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Verify package exists, has available slots, and get price
+                    cur.execute(
+                        "SELECT available_slots, is_active, price FROM tour_packages WHERE package_id = %s",
+                        (str(booking_data['package_id']),)
+                    )
+                    package_result = cur.fetchone()
 
-            if not package_result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Tour package not found",
-                    "data": None
-                }
+                    if not package_result:
+                        return {
+                            "EC": 1,
+                            "EM": "Tour package not found",
+                            "data": None
+                        }
 
-            package = package_result.data[0]
+                    package = dict(package_result)
 
-            if not package['is_active']:
-                return {
-                    "EC": 2,
-                    "EM": "Tour package is not active",
-                    "data": None
-                }
+                    if not package['is_active']:
+                        return {
+                            "EC": 2,
+                            "EM": "Tour package is not active",
+                            "data": None
+                        }
 
-            if package['available_slots'] < booking_data['number_of_people']:
-                return {
-                    "EC": 3,
-                    "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
-                    "data": None
-                }
+                    if package['available_slots'] < booking_data['number_of_people']:
+                        return {
+                            "EC": 3,
+                            "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
+                            "data": None
+                        }
 
-            # Calculate original total amount
-            original_amount = package['price'] * booking_data['number_of_people']
-            final_amount = original_amount
-            discount_amount = 0
-            promotion_id = booking_data.get('promotion_id')
-            promotion_code = booking_data.get('promotion_code')
+                    # Calculate original total amount
+                    original_amount = package['price'] * booking_data['number_of_people']
+                    final_amount = original_amount
+                    discount_amount = 0
+                    promotion_id = booking_data.get('promotion_id')
+                    promotion_code = booking_data.get('promotion_code')
 
-            # Resolve promotion: prioritize code over id
-            if promotion_code:
-                # Get promotion by code
-                promo_lookup = await self.promotion_service.get_promotion_by_code(promotion_code)
-                if promo_lookup['EC'] == 0:
-                    promotion_id = promo_lookup['promotion']['promotion_id']
-                    logger.info(f"Resolved promotion code {promotion_code} to ID {promotion_id}")
-                else:
-                    logger.warning(f"Invalid promotion code: {promotion_code}")
-                    promotion_id = None
+                    # Resolve promotion: prioritize code over id
+                    if promotion_code:
+                        # Get promotion by code
+                        promo_lookup = await self.promotion_service.get_promotion_by_code(promotion_code)
+                        if promo_lookup['EC'] == 0:
+                            promotion_id = promo_lookup['promotion']['promotion_id']
+                            logger.info(f"Resolved promotion code {promotion_code} to ID {promotion_id}")
+                        else:
+                            logger.warning(f"Invalid promotion code: {promotion_code}")
+                            promotion_id = None
 
-            # Apply promotion if we have a valid ID
-            if promotion_id:
-                promo_result = await self.promotion_service.apply_promotion_to_booking(
-                    str(promotion_id),
-                    original_amount
-                )
+                    # Apply promotion if we have a valid ID
+                    if promotion_id:
+                        promo_result = await self.promotion_service.apply_promotion_to_booking(
+                            str(promotion_id),
+                            original_amount
+                        )
 
-                if promo_result['EC'] == 0:
-                    # Promotion applied successfully
-                    final_amount = promo_result['final_price']
-                    discount_amount = promo_result['discount_amount']
-                    logger.info(f"Applied promotion {promotion_id}: {original_amount} -> {final_amount}")
-                else:
-                    # Promotion failed, log warning but continue with original price
-                    logger.warning(f"Could not apply promotion {promotion_id}: {promo_result['EM']}")
-                    promotion_id = None  # Don't save invalid promotion
+                        if promo_result['EC'] == 0:
+                            # Promotion applied successfully
+                            final_amount = promo_result['final_price']
+                            discount_amount = promo_result['discount_amount']
+                            logger.info(f"Applied promotion {promotion_id}: {original_amount} -> {final_amount}")
+                        else:
+                            # Promotion failed, log warning but continue with original price
+                            logger.warning(f"Could not apply promotion {promotion_id}: {promo_result['EM']}")
+                            promotion_id = None  # Don't save invalid promotion
 
-            # Prepare booking data
-            now = datetime.now(timezone.utc).isoformat()
-            booking_insert = {
-                "package_id": str(booking_data['package_id']),
-                "number_of_people": booking_data['number_of_people'],
-                "total_amount": final_amount,  # Giá sau khi áp dụng khuyến mãi
-                "contact_name": booking_data['contact_name'],
-                "contact_phone": booking_data['contact_phone'],
-                "special_requests": booking_data.get('special_requests'),
-                "user_id": str(booking_data['user_id']),
-                "status": booking_data.get("status", "pending"),  # Allow custom status
-                "created_at": now,
-                "updated_at": now
-            }
+                    # Prepare booking data
+                    now = datetime.now(timezone.utc)
+                    booking_insert = {
+                        "package_id": str(booking_data['package_id']),
+                        "number_of_people": booking_data['number_of_people'],
+                        "total_amount": final_amount,  # Giá sau khi áp dụng khuyến mãi
+                        "contact_name": booking_data['contact_name'],
+                        "contact_phone": booking_data['contact_phone'],
+                        "special_requests": booking_data.get('special_requests'),
+                        "user_id": str(booking_data['user_id']),
+                        "status": booking_data.get("status", "pending"),  # Allow custom status
+                        "created_at": now,
+                        "updated_at": now
+                    }
 
-            # Add promotion_id if applied successfully
-            if promotion_id:
-                booking_insert["promotion_id"] = str(promotion_id)
+                    # Add promotion_id if applied successfully
+                    if promotion_id:
+                        booking_insert["promotion_id"] = str(promotion_id)
 
-            # Insert booking
-            result = self.supabase.table('bookings').insert(booking_insert).execute()
+                    # Insert booking
+                    cur.execute(
+                        """INSERT INTO bookings
+                           (package_id, number_of_people, total_amount, contact_name,
+                            contact_phone, special_requests, user_id, status,
+                            created_at, updated_at, promotion_id)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           RETURNING *""",
+                        (
+                            booking_insert['package_id'],
+                            booking_insert['number_of_people'],
+                            booking_insert['total_amount'],
+                            booking_insert['contact_name'],
+                            booking_insert['contact_phone'],
+                            booking_insert['special_requests'],
+                            booking_insert['user_id'],
+                            booking_insert['status'],
+                            booking_insert['created_at'],
+                            booking_insert['updated_at'],
+                            booking_insert.get('promotion_id')
+                        )
+                    )
+                    result = cur.fetchone()
+                    conn.commit()
 
-            if not result.data:
-                return {
-                    "EC": 4,
-                    "EM": "Failed to create booking",
-                    "data": None
-                }
+                    if not result:
+                        return {
+                            "EC": 4,
+                            "EM": "Failed to create booking",
+                            "data": None
+                        }
 
-            # Update available slots
-            new_slots = package['available_slots'] - booking_data['number_of_people']
-            self.supabase.table('tour_packages') \
-                .update({"available_slots": new_slots}) \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+                    # Update available slots
+                    new_slots = package['available_slots'] - booking_data['number_of_people']
+                    cur.execute(
+                        "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                        (new_slots, str(booking_data['package_id']))
+                    )
+                    conn.commit()
 
-            logger.info(
-                f"Created booking {
-                    result.data[0]['booking_id']} (Original: {original_amount}, Final: {final_amount}, Discount: {discount_amount})")
+                    logger.info(
+                        f"Created booking {result['booking_id']} (Original: {original_amount}, Final: {final_amount}, Discount: {discount_amount})")
 
-            return {
-                "EC": 0,
-                "EM": "Booking created successfully",
-                "data": result.data[0]
-            }
+                    return {
+                        "EC": 0,
+                        "EM": "Booking created successfully",
+                        "data": dict(result)
+                    }
 
         except Exception as e:
             logger.error(f"Error creating booking: {str(e)}")
@@ -270,131 +325,146 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            # Check if booking exists
-            existing = await self.get_booking_by_id(booking_id)
-            if existing["EC"] != 0:
-                return existing
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Check if booking exists
+                    existing = await self.get_booking_by_id(booking_id)
+                    if existing["EC"] != 0:
+                        return existing
 
-            old_booking = existing["data"]
+                    old_booking = existing["data"]
 
-            # Get package info for price calculation
-            package_result = self.supabase.table('tour_packages') \
-                .select('available_slots, price') \
-                .eq('package_id', old_booking['package_id']) \
-                .execute()
+                    # Get package info for price calculation
+                    cur.execute(
+                        "SELECT available_slots, price FROM tour_packages WHERE package_id = %s",
+                        (old_booking['package_id'],)
+                    )
+                    package_result = cur.fetchone()
 
-            if not package_result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Tour package not found",
-                    "data": None
-                }
-
-            package = package_result.data[0]
-
-            # Handle number_of_people change (update available slots)
-            if "number_of_people" in update_data:
-                old_people = old_booking['number_of_people']
-                new_people = update_data['number_of_people']
-                people_diff = new_people - old_people
-
-                if people_diff != 0:
-                    current_slots = package['available_slots']
-
-                    if people_diff > 0 and current_slots < people_diff:
+                    if not package_result:
                         return {
                             "EC": 1,
-                            "EM": f"Not enough slots. Only {current_slots} available",
+                            "EM": "Tour package not found",
                             "data": None
                         }
 
-                    # Update package slots
-                    new_slots = current_slots - people_diff
-                    self.supabase.table('tour_packages') \
-                        .update({"available_slots": new_slots}) \
-                        .eq('package_id', old_booking['package_id']) \
-                        .execute()
+                    package = dict(package_result)
 
-            # Recalculate total_amount if number_of_people or promotion_id/code changed
-            if "number_of_people" in update_data or "promotion_id" in update_data or "promotion_code" in update_data:
-                # Get the final number of people (new or old)
-                final_people = update_data.get('number_of_people', old_booking['number_of_people'])
+                    # Handle number_of_people change (update available slots)
+                    if "number_of_people" in update_data:
+                        old_people = old_booking['number_of_people']
+                        new_people = update_data['number_of_people']
+                        people_diff = new_people - old_people
 
-                # Calculate original amount
-                original_amount = package['price'] * final_people
-                final_amount = original_amount
+                        if people_diff != 0:
+                            current_slots = package['available_slots']
 
-                # Resolve promotion: prioritize code over id
-                promotion_id = None
-                promotion_code = update_data.get('promotion_code')
+                            if people_diff > 0 and current_slots < people_diff:
+                                return {
+                                    "EC": 1,
+                                    "EM": f"Not enough slots. Only {current_slots} available",
+                                    "data": None
+                                }
 
-                if promotion_code:
-                    # Get promotion by code
-                    promo_lookup = await self.promotion_service.get_promotion_by_code(promotion_code)
-                    if promo_lookup['EC'] == 0:
-                        promotion_id = promo_lookup['promotion']['promotion_id']
-                        logger.info(f"Resolved promotion code {promotion_code} to ID {promotion_id}")
-                        update_data['promotion_id'] = str(promotion_id)
-                    else:
-                        logger.warning(f"Invalid promotion code: {promotion_code}")
+                            # Update package slots
+                            new_slots = current_slots - people_diff
+                            cur.execute(
+                                "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                                (new_slots, old_booking['package_id'])
+                            )
+                            conn.commit()
+
+                    # Recalculate total_amount if number_of_people or promotion_id/code changed
+                    if "number_of_people" in update_data or "promotion_id" in update_data or "promotion_code" in update_data:
+                        # Get the final number of people (new or old)
+                        final_people = update_data.get('number_of_people', old_booking['number_of_people'])
+
+                        # Calculate original amount
+                        original_amount = package['price'] * final_people
+                        final_amount = original_amount
+
+                        # Resolve promotion: prioritize code over id
                         promotion_id = None
-                    # Remove promotion_code from update_data (not a DB column)
-                    del update_data['promotion_code']
-                elif "promotion_id" in update_data:
-                    # Use promotion_id directly
-                    promotion_id = update_data.get('promotion_id')
-                    # If explicitly setting promotion_id to None, remove discount
-                    if promotion_id is None:
-                        update_data['promotion_id'] = None
-                    else:
-                        # Convert UUID to string for database
-                        update_data['promotion_id'] = str(promotion_id)
-                else:
-                    # Keep old promotion if neither code nor id provided
-                    promotion_id = old_booking.get('promotion_id')
+                        promotion_code = update_data.get('promotion_code')
 
-                # Apply promotion if exists
-                if promotion_id:
-                    promo_result = await self.promotion_service.apply_promotion_to_booking(
-                        str(promotion_id),
-                        original_amount
+                        if promotion_code:
+                            # Get promotion by code
+                            promo_lookup = await self.promotion_service.get_promotion_by_code(promotion_code)
+                            if promo_lookup['EC'] == 0:
+                                promotion_id = promo_lookup['promotion']['promotion_id']
+                                logger.info(f"Resolved promotion code {promotion_code} to ID {promotion_id}")
+                                update_data['promotion_id'] = str(promotion_id)
+                            else:
+                                logger.warning(f"Invalid promotion code: {promotion_code}")
+                                promotion_id = None
+                            # Remove promotion_code from update_data (not a DB column)
+                            del update_data['promotion_code']
+                        elif "promotion_id" in update_data:
+                            # Use promotion_id directly
+                            promotion_id = update_data.get('promotion_id')
+                            # If explicitly setting promotion_id to None, remove discount
+                            if promotion_id is None:
+                                update_data['promotion_id'] = None
+                            else:
+                                # Convert UUID to string for database
+                                update_data['promotion_id'] = str(promotion_id)
+                        else:
+                            # Keep old promotion if neither code nor id provided
+                            promotion_id = old_booking.get('promotion_id')
+
+                        # Apply promotion if exists
+                        if promotion_id:
+                            promo_result = await self.promotion_service.apply_promotion_to_booking(
+                                str(promotion_id),
+                                original_amount
+                            )
+
+                            if promo_result['EC'] == 0:
+                                final_amount = promo_result['final_price']
+                                logger.info(
+                                    f"Applied promotion {promotion_id} to booking {booking_id}: {original_amount} -> {final_amount}")
+                            else:
+                                logger.warning(f"Could not apply promotion {promotion_id}: {promo_result['EM']}")
+                                # Don't update promotion_id if it failed
+                                update_data['promotion_id'] = old_booking.get('promotion_id')
+
+                        # Update total_amount
+                        update_data['total_amount'] = final_amount
+
+                    # Add updated_at timestamp
+                    update_data['updated_at'] = datetime.now(timezone.utc)
+
+                    # Build update query
+                    set_clauses = []
+                    values = []
+                    for key, value in update_data.items():
+                        set_clauses.append(f"{key} = %s")
+                        values.append(value)
+                    values.append(booking_id)
+
+                    # Update booking
+                    cur.execute(
+                        f"UPDATE bookings SET {', '.join(set_clauses)} WHERE booking_id = %s RETURNING *",
+                        values
                     )
+                    conn.commit()
 
-                    if promo_result['EC'] == 0:
-                        final_amount = promo_result['final_price']
-                        logger.info(
-                            f"Applied promotion {promotion_id} to booking {booking_id}: {original_amount} -> {final_amount}")
-                    else:
-                        logger.warning(f"Could not apply promotion {promotion_id}: {promo_result['EM']}")
-                        # Don't update promotion_id if it failed
-                        update_data['promotion_id'] = old_booking.get('promotion_id')
+                    result = cur.fetchone()
 
-                # Update total_amount
-                update_data['total_amount'] = final_amount
+                    if not result:
+                        return {
+                            "EC": 2,
+                            "EM": "Failed to update booking",
+                            "data": None
+                        }
 
-            # Add updated_at timestamp
-            update_data['updated_at'] = datetime.now(timezone.utc).isoformat()
+                    logger.info(f"Updated booking {booking_id}")
 
-            # Update booking
-            result = self.supabase.table('bookings') \
-                .update(update_data) \
-                .eq('booking_id', booking_id) \
-                .execute()
-
-            if not result.data:
-                return {
-                    "EC": 2,
-                    "EM": "Failed to update booking",
-                    "data": None
-                }
-
-            logger.info(f"Updated booking {booking_id}")
-
-            return {
-                "EC": 0,
-                "EM": "Booking updated successfully",
-                "data": result.data[0]
-            }
+                    return {
+                        "EC": 0,
+                        "EM": "Booking updated successfully",
+                        "data": dict(result)
+                    }
 
         except Exception as e:
             logger.error(f"Error updating booking {booking_id}: {str(e)}")
@@ -428,89 +498,117 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            # Get booking data first
-            existing = await self.get_booking_by_id(booking_id)
-            if existing["EC"] != 0:
-                return existing
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # Get booking data first
+                    existing = await self.get_booking_by_id(booking_id)
+                    if existing["EC"] != 0:
+                        return existing
 
-            booking = existing["data"]
+                    booking = existing["data"]
 
-            # Check if already cancelled
-            if booking['status'] == 'cancelled':
-                return {
-                    "EC": 3,
-                    "EM": "Booking is already cancelled",
-                    "data": None
-                }
+                    # Check if already cancelled
+                    if booking['status'] == 'cancelled':
+                        return {
+                            "EC": 3,
+                            "EM": "Booking is already cancelled",
+                            "data": None
+                        }
 
-            # Check if can be cancelled (otp_sent, pending, or confirmed)
-            if booking['status'] not in ['otp_sent', 'pending', 'confirmed']:
-                return {
-                    "EC": 4,
-                    "EM": f"Cannot cancel booking with status '{booking['status']}'",
-                    "data": None
-                }
+                    # Check if can be cancelled (otp_sent, pending, or confirmed)
+                    if booking['status'] not in ['otp_sent', 'pending', 'confirmed']:
+                        return {
+                            "EC": 4,
+                            "EM": f"Cannot cancel booking with status '{booking['status']}'",
+                            "data": None
+                        }
 
-            # 1. Insert to booking_cancellations table (full booking snapshot)
-            cancellation_data = {
-                "booking_id": booking_id,
-                "user_id": booking['user_id'],
-                "package_id": booking['package_id'],
-                # Booking snapshot
-                "number_of_people": booking['number_of_people'],
-                "total_amount": booking.get('total_amount'),
-                "contact_name": booking.get('contact_name'),
-                "contact_phone": booking.get('contact_phone'),
-                "contact_email": booking.get('contact_email'),
-                "special_requests": booking.get('special_requests'),
-                "previous_status": booking['status'],  # Status before cancel
-                "promotion_id": booking.get('promotion_id'),
-                "booking_created_at": booking.get('created_at'),
-                # Cancellation info
-                "reason": reason,
-                "cancelled_by": cancelled_by
-            }
+                    # 1. Insert to booking_cancellations table (full booking snapshot)
+                    cancellation_data = {
+                        "booking_id": booking_id,
+                        "user_id": booking['user_id'],
+                        "package_id": booking['package_id'],
+                        # Booking snapshot
+                        "number_of_people": booking['number_of_people'],
+                        "total_amount": booking.get('total_amount'),
+                        "contact_name": booking.get('contact_name'),
+                        "contact_phone": booking.get('contact_phone'),
+                        "contact_email": booking.get('contact_email'),
+                        "special_requests": booking.get('special_requests'),
+                        "previous_status": booking['status'],  # Status before cancel
+                        "promotion_id": booking.get('promotion_id'),
+                        "booking_created_at": booking.get('created_at'),
+                        # Cancellation info
+                        "reason": reason,
+                        "cancelled_by": cancelled_by
+                    }
 
-            self.supabase.table('booking_cancellations') \
-                .insert(cancellation_data) \
-                .execute()
+                    cur.execute(
+                        """INSERT INTO booking_cancellations
+                           (booking_id, user_id, package_id, number_of_people, total_amount,
+                            contact_name, contact_phone, contact_email, special_requests,
+                            previous_status, promotion_id, booking_created_at, reason, cancelled_by)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            cancellation_data['booking_id'],
+                            cancellation_data['user_id'],
+                            cancellation_data['package_id'],
+                            cancellation_data['number_of_people'],
+                            cancellation_data['total_amount'],
+                            cancellation_data['contact_name'],
+                            cancellation_data['contact_phone'],
+                            cancellation_data['contact_email'],
+                            cancellation_data['special_requests'],
+                            cancellation_data['previous_status'],
+                            cancellation_data['promotion_id'],
+                            cancellation_data['booking_created_at'],
+                            cancellation_data['reason'],
+                            cancellation_data['cancelled_by']
+                        )
+                    )
+                    conn.commit()
 
-            # 2. Update booking status to cancelled (soft delete)
-            update_result = self.supabase.table('bookings') \
-                .update({"status": "cancelled", "updated_at": "now()"}) \
-                .eq('booking_id', booking_id) \
-                .execute()
+                    # 2. Update booking status to cancelled (soft delete)
+                    cur.execute(
+                        "UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE booking_id = %s RETURNING *",
+                        (booking_id,)
+                    )
+                    conn.commit()
 
-            if not update_result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Failed to cancel booking"
-                }
+                    update_result = cur.fetchone()
 
-            # 3. Restore package slots
-            package_result = self.supabase.table('tour_packages') \
-                .select('available_slots') \
-                .eq('package_id', booking['package_id']) \
-                .execute()
+                    if not update_result:
+                        return {
+                            "EC": 1,
+                            "EM": "Failed to cancel booking"
+                        }
 
-            if package_result.data:
-                current_slots = package_result.data[0]['available_slots']
-                new_slots = current_slots + booking['number_of_people']
+                    # 3. Restore package slots
+                    cur.execute(
+                        "SELECT available_slots FROM tour_packages WHERE package_id = %s",
+                        (booking['package_id'],)
+                    )
+                    package_result = cur.fetchone()
 
-                self.supabase.table('tour_packages') \
-                    .update({"available_slots": new_slots}) \
-                    .eq('package_id', booking['package_id']) \
-                    .execute()
+                    if package_result:
+                        current_slots = package_result['available_slots']
+                        new_slots = current_slots + booking['number_of_people']
 
-                logger.info(f"Restored {booking['number_of_people']} slots to package {booking['package_id']}")
+                        cur.execute(
+                            "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                            (new_slots, booking['package_id'])
+                        )
+                        conn.commit()
 
-            logger.info(f"Cancelled booking {booking_id} by {cancelled_by}")
+                        logger.info(f"Restored {booking['number_of_people']} slots to package {booking['package_id']}")
 
-            return {
-                "EC": 0,
-                "EM": "Booking cancelled successfully",
-                "data": update_result.data[0]
-            }
+                    logger.info(f"Cancelled booking {booking_id} by {cancelled_by}")
+
+                    return {
+                        "EC": 0,
+                        "EM": "Booking cancelled successfully",
+                        "data": dict(update_result)
+                    }
 
         except Exception as e:
             logger.error(f"Error cancelling booking {booking_id}: {str(e)}")
@@ -546,129 +644,160 @@ class BookingService:
             Dict with EC, EM, and data (includes booking_id, awaiting_otp flag)
         """
         try:
-            contact_email = booking_data.get('contact_email')
-            contact_phone = booking_data.get('contact_phone')
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    contact_email = booking_data.get('contact_email')
+                    contact_phone = booking_data.get('contact_phone')
 
-            if not contact_email:
-                return {
-                    "EC": 1,
-                    "EM": "Email is required for OTP verification",
-                    "data": None
-                }
+                    if not contact_email:
+                        return {
+                            "EC": 1,
+                            "EM": "Email is required for OTP verification",
+                            "data": None
+                        }
 
-            # 1. Verify package exists, has available slots, and get price
-            package_result = self.supabase.table('tour_packages') \
-                .select('available_slots, is_active, price, package_name') \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+                    # 1. Verify package exists, has available slots, and get price
+                    cur.execute(
+                        "SELECT available_slots, is_active, price, package_name FROM tour_packages WHERE package_id = %s",
+                        (str(booking_data['package_id']),)
+                    )
+                    package_result = cur.fetchone()
 
-            if not package_result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Tour package not found",
-                    "data": None
-                }
+                    if not package_result:
+                        return {
+                            "EC": 1,
+                            "EM": "Tour package not found",
+                            "data": None
+                        }
 
-            package = package_result.data[0]
+                    package = dict(package_result)
 
-            if not package['is_active']:
-                return {
-                    "EC": 2,
-                    "EM": "Tour package is not active",
-                    "data": None
-                }
+                    if not package['is_active']:
+                        return {
+                            "EC": 2,
+                            "EM": "Tour package is not active",
+                            "data": None
+                        }
 
-            if package['available_slots'] < booking_data['number_of_people']:
-                return {
-                    "EC": 3,
-                    "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
-                    "data": None
-                }
+                    if package['available_slots'] < booking_data['number_of_people']:
+                        return {
+                            "EC": 3,
+                            "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
+                            "data": None
+                        }
 
-            # 2. Calculate amount
-            total_amount = package['price'] * booking_data['number_of_people']
+                    # 2. Calculate amount
+                    total_amount = package['price'] * booking_data['number_of_people']
 
-            # 3. Create booking with status "otp_sent"
-            now = datetime.now(timezone.utc).isoformat()
-            booking_insert = {
-                "package_id": str(booking_data['package_id']),
-                "number_of_people": booking_data['number_of_people'],
-                "total_amount": total_amount,
-                "contact_name": booking_data['contact_name'],
-                "contact_phone": contact_phone,
-                "contact_email": contact_email,  # Lưu email vào booking
-                "special_requests": booking_data.get('special_requests'),
-                "user_id": str(booking_data['user_id']),
-                "status": "otp_sent",  # OTP flow status
-                "created_at": now,
-                "updated_at": now
-            }
+                    # 3. Create booking with status "otp_sent"
+                    now = datetime.now(timezone.utc)
+                    booking_insert = {
+                        "package_id": str(booking_data['package_id']),
+                        "number_of_people": booking_data['number_of_people'],
+                        "total_amount": total_amount,
+                        "contact_name": booking_data['contact_name'],
+                        "contact_phone": contact_phone,
+                        "contact_email": contact_email,  # Lưu email vào booking
+                        "special_requests": booking_data.get('special_requests'),
+                        "user_id": str(booking_data['user_id']),
+                        "status": "otp_sent",  # OTP flow status
+                        "created_at": now,
+                        "updated_at": now
+                    }
 
-            result = self.supabase.table('bookings').insert(booking_insert).execute()
+                    cur.execute(
+                        """INSERT INTO bookings
+                           (package_id, number_of_people, total_amount, contact_name,
+                            contact_phone, contact_email, special_requests, user_id,
+                            status, created_at, updated_at)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           RETURNING *""",
+                        (
+                            booking_insert['package_id'],
+                            booking_insert['number_of_people'],
+                            booking_insert['total_amount'],
+                            booking_insert['contact_name'],
+                            booking_insert['contact_phone'],
+                            booking_insert['contact_email'],
+                            booking_insert['special_requests'],
+                            booking_insert['user_id'],
+                            booking_insert['status'],
+                            booking_insert['created_at'],
+                            booking_insert['updated_at']
+                        )
+                    )
 
-            if not result.data:
-                return {
-                    "EC": 4,
-                    "EM": "Failed to create booking",
-                    "data": None
-                }
+                    result = cur.fetchone()
+                    conn.commit()
 
-            booking = result.data[0]
-            booking_id = booking['booking_id']
+                    if not result:
+                        return {
+                            "EC": 4,
+                            "EM": "Failed to create booking",
+                            "data": None
+                        }
 
-            # 4. Generate OTP (6 digits)
-            otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+                    booking = dict(result)
+                    booking_id = booking['booking_id']
 
-            # 5. Store OTP in database
-            otp_data = {
-                "booking_id": booking_id,
-                "otp_code": otp_code,
-                "phone_number": contact_phone
-            }
+                    # 4. Generate OTP (6 digits)
+                    otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
-            try:
-                otp_insert_res = self.supabase.table("otp_verifications").insert(otp_data).execute()
-                if not otp_insert_res.data:
-                    logger.error("Failed to insert OTP record")
-                    # Rollback booking
-                    self.supabase.table("bookings").delete().eq("booking_id", booking_id).execute()
-                    return {"EC": 5, "EM": "Failed to create OTP record", "data": None}
-            except Exception as e:
-                logger.error(f"Error inserting OTP: {str(e)}")
-                # Rollback booking
-                self.supabase.table("bookings").delete().eq("booking_id", booking_id).execute()
-                return {"EC": 5, "EM": f"Failed to create OTP: {str(e)}", "data": None}
+                    # 5. Store OTP in database
+                    otp_data = {
+                        "booking_id": booking_id,
+                        "otp_code": otp_code,
+                        "email": contact_email
+                    }
 
-            # 6. Send OTP via email
-            otp_service = get_otp_service()
-            email_sent = otp_service.send_otp_email(
-                email=contact_email,
-                otp=otp_code,
-                tour_name=package['package_name']
-            )
+                    try:
+                        cur.execute(
+                            """INSERT INTO otp_verifications (booking_id, otp_code, email)
+                               VALUES (%s, %s, %s)""",
+                            (otp_data['booking_id'], otp_data['otp_code'], otp_data['email'])
+                        )
+                        conn.commit()
+                    except Exception as e:
+                        logger.error(f"Error inserting OTP: {str(e)}")
+                        conn.rollback()
+                        return {"EC": 5, "EM": f"Failed to create OTP: {str(e)}", "data": None}
 
-            if not email_sent:
-                logger.warning(f"⚠️ Failed to send OTP email to {contact_email}, but booking created. OTP: {otp_code}")
+                    # 6. Send OTP via email (non-fatal — booking still created even if email fails)
+                    try:
+                        otp_service = get_otp_service()
+                        email_sent = otp_service.send_otp_email(
+                            email=contact_email,
+                            otp=otp_code,
+                            tour_name=package['package_name']
+                        )
+                        if not email_sent:
+                            logger.warning(f"⚠️ Failed to send OTP email to {contact_email}, but booking created. OTP: {otp_code}")
+                    except Exception as email_err:
+                        logger.warning(f"⚠️ Email sending failed for {contact_email}: {email_err}. Booking {booking_id} still created. OTP: {otp_code}")
 
-            # 7. Update package slots
-            new_slots = package['available_slots'] - booking_data['number_of_people']
-            self.supabase.table('tour_packages') \
-                .update({"available_slots": new_slots}) \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+                    # 7. Update package slots
+                    new_slots = package['available_slots'] - booking_data['number_of_people']
+                    cur.execute(
+                        "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                        (new_slots, str(booking_data['package_id']))
+                    )
+                    conn.commit()
 
-            logger.info(f"Created booking {booking_id} with OTP flow")
+                    logger.info(f"Created booking {booking_id} with OTP flow")
 
-            # 8. Return response
-            return {
-                "EC": 0,
-                "EM": "📧 Mã OTP đã được gửi về email của bạn. Vui lòng kiểm tra email và nhập mã OTP để xác nhận đặt tour.",
-                "data": {
-                    "booking_id": booking_id,
-                    "awaiting_otp": True,
-                    "status": "otp_sent",
-                    "contact_email": contact_email,
-                    "total_amount": total_amount}}
+                    # 8. Return response
+                    return {
+                        "EC": 0,
+                        "EM": "Đặt tour thành công. Vui lòng nhập mã OTP để xác nhận.",
+                        "data": {
+                            "booking_id": booking_id,
+                            "awaiting_otp": True,
+                            "status": "otp_sent",
+                            "contact_email": contact_email,
+                            "total_amount": total_amount,
+                            "otp_code": otp_code
+                        }
+                    }
 
         except Exception as e:
             logger.error(f"Error creating booking with OTP: {str(e)}")
@@ -696,109 +825,145 @@ class BookingService:
             Dict with EC, EM, and data (includes booking_id, status="pending")
         """
         try:
-            # 1. Verify package exists, has available slots, and get price
-            package_result = self.supabase.table('tour_packages') \
-                .select('available_slots, is_active, price, package_name') \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # 1. Verify package exists, has available slots, and get price
+                    cur.execute(
+                        "SELECT available_slots, is_active, price, package_name FROM tour_packages WHERE package_id = %s",
+                        (str(booking_data['package_id']),)
+                    )
+                    package_result = cur.fetchone()
 
-            if not package_result.data:
-                return {
-                    "EC": 1,
-                    "EM": "Tour package not found",
-                    "data": None
-                }
+                    if not package_result:
+                        return {
+                            "EC": 1,
+                            "EM": "Tour package not found",
+                            "data": None
+                        }
 
-            package = package_result.data[0]
+                    package = dict(package_result)
 
-            if not package['is_active']:
-                return {
-                    "EC": 2,
-                    "EM": "Tour package is not active",
-                    "data": None
-                }
+                    if not package['is_active']:
+                        return {
+                            "EC": 2,
+                            "EM": "Tour package is not active",
+                            "data": None
+                        }
 
-            if package['available_slots'] < booking_data['number_of_people']:
-                return {
-                    "EC": 3,
-                    "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
-                    "data": None
-                }
+                    if package['available_slots'] < booking_data['number_of_people']:
+                        return {
+                            "EC": 3,
+                            "EM": f"Not enough slots available. Only {package['available_slots']} slots left",
+                            "data": None
+                        }
 
-            # 2. Calculate amount
-            total_amount = package['price'] * booking_data['number_of_people']
+                    # 2. Calculate amount
+                    total_amount = package['price'] * booking_data['number_of_people']
 
-            # 3. Create booking with status "pending" (không cần OTP)
-            now = datetime.now(timezone.utc).isoformat()
-            booking_insert = {
-                "package_id": str(booking_data['package_id']),
-                "number_of_people": booking_data['number_of_people'],
-                "total_amount": total_amount,
-                "contact_name": booking_data['contact_name'],
-                "contact_phone": booking_data.get('contact_phone'),
-                "contact_email": booking_data.get('contact_email'),  # Optional
-                "special_requests": booking_data.get('special_requests'),
-                "user_id": str(booking_data['user_id']),
-                "status": "pending",  # Status pending ngay, không cần OTP
-                "created_at": now,
-                "updated_at": now
-            }
+                    # 3. Create booking with status "pending" (không cần OTP)
+                    now = datetime.now(timezone.utc)
+                    booking_insert = {
+                        "package_id": str(booking_data['package_id']),
+                        "number_of_people": booking_data['number_of_people'],
+                        "total_amount": total_amount,
+                        "contact_name": booking_data['contact_name'],
+                        "contact_phone": booking_data.get('contact_phone'),
+                        "contact_email": booking_data.get('contact_email'),  # Optional
+                        "special_requests": booking_data.get('special_requests'),
+                        "user_id": str(booking_data['user_id']),
+                        "status": "pending",  # Status pending ngay, không cần OTP
+                        "created_at": now,
+                        "updated_at": now
+                    }
 
-            result = self.supabase.table('bookings').insert(booking_insert).execute()
+                    cur.execute(
+                        """INSERT INTO bookings
+                           (package_id, number_of_people, total_amount, contact_name,
+                            contact_phone, contact_email, special_requests, user_id,
+                            status, created_at, updated_at)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                           RETURNING *""",
+                        (
+                            booking_insert['package_id'],
+                            booking_insert['number_of_people'],
+                            booking_insert['total_amount'],
+                            booking_insert['contact_name'],
+                            booking_insert['contact_phone'],
+                            booking_insert['contact_email'],
+                            booking_insert['special_requests'],
+                            booking_insert['user_id'],
+                            booking_insert['status'],
+                            booking_insert['created_at'],
+                            booking_insert['updated_at']
+                        )
+                    )
 
-            if not result.data:
-                return {
-                    "EC": 4,
-                    "EM": "Failed to create booking",
-                    "data": None
-                }
+                    result = cur.fetchone()
+                    conn.commit()
 
-            booking = result.data[0]
-            booking_id = booking['booking_id']
+                    if not result:
+                        return {
+                            "EC": 4,
+                            "EM": "Failed to create booking",
+                            "data": None
+                        }
 
-            # 4. Update package slots
-            new_slots = package['available_slots'] - booking_data['number_of_people']
-            self.supabase.table('tour_packages') \
-                .update({"available_slots": new_slots}) \
-                .eq('package_id', str(booking_data['package_id'])) \
-                .execute()
+                    booking = dict(result)
+                    booking_id = booking['booking_id']
 
-            # 5. Tự động tạo payment với status "pending" và payment_method="cash"
-            payment_data = {
-                "booking_id": booking_id,
-                "amount": total_amount,
-                "payment_method": "cash",
-                "payment_status": "pending",  # Chờ thanh toán
-                "transaction_id": None,
-                "created_by_admin_id": admin_id,
-                "created_at": now
-            }
+                    # 4. Update package slots
+                    new_slots = package['available_slots'] - booking_data['number_of_people']
+                    cur.execute(
+                        "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                        (new_slots, str(booking_data['package_id']))
+                    )
+                    conn.commit()
 
-            try:
-                payment_result = self.supabase.table('payments').insert(payment_data).execute()
-                if payment_result.data:
-                    logger.info(f"Auto-created pending payment for booking {booking_id} (cash method)")
-                else:
-                    logger.warning(f"Failed to auto-create payment for booking {booking_id}, but booking created")
-            except Exception as e:
-                # Nếu tạo payment thất bại, vẫn tiếp tục (booking đã tạo thành công)
-                logger.error(f"Error auto-creating payment for booking {booking_id}: {str(e)}")
+                    # 5. Tự động tạo payment với status "pending" và payment_method="cash"
+                    payment_data = {
+                        "booking_id": booking_id,
+                        "amount": total_amount,
+                        "payment_method": "cash",
+                        "status": "pending",  # Chờ thanh toán
+                        "transaction_id": None,
+                        "created_at": now
+                    }
 
-            logger.info(f"Admin {admin_id} created booking {booking_id} with status pending (no OTP)")
+                    try:
+                        cur.execute(
+                            """INSERT INTO payments
+                               (booking_id, amount, payment_method, status, transaction_id, created_at)
+                               VALUES (%s, %s, %s, %s, %s, %s)""",
+                            (
+                                payment_data['booking_id'],
+                                payment_data['amount'],
+                                payment_data['payment_method'],
+                                payment_data['status'],
+                                payment_data['transaction_id'],
+                                payment_data['created_at']
+                            )
+                        )
+                        conn.commit()
+                        logger.info(f"Auto-created pending payment for booking {booking_id} (cash method)")
+                    except Exception as e:
+                        # Nếu tạo payment thất bại, vẫn tiếp tục (booking đã tạo thành công)
+                        logger.error(f"Error auto-creating payment for booking {booking_id}: {str(e)}")
 
-            # 6. Return response
-            return {
-                "EC": 0,
-                "EM": "Đã tạo booking thành công. Booking đang ở trạng thái pending, chờ thanh toán.",
-                "data": {
-                    "booking_id": booking_id,
-                    "status": "pending",
-                    "total_amount": total_amount,
-                    "contact_name": booking_data['contact_name'],
-                    "contact_phone": booking_data.get('contact_phone'),
-                    "contact_email": booking_data.get('contact_email')
-                }
-            }
+                    logger.info(f"Admin {admin_id} created booking {booking_id} with status pending (no OTP)")
+
+                    # 6. Return response
+                    return {
+                        "EC": 0,
+                        "EM": "Đã tạo booking thành công. Booking đang ở trạng thái pending, chờ thanh toán.",
+                        "data": {
+                            "booking_id": booking_id,
+                            "status": "pending",
+                            "total_amount": total_amount,
+                            "contact_name": booking_data['contact_name'],
+                            "contact_phone": booking_data.get('contact_phone'),
+                            "contact_email": booking_data.get('contact_email')
+                        }
+                    }
 
         except Exception as e:
             logger.error(f"Error creating booking by admin: {str(e)}")
@@ -820,134 +985,147 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            # 1. Get OTP record
-            booking_check = self.supabase.table("otp_verifications")\
-                .select("*")\
-                .eq("booking_id", booking_id)\
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # 1. Get OTP record
+                    cur.execute(
+                        "SELECT * FROM otp_verifications WHERE booking_id = %s",
+                        (booking_id,)
+                    )
+                    booking_check = cur.fetchone()
 
-            if not booking_check.data:
-                return {"EC": 1, "EM": "Không tìm thấy mã OTP cho booking này", "data": None}
+                    if not booking_check:
+                        return {"EC": 1, "EM": "Không tìm thấy mã OTP cho booking này", "data": None}
 
-            # 2. Get OTP record with correct code and not verified
-            otp_res = self.supabase.table("otp_verifications")\
-                .select("*")\
-                .eq("booking_id", booking_id)\
-                .eq("otp_code", otp_code)\
-                .eq("is_verified", False)\
-                .execute()
+                    # 2. Get OTP record with correct code and not verified
+                    cur.execute(
+                        """SELECT * FROM otp_verifications
+                           WHERE booking_id = %s AND otp_code = %s AND is_verified = False""",
+                        (booking_id, otp_code)
+                    )
+                    otp_res = cur.fetchone()
 
-            if not otp_res.data:
-                # OTP code is wrong - increment attempts
-                existing_otp = self.supabase.table("otp_verifications")\
-                    .select("attempts, otp_code, expires_at, created_at")\
-                    .eq("booking_id", booking_id)\
-                    .execute()
+                    if not otp_res:
+                        # OTP code is wrong - increment attempts
+                        cur.execute(
+                            "SELECT attempts, otp_code, expires_at, created_at FROM otp_verifications WHERE booking_id = %s",
+                            (booking_id,)
+                        )
+                        existing_otp = cur.fetchone()
 
-                if existing_otp.data:
-                    otp_info = existing_otp.data[0]
-                    current_attempts = otp_info.get("attempts", 0)
+                        if existing_otp:
+                            otp_info = dict(existing_otp)
+                            current_attempts = otp_info.get("attempts", 0)
 
-                    # Increment attempts
-                    self.supabase.table("otp_verifications")\
-                        .update({"attempts": current_attempts + 1})\
-                        .eq("booking_id", booking_id)\
-                        .execute()
+                            # Increment attempts
+                            cur.execute(
+                                "UPDATE otp_verifications SET attempts = %s WHERE booking_id = %s",
+                                (current_attempts + 1, booking_id)
+                            )
+                            conn.commit()
 
-                    # Check if expired
-                    expires_at_str = otp_info.get('expires_at')
-                    if expires_at_str:
-                        if isinstance(expires_at_str, str):
-                            if expires_at_str.endswith('Z'):
-                                expires_at_str = expires_at_str.replace('Z', '+00:00')
-                            expires_at = datetime.fromisoformat(expires_at_str)
-                        else:
-                            expires_at = expires_at_str
+                            # Check if expired
+                            expires_at_str = otp_info.get('expires_at')
+                            if expires_at_str:
+                                if isinstance(expires_at_str, str):
+                                    if expires_at_str.endswith('Z'):
+                                        expires_at_str = expires_at_str.replace('Z', '+00:00')
+                                    expires_at = datetime.fromisoformat(expires_at_str)
+                                else:
+                                    expires_at = expires_at_str
 
-                        if expires_at.tzinfo is None:
-                            expires_at = expires_at.replace(tzinfo=timezone.utc)
-                        else:
-                            expires_at = expires_at.astimezone(timezone.utc)
+                                if expires_at.tzinfo is None:
+                                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                                else:
+                                    expires_at = expires_at.astimezone(timezone.utc)
 
-                        now_utc = datetime.now(timezone.utc)
-                        if now_utc > expires_at:
-                            return {"EC": 2, "EM": "Mã OTP đã hết hạn", "data": None}
+                                now_utc = datetime.now(timezone.utc)
+                                if now_utc > expires_at:
+                                    return {"EC": 2, "EM": "Mã OTP đã hết hạn", "data": None}
 
-                    return {"EC": 3, "EM": "Mã OTP không đúng", "data": None}
+                            return {"EC": 3, "EM": "Mã OTP không đúng", "data": None}
 
-                return {"EC": 3, "EM": "Mã OTP không đúng", "data": None}
+                        return {"EC": 3, "EM": "Mã OTP không đúng", "data": None}
 
-            otp_record = otp_res.data[0]
+                    otp_record = dict(otp_res)
 
-            # 3. Check expiry
-            expires_at_str = otp_record['expires_at']
+                    # 3. Check expiry
+                    expires_at_str = otp_record['expires_at']
 
-            if isinstance(expires_at_str, str):
-                if expires_at_str.endswith('Z'):
-                    expires_at_str = expires_at_str.replace('Z', '+00:00')
-                expires_at = datetime.fromisoformat(expires_at_str)
-            else:
-                expires_at = expires_at_str
+                    if isinstance(expires_at_str, str):
+                        if expires_at_str.endswith('Z'):
+                            expires_at_str = expires_at_str.replace('Z', '+00:00')
+                        expires_at = datetime.fromisoformat(expires_at_str)
+                    else:
+                        expires_at = expires_at_str
 
-            if expires_at.tzinfo is None:
-                expires_at = expires_at.replace(tzinfo=timezone.utc)
-            else:
-                expires_at = expires_at.astimezone(timezone.utc)
+                    if expires_at.tzinfo is None:
+                        expires_at = expires_at.replace(tzinfo=timezone.utc)
+                    else:
+                        expires_at = expires_at.astimezone(timezone.utc)
 
-            now_utc = datetime.now(timezone.utc)
+                    now_utc = datetime.now(timezone.utc)
 
-            if now_utc > expires_at:
-                return {"EC": 2, "EM": "Mã OTP đã hết hạn", "data": None}
+                    if now_utc > expires_at:
+                        return {"EC": 2, "EM": "Mã OTP đã hết hạn", "data": None}
 
-            # 4. Check attempts (max 3)
-            if otp_record.get('attempts', 0) >= 3:
-                return {"EC": 4, "EM": "Đã vượt quá số lần nhập OTP cho phép", "data": None}
+                    # 4. Check attempts (max 3)
+                    if otp_record.get('attempts', 0) >= 3:
+                        return {"EC": 4, "EM": "Đã vượt quá số lần nhập OTP cho phép", "data": None}
 
-            # 5. Mark OTP as verified
-            self.supabase.table("otp_verifications")\
-                .update({
-                    "is_verified": True,
-                    "verified_at": datetime.now().isoformat()
-                })\
-                .eq("booking_id", booking_id)\
-                .execute()
+                    # 5. Mark OTP as verified
+                    cur.execute(
+                        """UPDATE otp_verifications
+                           SET is_verified = True, verified_at = NOW()
+                           WHERE booking_id = %s""",
+                        (booking_id,)
+                    )
+                    conn.commit()
 
-            # 6. Update booking status to "pending" (waiting for payment)
-            self.supabase.table("bookings")\
-                .update({"status": "pending"})\
-                .eq("booking_id", booking_id)\
-                .execute()
+                    # 6. Update booking status to "pending" (waiting for payment)
+                    cur.execute(
+                        "UPDATE bookings SET status = 'pending' WHERE booking_id = %s",
+                        (booking_id,)
+                    )
+                    conn.commit()
 
-            # 7. Get booking details
-            booking_res = self.supabase.table("bookings")\
-                .select("*, tour_packages(package_name, destination, start_date, price)")\
-                .eq("booking_id", booking_id)\
-                .execute()
+                    # 7. Get booking details with JOIN
+                    cur.execute(
+                        """SELECT b.*, t.package_name, t.destination, t.start_date, t.price
+                           FROM bookings b
+                           JOIN tour_packages t ON b.package_id = t.package_id
+                           WHERE b.booking_id = %s""",
+                        (booking_id,)
+                    )
+                    booking = cur.fetchone()
 
-            booking = booking_res.data[0] if booking_res.data else {}
-            pkg = booking.get('tour_packages', {})
-            if isinstance(pkg, list) and pkg:
-                pkg = pkg[0]
-            elif not isinstance(pkg, dict):
-                pkg = {}
+                    if not booking:
+                        booking = {}
+                        pkg = {}
+                    else:
+                        booking = dict(booking)
+                        pkg = {
+                            'package_name': booking.get('package_name'),
+                            'destination': booking.get('destination'),
+                            'start_date': booking.get('start_date'),
+                            'price': booking.get('price')
+                        }
 
-            logger.info(f"OTP verified for booking {booking_id}")
+                    logger.info(f"OTP verified for booking {booking_id}")
 
-            return {
-                "EC": 0,
-                "EM": "✅ Xác thực thành công! Đặt tour của bạn đã được xác nhận. Vui lòng thanh toán để hoàn tất đặt tour.",
-                "data": {
-                    "booking_id": booking_id,
-                    "status": "pending",
-                    "tour_name": pkg.get(
-                        'package_name',
-                        'Unknown Tour'),
-                    "destination": pkg.get(
-                        'destination',
-                        'Unknown'),
-                    "start_date": pkg.get('start_date'),
-                    "number_of_people": booking.get('number_of_people'),
-                    "total_amount": booking.get('total_amount')}}
+                    return {
+                        "EC": 0,
+                        "EM": "✅ Xác thực thành công! Đặt tour của bạn đã được xác nhận. Vui lòng thanh toán để hoàn tất đặt tour.",
+                        "data": {
+                            "booking_id": booking_id,
+                            "status": "pending",
+                            "tour_name": pkg.get('package_name', 'Unknown Tour'),
+                            "destination": pkg.get('destination', 'Unknown'),
+                            "start_date": pkg.get('start_date'),
+                            "number_of_people": booking.get('number_of_people'),
+                            "total_amount": booking.get('total_amount')
+                        }
+                    }
 
         except Exception as e:
             logger.error(f"Error verifying OTP for booking {booking_id}: {str(e)}")
@@ -968,84 +1146,91 @@ class BookingService:
             Dict with EC, EM, and data
         """
         try:
-            # 1. Get booking info
-            booking_res = self.supabase.table("bookings")\
-                .select("*, tour_packages(package_name)")\
-                .eq("booking_id", booking_id)\
-                .execute()
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    # 1. Get booking info with JOIN
+                    cur.execute(
+                        """SELECT b.*, t.package_name
+                           FROM bookings b
+                           JOIN tour_packages t ON b.package_id = t.package_id
+                           WHERE b.booking_id = %s""",
+                        (booking_id,)
+                    )
+                    booking_res = cur.fetchone()
 
-            if not booking_res.data:
-                return {"EC": 1, "EM": "Booking not found", "data": None}
+                    if not booking_res:
+                        return {"EC": 1, "EM": "Booking not found", "data": None}
 
-            booking = booking_res.data[0]
+                    booking = dict(booking_res)
 
-            # Check status - only allow resend for otp_sent status
-            if booking['status'] != 'otp_sent':
-                return {
-                    "EC": 2,
-                    "EM": f"Cannot resend OTP. Booking status is '{
-                        booking['status']}'. OTP can only be resent for status 'otp_sent'.",
-                    "data": None}
+                    # Check status - only allow resend for otp_sent status
+                    if booking['status'] != 'otp_sent':
+                        return {
+                            "EC": 2,
+                            "EM": f"Cannot resend OTP. Booking status is '{booking['status']}'. OTP can only be resent for status 'otp_sent'.",
+                            "data": None
+                        }
 
-            contact_phone = booking['contact_phone']
-            contact_email = booking.get('contact_email')
+                    contact_phone = booking['contact_phone']
+                    contact_email = booking.get('contact_email')
 
-            # 2. Validate email exists
-            if not contact_email:
-                return {"EC": 3, "EM": "Email not found in booking record. Cannot resend OTP.", "data": None}
+                    # 2. Validate email exists
+                    if not contact_email:
+                        return {"EC": 3, "EM": "Email not found in booking record. Cannot resend OTP.", "data": None}
 
-            # 3. Delete old OTP records for this booking
-            self.supabase.table("otp_verifications")\
-                .delete()\
-                .eq("booking_id", booking_id)\
-                .execute()
+                    # 3. Delete old OTP records for this booking
+                    cur.execute(
+                        "DELETE FROM otp_verifications WHERE booking_id = %s",
+                        (booking_id,)
+                    )
+                    conn.commit()
 
-            # 4. Generate new OTP
-            otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
+                    # 4. Generate new OTP
+                    otp_code = ''.join([str(random.randint(0, 9)) for _ in range(6)])
 
-            # 5. Store new OTP (without email - email stored in booking)
-            otp_data = {
-                "booking_id": booking_id,
-                "otp_code": otp_code,
-                "phone_number": contact_phone,
-                "created_at": datetime.now(timezone.utc).isoformat()
-            }
+                    # 5. Store new OTP (with email)
+                    otp_data = {
+                        "booking_id": booking_id,
+                        "otp_code": otp_code,
+                        "email": contact_email,
+                        "created_at": datetime.now(timezone.utc)
+                    }
 
-            otp_insert_res = self.supabase.table("otp_verifications").insert(otp_data).execute()
-            if not otp_insert_res.data:
-                return {"EC": 5, "EM": "Failed to create new OTP record", "data": None}
+                    cur.execute(
+                        """INSERT INTO otp_verifications (booking_id, otp_code, email, created_at)
+                           VALUES (%s, %s, %s, %s)""",
+                        (otp_data['booking_id'], otp_data['otp_code'], otp_data['email'], otp_data['created_at'])
+                    )
+                    conn.commit()
 
-            # 6. Get package name for email
-            pkg = booking.get('tour_packages', {})
-            if isinstance(pkg, list) and pkg:
-                pkg = pkg[0]
-            elif not isinstance(pkg, dict):
-                pkg = {}
+                    # 6. Get package name for email
+                    tour_name = booking.get('package_name', 'Tour')
 
-            tour_name = pkg.get('package_name', 'Tour')
+                    # 7. Send OTP via email (non-fatal)
+                    try:
+                        otp_service = get_otp_service()
+                        email_sent = otp_service.send_otp_email(
+                            email=contact_email,
+                            otp=otp_code,
+                            tour_name=tour_name
+                        )
+                        if not email_sent:
+                            logger.warning(f"⚠️ Failed to send OTP email to {contact_email}, but OTP created. OTP code: {otp_code}")
+                    except Exception as email_err:
+                        logger.warning(f"⚠️ Resend OTP email failed for {contact_email}: {email_err}. OTP code: {otp_code}")
 
-            # 7. Send OTP via email
-            otp_service = get_otp_service()
-            email_sent = otp_service.send_otp_email(
-                email=contact_email,
-                otp=otp_code,
-                tour_name=tour_name
-            )
+                    logger.info(f"OTP resent for booking {booking_id}")
 
-            if not email_sent:
-                logger.warning(f"⚠️ Failed to send OTP email to {contact_email}, but OTP created. OTP code: {otp_code}")
-
-            logger.info(f"OTP resent for booking {booking_id}")
-
-            return {
-                "EC": 0,
-                "EM": "📧 Mã OTP mới đã được gửi về email của bạn. Vui lòng kiểm tra email.",
-                "data": {
-                    "booking_id": booking_id,
-                    "contact_email": contact_email,
-                    "message": "OTP resent successfully"
-                }
-            }
+                    return {
+                        "EC": 0,
+                        "EM": "Mã OTP mới đã được tạo.",
+                        "data": {
+                            "booking_id": booking_id,
+                            "contact_email": contact_email,
+                            "message": "OTP resent successfully",
+                            "otp_code": otp_code
+                        }
+                    }
 
         except Exception as e:
             logger.error(f"Error resending OTP for booking {booking_id}: {str(e)}")
@@ -1054,3 +1239,8 @@ class BookingService:
                 "EM": f"Error resending OTP: {str(e)}",
                 "data": None
             }
+
+
+def get_booking_service():
+    """Get booking service instance"""
+    return BookingService()

@@ -224,13 +224,20 @@
         </div>
         <div>
           <h3 class="text-xl font-bold text-gray-800">Xác nhận mã OTP</h3>
-          <p class="text-gray-600 text-sm">Nhập mã OTP 6 số đã được gửi đến email của bạn</p>
+          <p class="text-gray-600 text-sm">Nhập mã OTP 6 số để xác nhận đặt tour</p>
         </div>
       </div>
 
       @if (otpSuccessMessage) {
       <div class="mb-4 bg-green-50 border border-green-200 rounded-lg p-3">
         <p class="text-green-800 text-sm">{{ otpSuccessMessage }}</p>
+      </div>
+      }
+
+      @if (returnedOtpCode) {
+      <div class="mb-4 bg-amber-50 border-2 border-dashed border-amber-300 rounded-lg p-4 text-center">
+        <p class="text-xs text-amber-600 mb-1">Mã OTP của bạn (chế độ demo)</p>
+        <p class="text-3xl font-bold font-mono tracking-[0.5em] text-amber-700 select-all">{{ returnedOtpCode }}</p>
       </div>
       }
 

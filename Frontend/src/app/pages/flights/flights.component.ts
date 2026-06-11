@@ -25,6 +25,12 @@ export class FlightsComponent implements OnInit {
   hasSearched = false;
   errorMessage = '';
 
+  // Sort
+  sortBy: 'price' | 'departure' | 'duration' = 'price';
+
+  // Expose Math to template
+  Math = Math;
+
   popularRoutes = [
     { from: 'SGN', to: 'HAN', fromCity: 'TP. Hồ Chí Minh', toCity: 'Hà Nội', airline: 'Vietnam Airlines, VietJet', duration: '2h 10m', price: 1590000 },
     { from: 'SGN', to: 'DAD', fromCity: 'TP. Hồ Chí Minh', toCity: 'Đà Nẵng', airline: 'Bamboo Airways, VietJet', duration: '1h 20m', price: 990000 },
@@ -43,6 +49,12 @@ export class FlightsComponent implements OnInit {
     } catch (e) {
       console.error('Error loading airports:', e);
     }
+  }
+
+  swapAirports() {
+    const temp = this.departure;
+    this.departure = this.destination;
+    this.destination = temp;
   }
 
   async onSearch() {
@@ -65,6 +77,7 @@ export class FlightsComponent implements OnInit {
       const res = await this.flightService.searchFlights(this.departure, this.destination, this.departureDate || undefined);
       if (res.EC === 0 && res.data) {
         this.searchResults = res.data.flights;
+        this.sortResults();
       } else {
         this.errorMessage = res.EM || 'Không tìm thấy chuyến bay';
         this.searchResults = [];
@@ -77,10 +90,26 @@ export class FlightsComponent implements OnInit {
     }
   }
 
+  sortResults() {
+    if (this.sortBy === 'price') {
+      this.searchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
+    } else if (this.sortBy === 'departure') {
+      this.searchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
+    } else if (this.sortBy === 'duration') {
+      this.searchResults.sort((a, b) => a.duration_minutes - b.duration_minutes);
+    }
+  }
+
   selectRoute(route: any) {
     this.departure = route.from;
     this.destination = route.to;
     this.onSearch();
+  }
+
+  bookFlight(flight: Flight) {
+    this.router.navigate(['/flight-booking', flight.flight_id], {
+      state: { flight: flight }
+    });
   }
 
   openAIChat() {

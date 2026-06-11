@@ -85,6 +85,51 @@ $purple-color: #9333ea;
 }
 
 // ============================================
+// Type Tabs (Tour / Train / Bus / Flight / Hotel)
+// ============================================
+.type-tabs {
+  .type-tabs-container {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+
+    .type-tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 12px;
+      border: 2px solid #e5e7eb;
+      background: white;
+      color: #6b7280;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+
+      .type-tab-icon {
+        font-size: 18px;
+      }
+
+      &:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+        background: #eff6ff;
+      }
+
+      &.active {
+        border-color: #3b82f6;
+        background: #3b82f6;
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+    }
+  }
+}
+
+// ============================================
 // Stats Overview
 // ============================================
 .stats-overview {

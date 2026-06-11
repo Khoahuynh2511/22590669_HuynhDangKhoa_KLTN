@@ -70,10 +70,17 @@ async def get_reviews(
         GET /api/v1/reviews?user_id=bcde5ff1-5fd7-49e0-8790-05463092d54e&is_approved=true
     """
     try:
+        # Convert is_approved boolean to status string
+        status = None
+        if is_approved is True:
+            status = 'approved'
+        elif is_approved is False:
+            status = 'pending'
+
         result = service.get_all_reviews(
             package_id=package_id,
             user_id=user_id,
-            is_approved=is_approved,
+            status=status,
             rating=rating,
             limit=limit,
             offset=offset
@@ -171,9 +178,12 @@ async def get_reviews_by_package(
         GET /api/v1/reviews/package/07e8c89e-90d4-4ebc-9302-384dc6cb2f0c
     """
     try:
+        # Convert is_approved boolean to status string
+        status = 'approved' if is_approved else 'pending'
+
         result = service.get_reviews_by_package(
             package_id=str(package_id),
-            is_approved=is_approved,
+            status=status,
             limit=limit,
             offset=offset
         )
@@ -428,7 +438,7 @@ async def get_pending_reviews(
     try:
         result = service.get_all_reviews(
             package_id=package_id,
-            is_approved=False,  # Only pending reviews
+            status='pending',  # Only pending reviews
             limit=limit,
             offset=offset
         )
@@ -520,10 +530,17 @@ async def get_all_reviews_admin(
         GET /api/v1/reviews/admin/all?is_approved=false
     """
     try:
+        # Convert is_approved boolean to status string
+        status = None
+        if is_approved is True:
+            status = 'approved'
+        elif is_approved is False:
+            status = 'pending'
+
         result = service.get_all_reviews(
             package_id=package_id,
             user_id=user_id,
-            is_approved=is_approved,
+            status=status,
             rating=rating,
             limit=limit,
             offset=offset

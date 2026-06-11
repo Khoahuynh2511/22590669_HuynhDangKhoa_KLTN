@@ -1,0 +1,296 @@
+<!-- Trip Planner - Modular Itinerary Builder -->
+<div class="trip-planner-container">
+
+  <!-- Header -->
+  <div class="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-lg">🗺️</div>
+        <div>
+          <h1 class="text-lg font-bold text-gray-800">Lập Kế Hoạch Du Lịch</h1>
+          <p class="text-xs text-gray-400">AI Trip Planner</p>
+        </div>
+      </div>
+      <span class="text-xs text-gray-400 bg-gray-50 px-3 py-1 rounded-full" *ngIf="conversationId">
+        #{{ conversationId.substring(0, 8) }}
+      </span>
+    </div>
+
+    <!-- Step Progress Bar -->
+    <div class="max-w-4xl mx-auto mt-4">
+      <div class="flex items-center justify-between">
+        <div *ngFor="let step of stepLabels; let i = index"
+             class="flex items-center flex-1">
+          <!-- Step Circle -->
+          <div class="flex flex-col items-center flex-shrink-0">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500"
+                 [class.step-circle]="true"
+                 [class.active]="i + 1 === currentStep()"
+                 [class.completed]="i + 1 < currentStep()"
+                 [class.bg-gradient-to-br]="i + 1 <= currentStep()"
+                 [class.from-blue-500]="i + 1 === currentStep()"
+                 [class.to-indigo-500]="i + 1 === currentStep()"
+                 [class.text-white]="i + 1 <= currentStep()"
+                 [class.from-green-400]="i + 1 < currentStep()"
+                 [class.to-emerald-500]="i + 1 < currentStep()"
+                 [class.bg-gray-100]="i + 1 > currentStep()"
+                 [class.text-gray-400]="i + 1 > currentStep()">
+              <span *ngIf="i + 1 < currentStep()" class="text-white">✓</span>
+              <span *ngIf="i + 1 >= currentStep()">{{ step.icon }}</span>
+            </div>
+            <span class="text-[10px] mt-1.5 hidden sm:block max-w-[72px] text-center font-medium"
+                  [class.text-blue-600]="i + 1 === currentStep()"
+                  [class.text-green-600]="i + 1 < currentStep()"
+                  [class.text-gray-300]="i + 1 > currentStep()">
+              {{ step.label }}
+            </span>
+          </div>
+          <!-- Connector Line -->
+          <div *ngIf="i < stepLabels.length - 1"
+               class="flex-1 h-[3px] mx-2 rounded-full transition-all duration-500"
+               [class.bg-gradient-to-r]="i + 1 < currentStep()"
+               [class.from-green-400]="i + 1 < currentStep()"
+               [class.to-emerald-500]="i + 1 < currentStep()"
+               [class.bg-blue-300]="i + 1 === currentStep()"
+               [class.bg-gray-100]="i + 1 > currentStep()">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content Area -->
+  <div class="flex-1 overflow-y-auto scroll-area">
+    <div class="max-w-4xl mx-auto p-4 space-y-4">
+
+      <!-- Chat Messages -->
+      <div *ngFor="let msg of messages(); let i = index"
+           class="flex animate-fadeIn"
+           [class.justify-end]="msg.role === 'user'">
+        <!-- Avatar for assistant -->
+        <div *ngIf="msg.role === 'assistant'" class="flex-shrink-0 mr-2 mt-1">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs shadow-sm">🤖</div>
+        </div>
+        <div class="max-w-[80%] chat-bubble px-4 py-3"
+             [class.user-bubble]="msg.role === 'user'"
+             [class.assistant-bubble]="msg.role === 'assistant'">
+          <div class="text-sm leading-relaxed chat-content" [innerHTML]="renderContent(msg.content)"></div>
+        </div>
+        <!-- Avatar for user -->
+        <div *ngIf="msg.role === 'user'" class="flex-shrink-0 ml-2 mt-1">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-xs text-white font-bold shadow-sm">Bạn</div>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div *ngIf="isLoading()" class="flex">
+        <div class="flex-shrink-0 mr-2 mt-1">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xs shadow-sm">🤖</div>
+        </div>
+        <div class="typing-indicator">
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+      </div>
+
+      <!-- Step 4: Itinerary Builder -->
+      <div *ngIf="showItineraryBuilder() && getItineraryDays().length > 0"
+           class="itinerary-card">
+        <div class="itinerary-header">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold">🗺️ Lịch Trình Đề Xuất</h3>
+              <p class="text-blue-100 text-xs mt-1">Được tạo bởi AI dựa trên sở thích của bạn</p>
+            </div>
+            <div class="bg-white/20 rounded-xl px-4 py-2 text-right">
+              <div class="text-xs text-blue-100">Tổng cộng</div>
+              <div class="text-lg font-bold">{{ formatPrice(totalPrice()) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <div *ngFor="let dayItem of getItineraryDays()">
+            <div class="day-badge mb-3">
+              📅 Ngày {{ dayItem.num }}
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <!-- Morning -->
+              <div class="activity-slot morning">
+                <div class="text-xs font-bold text-amber-600 mb-1.5">🌅 Sáng</div>
+                <ng-container *ngIf="dayItem.day.morning; else emptySlot">
+                  <div class="text-sm font-semibold text-gray-800">{{ dayItem.day.morning!.name }}</div>
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span *ngIf="dayItem.day.morning!.location">📍 {{ dayItem.day.morning!.location }}</span>
+                  </div>
+                  <div class="mt-2 inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    {{ dayItem.day.morning!.price ? formatPrice(dayItem.day.morning!.price) : 'Miễn phí' }}
+                  </div>
+                </ng-container>
+              </div>
+              <!-- Afternoon -->
+              <div class="activity-slot afternoon">
+                <div class="text-xs font-bold text-orange-600 mb-1.5">☀️ Trưa</div>
+                <ng-container *ngIf="dayItem.day.afternoon; else emptySlot">
+                  <div class="text-sm font-semibold text-gray-800">{{ dayItem.day.afternoon!.name }}</div>
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span *ngIf="dayItem.day.afternoon!.location">📍 {{ dayItem.day.afternoon!.location }}</span>
+                  </div>
+                  <div class="mt-2 inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                    {{ dayItem.day.afternoon!.price ? formatPrice(dayItem.day.afternoon!.price) : 'Miễn phí' }}
+                  </div>
+                </ng-container>
+              </div>
+              <!-- Evening -->
+              <div class="activity-slot evening">
+                <div class="text-xs font-bold text-indigo-600 mb-1.5">🌙 Chiều</div>
+                <ng-container *ngIf="dayItem.day.evening; else emptySlot">
+                  <div class="text-sm font-semibold text-gray-800">{{ dayItem.day.evening!.name }}</div>
+                  <div class="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span *ngIf="dayItem.day.evening!.location">📍 {{ dayItem.day.evening!.location }}</span>
+                  </div>
+                  <div class="mt-2 inline-block text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                    {{ dayItem.day.evening!.price ? formatPrice(dayItem.day.evening!.price) : 'Miễn phí' }}
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="pt-3 border-t border-gray-100">
+            <button type="button" (click)="confirmItinerary()"
+                    class="confirm-btn w-full text-white py-3 px-4 font-semibold text-sm">
+              ✅ Xác nhận lịch trình này
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 5: Transportation -->
+      <div *ngIf="showTransport() && (flights().length > 0 || trains().length > 0)"
+           class="transport-card">
+        <div class="transport-header">
+          <h3 class="text-lg font-bold">🚀 Phương Tiện Di Chuyển</h3>
+          <p class="text-cyan-100 text-xs mt-1">Chọn phương tiện phù hợp hoặc bỏ qua</p>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <!-- Flights -->
+          <div *ngIf="flights().length > 0">
+            <div class="text-sm font-bold text-blue-700 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center text-xs">✈️</span>
+              Chuyến bay
+            </div>
+            <div class="space-y-2">
+              <div *ngFor="let f of flights(); let i = index"
+                   class="flight-item"
+                   [class.selected]="selectedFlight === f"
+                   (click)="selectFlight(i)">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-blue-200/50 flex items-center justify-center text-lg">✈️</div>
+                    <div>
+                      <div class="text-sm font-semibold text-gray-800">{{ f.airline || '' }} {{ f.flight_number || '' }}</div>
+                      <div class="text-xs text-gray-500">{{ f.departure_time || '' }} → {{ f.arrival_time || '' }}</div>
+                    </div>
+                  </div>
+                  <div class="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">{{ formatPrice(f.price || 0) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Trains -->
+          <div *ngIf="trains().length > 0">
+            <div class="text-sm font-bold text-green-700 mb-3 flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center text-xs">🚂</span>
+              Tàu hỏa
+            </div>
+            <div class="space-y-2">
+              <div *ngFor="let t of trains(); let i = index"
+                   class="train-item"
+                   [class.selected]="selectedTrain === t"
+                   (click)="selectTrain(i)">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-green-200/50 flex items-center justify-center text-lg">🚂</div>
+                    <div>
+                      <div class="text-sm font-semibold text-gray-800">{{ t.train_name || '' }}</div>
+                      <div class="text-xs text-gray-500">{{ t.departure_time || '' }} → {{ t.arrival_time || '' }}</div>
+                    </div>
+                  </div>
+                  <div class="text-sm font-bold text-green-600 bg-green-50 px-3 py-1 rounded-lg">{{ formatPrice(t.price || 0) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Skip button -->
+          <button type="button" (click)="skipTransport()"
+                  class="skip-btn w-full text-gray-500 py-2.5 px-4 text-sm hover:text-gray-700 transition-colors">
+            🙅 Bỏ qua — Tự sắp xếp di chuyển
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 6: Checkout Summary -->
+      <div *ngIf="showCheckout() && !isComplete()"
+           class="checkout-card">
+        <div class="checkout-header">
+          <h3 class="text-lg font-bold">💳 Chốt Đơn</h3>
+          <p class="text-green-100 text-xs mt-1">Xem lại và xác nhận thanh toán</p>
+        </div>
+        <div class="p-4">
+          <div class="price-tag mb-4">
+            <span class="text-gray-600 font-medium text-sm">💰 Tổng thanh toán:</span>
+            <span class="text-2xl font-bold text-green-600">{{ formatPrice(totalPrice()) }}</span>
+          </div>
+          <button type="button" (click)="proceedToCheckout()"
+                  class="checkout-btn w-full text-white py-3.5 px-4 rounded-xl font-bold text-base">
+            💳 Thanh Toán Ngay
+          </button>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div *ngIf="isComplete()"
+           class="success-card p-8 text-center">
+        <div class="relative z-10">
+          <div class="text-6xl mb-4 animate-bounce">🎉</div>
+          <h3 class="text-xl font-bold text-green-800 mb-2">Kế hoạch đã được lưu thành công!</h3>
+          <p class="text-green-600 text-sm">Chúc bạn có chuyến đi thật tuyệt vời! 🌟</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Bar -->
+  <div class="input-area px-4 py-3" *ngIf="!isComplete()">
+    <div class="max-w-4xl mx-auto flex items-end gap-2">
+      <textarea
+        [(ngModel)]="inputMessage"
+        (keydown)="onKeyPress($event)"
+        placeholder="Nhập tin nhắn... (Ví dụ: Đà Lạt 3 ngày)"
+        rows="1"
+        [disabled]="isLoading()">
+      </textarea>
+      <button
+        type="button"
+        (click)="sendMessage()"
+        [disabled]="isLoading() || !inputMessage.trim()"
+        class="send-btn flex-shrink-0">
+        <span *ngIf="!isLoading()">Gửi ➤</span>
+        <span *ngIf="isLoading()">⏳</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Empty slot template -->
+<ng-template #emptySlot>
+  <div class="text-sm text-gray-300 italic flex items-center gap-1">
+    <span class="text-lg opacity-50">+</span> Chưa chọn
+  </div>
+</ng-template>

@@ -38,6 +38,19 @@ export interface HotelDetailResponse {
   data: HotelItem;
 }
 
+export interface HotelBulkCreateResponse {
+  EC: number;
+  EM: string;
+  data: {
+    total_processed: number;
+    successful: number;
+    failed: number;
+    created_hotels: HotelItem[];
+    errors: string[];
+    parsing_errors?: string[];
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -53,6 +66,13 @@ export class AdminHotelService {
     const token = localStorage.getItem('access_token');
     return new HttpHeaders({
       'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    });
+  }
+
+  private getAuthHeaders(): HttpHeaders {
+    const token = localStorage.getItem('access_token');
+    return new HttpHeaders({
       'Authorization': token ? `Bearer ${token}` : ''
     });
   }
@@ -74,6 +94,10 @@ export class AdminHotelService {
     return this.http.post<HotelDetailResponse>(this.apiBaseUrl, data, { headers: this.getHeaders() });
   }
 
+  createHotelWithImages(formData: FormData): Observable<HotelDetailResponse> {
+    return this.http.post<HotelDetailResponse>(this.apiBaseUrl, formData, { headers: this.getAuthHeaders() });
+  }
+
   updateHotel(hotelId: string, data: Partial<HotelItem>): Observable<HotelDetailResponse> {
     return this.http.put<HotelDetailResponse>(`${this.apiBaseUrl}/${hotelId}`, data, { headers: this.getHeaders() });
   }
@@ -86,12 +110,55 @@ export class AdminHotelService {
     return this.http.patch<HotelDetailResponse>(`${this.apiBaseUrl}/${hotelId}/status`, { is_active: isActive }, { headers: this.getHeaders() });
   }
 
-  createHotelWithImages(formData: FormData): Observable<HotelDetailResponse> {
+  /**
+   * Upload/replace images for a hotel
+   */
+  async manageImages(hotelId: string, files: File[], replaceExisting: boolean = false): Promise<any> {
+    const formData = new FormData();
+    files.forEach(file => formData.append('images', file));
+
+    const url = `${this.apiBaseUrl}/${hotelId}/images?replace_existing=${replaceExisting}`;
     const token = localStorage.getItem('access_token');
-    const headers = new HttpHeaders({
-      'Authorization': token ? `Bearer ${token}` : ''
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: formData
     });
-    // Don't set Content-Type - browser will set multipart/form-data with boundary
-    return this.http.post<HotelDetailResponse>(this.apiBaseUrl, formData, { headers });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to upload images');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Create hotels from CSV file
+   */
+  createHotelsFromCSV(file: File): Promise<HotelBulkCreateResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const url = `${this.apiBaseUrl}/bulk/csv`;
+    const token = localStorage.getItem('access_token');
+
+    return fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      body: formData
+    }).then(response => {
+      if (!response.ok) {
+        return response.json().then(err => {
+          throw new Error(err.detail || 'Lỗi upload CSV');
+        });
+      }
+      return response.json();
+    });
   }
 }

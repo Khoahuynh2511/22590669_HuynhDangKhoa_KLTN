@@ -164,8 +164,7 @@ agents:
     config:
       entry_point: "app.v1.services.agent_services.recommendation_agent"
       temperature: 1.0
-      
-      # Prompt Templates
+
       prompts:
         system: |
           You are a tour recommendation expert specializing in Vietnam travel.
@@ -175,28 +174,28 @@ agents:
           - Rank results by relevance and suitability
           - Provide clear reasoning for recommendations
           - Consider user preferences and travel history
-          
+
           Be analytical, precise, and helpful in your recommendations.
           Focus on value for money and authentic experiences.
-        
+
         reasoning_generation: |
           Based on the user's requirements and the tour packages found, generate a clear explanation.
-          
+
           User requirements:
           {requirements}
-          
+
           Found packages:
           {packages}
-          
+
           Explain in Vietnamese:
           1. Why these packages are suitable for the user
           2. Key highlights and unique features of recommended tours
           3. How they match user's budget and preferences
           4. What makes each tour special or worth considering
-          
+
           Keep it concise (2-3 sentences per tour), actionable, and enthusiastic.
           Use emojis to make it more engaging.
-      
+
       nodes:
         - name: "search_tours"
           description: "Search tours using semantic search"
@@ -207,19 +206,80 @@ agents:
         - name: "generate_reasoning"
           description: "Explain why these tours fit"
           enabled: true
-      
+
       edges:
         - from: "search_tours"
           to: "rank_packages"
         - from: "rank_packages"
           to: "generate_reasoning"
-    
+
     capabilities:
       - semantic_search
       - tour_recommendation
       - reasoning_generation
       - episode_search
-    
+
+  # Trip Planning Agent - Static workflow for modular itinerary building
+  - name: "trip_planning_agent"
+    type: "langgraph"
+    description: "Static 6-step workflow for building custom modular itineraries"
+    config:
+      prompts:
+        step1_extract: |
+          Bạn là trợ lý trích xuất thông tin du lịch. Phân tích tin nhắn người dùng và trích xuất:
+          - destination: tên địa điểm họ muốn đi (ví dụ: "Đà Lạt", "Hội An", "Nha Trang")
+          - duration_days: số ngày đi (số nguyên)
+          - travel_date: ngày đi nếu có (định dạng YYYY-MM-DD hoặc null)
+
+          Trả về CHỈ JSON, không giải thích thêm:
+          {"destination": "tên địa điểm hoặc null", "duration_days": số_ngày_hoặc_null, "travel_date": "YYYY-MM-DD hoặc null"}
+
+          Nếu người dùng nói "3 ngày 2 đêm", duration_days = 3.
+          Nếu không tìm thấy thông tin, để giá trị null.
+
+        step2_extract: |
+          Trích xuất thông tin nhóm và ngân sách từ tin nhắn người dùng.
+
+          Trả về CHỈ JSON:
+          {"group_size": số_người_hoặc_null, "group_type": "solo|couple|family|friends_hoặc_null", "budget_level": "economy|moderate|luxury_hoặc_null"}
+
+          group_type:
+          - solo: đi một mình
+          - couple: cặp đôi, 2 người yêu
+          - family: gia đình, có trẻ em
+          - friends: bạn bè, đồng nghiệp
+
+          budget_level:
+          - economy: tiết kiệm, rẻ, giá rẻ
+          - moderate: trung bình, vừa phải
+          - luxury: cao cấp, sang trọng, đẳng cấp
+
+          Nếu người dùng nói "2 người", group_size = 2. Nếu nói "cặp đôi", group_type = "couple" và group_size = 2.
+
+        step3_extract: |
+          Trích xuất sở thích du lịch từ tin nhắn người dùng.
+
+          Trả về CHỈ JSON:
+          {"preferences": ["danh sách categories"], "constraints": "yêu cầu đặc biệt hoặc null"}
+
+          Categories có thể chọn:
+          - nature: thiên nhiên, rừng, núi, thác nước, vườn hoa
+          - food: ẩm thực, ăn uống, đặc sản, cafe
+          - culture: văn hóa, lịch sử, di tích, làng nghề
+          - adventure: phiêu lưu, trekking, lặn biển, thể thao
+          - relax: thư giãn, spa, massage, tắm bùn
+          - shopping: mua sắm, chợ, đặc sản
+          - spiritual: thiền, chùa, tâm linh
+          - photography: chụp ảnh, sống ảo, check-in
+
+          Nếu người dùng nói "bỏ qua" hoặc không nêu sở thích, trả về danh sách rỗng.
+
+    capabilities:
+      - entity_extraction
+      - itinerary_building
+      - activity_matching
+      - price_calculation
+
     # Function calling guidelines for recommendation agent
     functions:
       search_episodes:

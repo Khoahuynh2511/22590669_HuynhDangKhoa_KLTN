@@ -22,6 +22,18 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./buses/bus-list.component').then(m => m.BusListComponent)
       },
       {
+        path: 'flights',
+        loadComponent: () => import('./flights/flight-list.component').then(m => m.FlightListComponent)
+      },
+      {
+        path: 'trains',
+        loadComponent: () => import('./trains/train-list.component').then(m => m.TrainListComponent)
+      },
+      {
+        path: 'vehicles',
+        loadComponent: () => import('./vehicles/vehicle-list.component').then(m => m.VehicleListComponent)
+      },
+      {
         path: 'hotels',
         loadComponent: () => import('./hotels/hotel-list.component').then(m => m.HotelListComponent)
       },

@@ -1,0 +1,278 @@
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Quản lý Chuyến Bay</h1>
+      <p class="text-gray-500 text-sm mt-1">Quản lý chuyến bay, lịch trình và giá vé máy bay</p>
+    </div>
+    <button type="button" (click)="openAddModal()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Thêm chuyến bay
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-center">
+    <div class="flex-1 min-w-[200px]">
+      <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
+        placeholder="Tìm theo mã chuyến, số hiệu..."
+        class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
+    </div>
+    <select [(ngModel)]="statusFilter" (ngModelChange)="applyFilters()"
+      class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
+      <option value="">Tất cả trạng thái</option>
+      @for (s of statusList; track s) {
+        <option [value]="s">{{ getStatusLabel(s) }}</option>
+      }
+    </select>
+    <span class="text-sm text-gray-500">{{ filteredFlights.length }} chuyến bay</span>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <span class="ml-3 text-gray-600">Đang tải...</span>
+    </div>
+  }
+
+  <!-- Table -->
+  @if (!isLoading) {
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">STT</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Số hiệu</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Hãng bay</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Tuyến</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giờ đi</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thời gian</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giá Economy</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Ghế trống</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (flight of filteredFlights; track flight.flight_id; let i = $index) {
+              <tr class="border-b hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-gray-500">{{ i + 1 }}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">{{ flight.flight_number }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ getAirlineName(flight.airline_id) }}</td>
+                <td class="px-4 py-3 text-gray-600">
+                  {{ getAirportName(flight.departure_airport) }} → {{ getAirportName(flight.arrival_airport) }}
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ formatDateTime(flight.departure_time) }}</td>
+                <td class="px-4 py-3 text-gray-600">{{ flight.duration_minutes }} phút</td>
+                <td class="px-4 py-3 font-medium text-orange-600">{{ formatPrice(flight.economy_price) }}</td>
+                <td class="px-4 py-3 text-gray-600">
+                  <span class="px-2 py-0.5 rounded text-xs font-medium"
+                    [class.bg-green-100]="flight.economy_seats > 20"
+                    [class.text-green-700]="flight.economy_seats > 20"
+                    [class.bg-yellow-100]="flight.economy_seats > 0 && flight.economy_seats <= 20"
+                    [class.text-yellow-700]="flight.economy_seats > 0 && flight.economy_seats <= 20"
+                    [class.bg-red-100]="flight.economy_seats === 0"
+                    [class.text-red-700]="flight.economy_seats === 0">
+                    {{ flight.economy_seats }}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-1 rounded-full text-xs font-medium {{ getStatusClass(flight.status) }}">
+                    {{ getStatusLabel(flight.status) }}
+                  </span>
+                </td>
+                <td class="px-4 py-3">
+                  <div class="flex items-center gap-2">
+                    <button type="button" (click)="openEditModal(flight)"
+                      class="text-blue-600 hover:text-blue-800 p-1" title="Chỉnh sửa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
+                    <button type="button" (click)="confirmDelete(flight)"
+                      class="text-red-600 hover:text-red-800 p-1" title="Xóa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (filteredFlights.length === 0) {
+              <tr>
+                <td colspan="10" class="px-4 py-8 text-center text-gray-500">
+                  @if (flights.length === 0) {
+                    Chưa có chuyến bay nào. Nhấn "Thêm chuyến bay" để bắt đầu.
+                  } @else {
+                    Không tìm thấy chuyến bay phù hợp.
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showAddModal || showEditModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]"
+    (click.self)="closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b">
+        <h2 class="text-xl font-bold text-gray-800">
+          {{ showAddModal ? 'Thêm chuyến bay mới' : 'Chỉnh sửa chuyến bay' }}
+        </h2>
+        <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <div class="px-6 py-4 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Số hiệu chuyến</label>
+            <input type="text" [(ngModel)]="formData.flight_number" placeholder="VD: VN1234"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Hãng bay</label>
+            <select [(ngModel)]="formData.airline_id"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn hãng bay --</option>
+              @for (a of airlines; track a.airline_id) {
+                <option [value]="a.airline_id">{{ a.name }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sân bay đi</label>
+            <select [(ngModel)]="formData.departure_airport"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn sân bay đi --</option>
+              @for (a of airports; track a.airport_id) {
+                <option [value]="a.airport_id">{{ a.city }} - {{ a.name }} ({{ a.airport_id }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sân bay đến</label>
+            <select [(ngModel)]="formData.arrival_airport"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+              <option value="">-- Chọn sân bay đến --</option>
+              @for (a of airports; track a.airport_id) {
+                <option [value]="a.airport_id">{{ a.city }} - {{ a.name }} ({{ a.airport_id }})</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giờ cất cánh</label>
+            <input type="datetime-local" [(ngModel)]="formData.departure_time"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Giờ hạ cánh</label>
+            <input type="datetime-local" [(ngModel)]="formData.arrival_time"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Thời gian bay (phút)</label>
+            <input type="number" [(ngModel)]="formData.duration_minutes"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Máy bay</label>
+            <input type="text" [(ngModel)]="formData.aircraft" placeholder="VD: Airbus A321"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm" />
+          </div>
+        </div>
+
+        <!-- Pricing -->
+        <div class="border-t pt-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-3">💰 Giá vé & Số ghế theo hạng</h3>
+          <div class="grid grid-cols-3 gap-4">
+            <!-- Economy -->
+            <div class="bg-blue-50 rounded-lg p-3 space-y-2">
+              <div class="text-xs font-semibold text-blue-700 uppercase">Economy</div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Giá (VND)</label>
+                <input type="number" [(ngModel)]="formData.economy_price"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Số ghế</label>
+                <input type="number" [(ngModel)]="formData.economy_seats"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+            </div>
+            <!-- Business -->
+            <div class="bg-purple-50 rounded-lg p-3 space-y-2">
+              <div class="text-xs font-semibold text-purple-700 uppercase">Business</div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Giá (VND)</label>
+                <input type="number" [(ngModel)]="formData.business_price"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Số ghế</label>
+                <input type="number" [(ngModel)]="formData.business_seats"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+            </div>
+            <!-- First Class -->
+            <div class="bg-amber-50 rounded-lg p-3 space-y-2">
+              <div class="text-xs font-semibold text-amber-700 uppercase">First Class</div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Giá (VND)</label>
+                <input type="number" [(ngModel)]="formData.first_class_price"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">Số ghế</label>
+                <input type="number" [(ngModel)]="formData.first_class_seats"
+                  class="w-full p-1.5 border border-gray-300 rounded text-sm" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+          <select [(ngModel)]="formData.status"
+            class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+            @for (s of statusList; track s) {
+              <option [value]="s">{{ getStatusLabel(s) }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <button type="button" (click)="closeModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
+          Hủy
+        </button>
+        <button type="button" (click)="showAddModal ? saveFlight() : updateFlight()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+          {{ showAddModal ? 'Tạo chuyến bay' : 'Cập nhật' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

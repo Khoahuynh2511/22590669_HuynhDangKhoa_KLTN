@@ -15,6 +15,7 @@ import { TourSearchParams } from '../../shared/models/tour.model';
 })
 export class SearchBarComponent {
   @Input() searchType: 'hotel' | 'tour' = 'hotel';
+  @Input() showTabs: boolean = true;
   @Output() onSearch: EventEmitter<any> = new EventEmitter<any>();
 
   searchVal: string = '';

@@ -31,6 +31,9 @@ from src.mock_data.flight_data import (
 from src.mock_data.train_data import (
     TRAIN_STATIONS, TRAIN_TYPES, TRAIN_ROUTES, SEAT_TYPES
 )
+from src.mock_data.bus_data import (
+    BUS_COMPANIES, BUS_STATIONS, BUS_TYPES, BUS_SEAT_TYPES, BUS_ROUTES
+)
 
 VIETNAM_TZ = timezone(timedelta(hours=7))
 DAYS_AHEAD = 14
@@ -296,12 +299,160 @@ def seed_trains(cur, generator: MockDataGenerator):
     print(f"    -> {total_seat_prices} seat price entries")
 
 
+def seed_bus_companies(cur):
+    print("  Seeding bus companies...")
+    rows = []
+    for company in BUS_COMPANIES:
+        rows.append((
+            company["code"], company["name"], company.get("logo"),
+            company.get("phone"), company.get("amenities", []), company.get("rating", 4.0), True
+        ))
+    execute_values(cur, """
+        INSERT INTO bus_companies (company_id, name, logo_url, phone, amenities, rating, is_active)
+        VALUES %s
+        ON CONFLICT (company_id) DO UPDATE SET
+            name = EXCLUDED.name, logo_url = EXCLUDED.logo_url,
+            phone = EXCLUDED.phone, amenities = EXCLUDED.amenities, rating = EXCLUDED.rating
+    """, rows)
+    print(f"    -> {len(rows)} bus companies")
+
+
+def seed_bus_stations(cur):
+    print("  Seeding bus stations...")
+    rows = []
+    for code, info in BUS_STATIONS.items():
+        rows.append((
+            code, info["name"], info["city"], info["region"],
+            info["address"], True
+        ))
+    execute_values(cur, """
+        INSERT INTO bus_stations (station_id, name, city, region, address, is_active)
+        VALUES %s
+        ON CONFLICT (station_id) DO UPDATE SET
+            name = EXCLUDED.name, city = EXCLUDED.city,
+            region = EXCLUDED.region, address = EXCLUDED.address
+    """, rows)
+    print(f"    -> {len(rows)} bus stations")
+
+
+def seed_bus_types(cur):
+    print("  Seeding bus types...")
+    rows = []
+    for code, info in BUS_TYPES.items():
+        rows.append((
+            code, info["name"], info["description"],
+            info["capacity"], info.get("amenities", []), True
+        ))
+    execute_values(cur, """
+        INSERT INTO bus_types (type_id, name, description, capacity, amenities, is_active)
+        VALUES %s
+        ON CONFLICT (type_id) DO UPDATE SET
+            name = EXCLUDED.name, description = EXCLUDED.description,
+            capacity = EXCLUDED.capacity, amenities = EXCLUDED.amenities
+    """, rows)
+    print(f"    -> {len(rows)} bus types")
+
+
+def seed_bus_seat_types(cur):
+    print("  Seeding bus seat types...")
+    rows = []
+    for code, info in BUS_SEAT_TYPES.items():
+        rows.append((
+            code, info["name"], info["code"], info["description"],
+            info["price_multiplier"], True
+        ))
+    execute_values(cur, """
+        INSERT INTO bus_seat_types (seat_type_id, name, code, description, price_multiplier, is_active)
+        VALUES %s
+        ON CONFLICT (seat_type_id) DO UPDATE SET
+            name = EXCLUDED.name, code = EXCLUDED.code,
+            description = EXCLUDED.description, price_multiplier = EXCLUDED.price_multiplier
+    """, rows)
+    print(f"    -> {len(rows)} bus seat types")
+
+
+def seed_bus_routes(cur):
+    print("  Seeding bus routes...")
+    rows = []
+    for (dep, arr), info in BUS_ROUTES.items():
+        rows.append((
+            dep, arr, info["base_price"], info["duration_hours"],
+            info["buses_per_day"], info["bus_types"], True
+        ))
+    execute_values(cur, """
+        INSERT INTO bus_routes (departure_station, arrival_station, base_price, duration_hours, buses_per_day, bus_types, is_active)
+        VALUES %s
+        ON CONFLICT (departure_station, arrival_station) DO UPDATE SET
+            base_price = EXCLUDED.base_price, duration_hours = EXCLUDED.duration_hours,
+            buses_per_day = EXCLUDED.buses_per_day, bus_types = EXCLUDED.bus_types
+    """, rows)
+    print(f"    -> {len(rows)} bus routes")
+
+
+def seed_buses(cur, generator: MockDataGenerator):
+    print(f"  Seeding buses ({DAYS_AHEAD} days)...")
+    today = datetime.now(VIETNAM_TZ).strftime("%Y-%m-%d")
+    total = 0
+
+    for (dep, arr), route_info in BUS_ROUTES.items():
+        buses_data = generator.generate_buses(
+            departure_station=dep,
+            arrival_station=arr,
+            date=today,
+            days_ahead=DAYS_AHEAD,
+            limit=route_info["buses_per_day"]
+        )
+
+        if not buses_data:
+            continue
+
+        rows = []
+        for b in buses_data:
+            rows.append((
+                b["bus_id"],
+                b["bus_number"],
+                b["company"]["code"],
+                b["bus_type"]["code"],
+                b["departure"]["code"],
+                b["arrival"]["code"],
+                b["departure"]["scheduled"],
+                b["arrival"]["scheduled"],
+                b["duration_hours"],
+                b["total_seats"],
+                b["available_seats"],
+                b["seats"].get("standard", {}).get("price", 0) if isinstance(b.get("seats"), dict) else 0,
+                "scheduled",
+                True
+            ))
+
+        if rows:
+            execute_values(cur, """
+                INSERT INTO buses (
+                    bus_id, bus_number, company_id, bus_type_id, departure_station, arrival_station,
+                    departure_time, arrival_time, duration_hours, total_seats, available_seats,
+                    base_price, status, is_active
+                ) VALUES %s
+                ON CONFLICT (bus_id) DO UPDATE SET
+                    available_seats = EXCLUDED.available_seats,
+                    base_price = EXCLUDED.base_price,
+                    status = EXCLUDED.status
+            """, rows)
+            total += len(rows)
+
+    print(f"    -> {total} buses across {len(BUS_ROUTES)} routes")
+
+
 def cleanup_old_data(cur):
     print("  Cleaning up expired data...")
     now = datetime.now(VIETNAM_TZ).isoformat()
+    # Delete bookings referencing expired transports first (FK constraints)
+    cur.execute("DELETE FROM train_bookings WHERE train_id IN (SELECT train_id FROM trains WHERE departure_time < %s)", (now,))
     cur.execute("DELETE FROM train_seat_prices WHERE train_id IN (SELECT train_id FROM trains WHERE departure_time < %s)", (now,))
     cur.execute("DELETE FROM trains WHERE departure_time < %s", (now,))
+    cur.execute("DELETE FROM flight_bookings WHERE flight_id IN (SELECT flight_id FROM flights WHERE departure_time < %s)", (now,))
     cur.execute("DELETE FROM flights WHERE departure_time < %s", (now,))
+    cur.execute("DELETE FROM bus_bookings WHERE bus_id IN (SELECT bus_id FROM buses WHERE departure_time < %s)", (now,))
+    cur.execute("DELETE FROM buses WHERE departure_time < %s", (now,))
     print("    -> Done")
 
 
@@ -325,15 +476,21 @@ def main():
     seed_train_types(cur)
     seed_seat_types(cur)
     seed_train_routes(cur)
+    seed_bus_companies(cur)
+    seed_bus_stations(cur)
+    seed_bus_types(cur)
+    seed_bus_seat_types(cur)
+    seed_bus_routes(cur)
 
     # Step 2: Cleanup old data
     print("\n[2/3] Cleaning up old data...")
     cleanup_old_data(cur)
 
-    # Step 3: Seed dynamic data (flights & trains)
+    # Step 3: Seed dynamic data (flights, trains & buses)
     print("\n[3/3] Seeding dynamic transport data...")
     seed_flights(cur, generator)
     seed_trains(cur, generator)
+    seed_buses(cur, generator)
 
     cur.close()
     conn.close()

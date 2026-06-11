@@ -683,9 +683,30 @@ class PromotionService:
                 for promo_dict in results:
                     promo = dict(promo_dict)
                     try:
-                        # Parse dates from database (remove timezone info for comparison)
-                        start_date = datetime.fromisoformat(promo['start_date'].replace('Z', '+00:00')).replace(tzinfo=None)
-                        end_date = datetime.fromisoformat(promo['end_date'].replace('Z', '+00:00')).replace(tzinfo=None)
+                        # Parse dates from database (handle string or datetime objects)
+                        start_date_str = promo['start_date']
+                        end_date_str = promo['end_date']
+
+                        # Convert to datetime if string, or use directly if already datetime
+                        if isinstance(start_date_str, str):
+                            # Handle ISO format with or without timezone
+                            if 'Z' in start_date_str:
+                                start_date_str = start_date_str.replace('Z', '+00:00')
+                            # Parse and remove timezone info for comparison
+                            start_date = datetime.fromisoformat(start_date_str).replace(tzinfo=None)
+                        else:
+                            # Already a datetime object, just ensure no timezone
+                            start_date = start_date_str.replace(tzinfo=None) if start_date_str.tzinfo else start_date_str
+
+                        if isinstance(end_date_str, str):
+                            # Handle ISO format with or without timezone
+                            if 'Z' in end_date_str:
+                                end_date_str = end_date_str.replace('Z', '+00:00')
+                            # Parse and remove timezone info for comparison
+                            end_date = datetime.fromisoformat(end_date_str).replace(tzinfo=None)
+                        else:
+                            # Already a datetime object, just ensure no timezone
+                            end_date = end_date_str.replace(tzinfo=None) if end_date_str.tzinfo else end_date_str
 
                         # Check if still valid
                         is_valid_time = start_date <= now <= end_date
@@ -746,9 +767,31 @@ class PromotionService:
 
             # Validate promotion
             now = datetime.now()
-            # Parse dates and remove timezone for comparison
-            start_date = datetime.fromisoformat(promo['start_date'].replace('Z', '+00:00')).replace(tzinfo=None)
-            end_date = datetime.fromisoformat(promo['end_date'].replace('Z', '+00:00')).replace(tzinfo=None)
+
+            # Parse dates from database (handle string or datetime objects)
+            start_date_str = promo['start_date']
+            end_date_str = promo['end_date']
+
+            # Convert to datetime if string, or use directly if already datetime
+            if isinstance(start_date_str, str):
+                # Handle ISO format with or without timezone
+                if 'Z' in start_date_str:
+                    start_date_str = start_date_str.replace('Z', '+00:00')
+                # Parse and remove timezone info for comparison
+                start_date = datetime.fromisoformat(start_date_str).replace(tzinfo=None)
+            else:
+                # Already a datetime object, just ensure no timezone
+                start_date = start_date_str.replace(tzinfo=None) if start_date_str.tzinfo else start_date_str
+
+            if isinstance(end_date_str, str):
+                # Handle ISO format with or without timezone
+                if 'Z' in end_date_str:
+                    end_date_str = end_date_str.replace('Z', '+00:00')
+                # Parse and remove timezone info for comparison
+                end_date = datetime.fromisoformat(end_date_str).replace(tzinfo=None)
+            else:
+                # Already a datetime object, just ensure no timezone
+                end_date = end_date_str.replace(tzinfo=None) if end_date_str.tzinfo else end_date_str
 
             # Check if promotion is still valid
             if not (start_date <= now <= end_date):

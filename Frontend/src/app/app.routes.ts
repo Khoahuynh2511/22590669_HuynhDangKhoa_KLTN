@@ -57,7 +57,28 @@ export const routes: Routes = [
     path: 'buses', component: BusesComponent
   },
   {
-    path: 'hotel/detail', component: ProducDetailsComponent
+    path: 'flight-booking/:id',
+    loadComponent: () => import('./pages/flights/flight-booking/flight-booking.component').then(m => m.FlightBookingComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'train-booking/:id',
+    loadComponent: () => import('./pages/trains/train-booking/train-booking.component').then(m => m.TrainBookingComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'bus-booking/:id',
+    loadComponent: () => import('./pages/buses/bus-booking/bus-booking.component').then(m => m.BusBookingComponent),
+    canActivate: [authGuard]
+  },
+  {
+    path: 'hotel/detail/:id',
+    loadComponent: () => import('./pages/hotel/hotel-detail/hotel-detail.component').then(m => m.HotelDetailComponent)
+  },
+  {
+    path: 'hotel-booking/:id',
+    loadComponent: () => import('./pages/hotel/hotel-booking/hotel-booking.component').then(m => m.HotelBookingComponent),
+    canActivate: [authGuard]
   },
   {
     path: 'tours', component: ToursComponent
@@ -96,6 +117,11 @@ export const routes: Routes = [
     path: 'chat-room',
     canActivate: [authGuard],
     loadComponent: () => import('./components/ai-chatbot/ai-chatbot.component').then(m => m.AiChatbotComponent)
+  },
+  {
+    path: 'trip-planner',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/trip-planner/trip-planner.component').then(m => m.TripPlannerComponent)
   },
   {
     path: 'chat-room/:roomId',

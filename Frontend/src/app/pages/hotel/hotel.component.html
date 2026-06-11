@@ -3,19 +3,19 @@
   <!-- Sticky Search Bar -->
   <div class="sticky top-0 flex-1 p-4 bg-white shadow-lg z-10 flex justify-center items-center">
     <div class="container mx-auto px-6">
-      <app-search-bar (onSearch)="getSearchVal($event)"></app-search-bar>
+      <app-search-bar [showTabs]="false" (onSearch)="getSearchVal($event)"></app-search-bar>
     </div>
   </div>
 
-  <div class="container mx-auto p-6 flex flex-row gap-4 pt-12">
+  <div class="container mx-auto p-6 flex flex-row gap-4">
 
     <!-- Sidebar Filters -->
-    <div class="wrapper-comp flex flex-col gap-4 pt-12">
+    <div class="wrapper-comp flex flex-col gap-4">
       <app-accordion-filter (filterChange)="onFilterChange($event)"></app-accordion-filter>
     </div>
 
     <!-- Hotel List -->
-    <div class="wrapper-comp flex flex-col gap-4 pt-12 flex-1">
+    <div class="wrapper-comp flex flex-col gap-4 flex-1">
 
       <!-- Loading State -->
       @if (isLoading) {

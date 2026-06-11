@@ -23,6 +23,9 @@ export class BusesComponent implements OnInit {
   hasSearched = false;
   errorMessage = '';
 
+  // Sort
+  sortBy: 'price' | 'departure' | 'duration' = 'price';
+
   popularRoutes = [
     { from: 'BXSG', to: 'BXHN', fromCity: 'TP. Hồ Chí Minh', toCity: 'Hà Nội', duration: '36h', price: 650000 },
     { from: 'BXSG', to: 'BXDL', fromCity: 'TP. Hồ Chí Minh', toCity: 'Đà Lạt', duration: '7h', price: 300000 },
@@ -39,6 +42,12 @@ export class BusesComponent implements OnInit {
       const res = await this.busService.getStations();
       if (res.EC === 0) this.stations = res.data;
     } catch (e) { console.error(e); }
+  }
+
+  swapStations() {
+    const temp = this.departure;
+    this.departure = this.destination;
+    this.destination = temp;
   }
 
   async onSearch() {
@@ -61,6 +70,7 @@ export class BusesComponent implements OnInit {
       const res = await this.busService.searchBuses(this.departure, this.destination, this.departureDate || undefined);
       if (res.EC === 0 && res.data) {
         this.searchResults = res.data.buses;
+        this.sortResults();
       } else {
         this.errorMessage = res.EM || 'Không tìm thấy chuyến xe';
         this.searchResults = [];
@@ -73,10 +83,26 @@ export class BusesComponent implements OnInit {
     }
   }
 
+  sortResults() {
+    if (this.sortBy === 'price') {
+      this.searchResults.sort((a, b) => this.getLowestPrice(a) - this.getLowestPrice(b));
+    } else if (this.sortBy === 'departure') {
+      this.searchResults.sort((a, b) => a.departure.time.localeCompare(b.departure.time));
+    } else if (this.sortBy === 'duration') {
+      this.searchResults.sort((a, b) => a.duration_hours - b.duration_hours);
+    }
+  }
+
   selectRoute(route: any) {
     this.departure = route.from;
     this.destination = route.to;
     this.onSearch();
+  }
+
+  bookBus(bus: Bus) {
+    this.router.navigate(['/bus-booking', bus.bus_id], {
+      state: { bus: bus }
+    });
   }
 
   openAIChat() {
