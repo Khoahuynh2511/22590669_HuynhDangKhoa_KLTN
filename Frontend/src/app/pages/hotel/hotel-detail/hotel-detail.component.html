@@ -2,22 +2,22 @@
   <div class="hotel-loading">
     <div class="text-center">
       <div class="hotel-loading__spinner"></div>
-      <p class="text-gray-600">Đang tải thông tin khách sạn...</p>
+      <p class="text-slate-600 font-medium">Đang tải thông tin khách sạn...</p>
     </div>
   </div>
 }
 
 @if (errorMessage) {
   <div class="hotel-error">
-    <div class="text-center max-w-md mx-auto p-8 bg-white rounded-2xl border border-gray-200">
-      <svg class="w-16 h-16 text-red-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-      </svg>
-      <h2 class="text-xl font-bold text-gray-800 mb-2">Có lỗi xảy ra</h2>
-      <p class="text-gray-600 mb-6">{{ errorMessage }}</p>
+    <div class="text-center max-w-md mx-auto p-8 bg-white rounded-2xl border border-slate-200 shadow-xl">
+      <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+      </div>
+      <h2 class="text-xl font-bold text-slate-800 mb-2">Có lỗi xảy ra</h2>
+      <p class="text-slate-600 mb-6">{{ errorMessage }}</p>
       <div class="flex gap-3 justify-center">
-        <button (click)="retryLoad()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Thử lại</button>
-        <button (click)="goBack()" class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">Quay lại</button>
+        <button (click)="retryLoad()" class="px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 active:scale-95 transition-all shadow-md shadow-blue-200">Thử lại</button>
+        <button (click)="goBack()" class="px-6 py-2.5 border border-slate-300 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Quay lại</button>
       </div>
     </div>
   </div>
@@ -26,115 +26,203 @@
 @if (hotel && !isLoading) {
   <div class="hotel-detail-page">
 
+    <!-- Breadcrumb -->
     <nav class="hotel-detail-breadcrumb">
-      <button type="button" (click)="goBack()">Khách sạn</button>
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-      <span class="text-gray-800 font-medium truncate">{{ hotel.hotel_name }}</span>
+      <button type="button" (click)="goBack()" class="hover:text-blue-600 transition-colors">
+        <i class="fa-solid fa-house mr-1"></i> Khách sạn
+      </button>
+      <i class="fa-solid fa-chevron-right text-xxs mx-1 text-slate-400"></i>
+      <span class="text-slate-800 font-semibold truncate">{{ hotel.hotel_name }}</span>
     </nav>
 
-    <div class="hotel-gallery">
-      <div class="hotel-gallery__main">
-        <img [src]="selectedImage || 'https://via.placeholder.com/800x500?text=No+Image'"
-          [alt]="hotel.hotel_name"
-          onerror="this.src='https://via.placeholder.com/800x500?text=No+Image'">
-        @if (hotel.discount > 0) {
-          <span class="hotel-gallery__badge">-{{ hotel.discount }}%</span>
-        }
-      </div>
-
-      <div class="hotel-gallery__thumbs">
-        @for (img of images.slice(0, 3); track $index; let i = $index) {
-          <div class="hotel-gallery__thumb"
-            [class.hotel-gallery__thumb--active]="selectedImageIndex === i"
-            (click)="selectImage(i)">
-            <img [src]="img" alt="Thumbnail"
-              onerror="this.src='https://via.placeholder.com/200x130?text=No+Image'">
-          </div>
-        }
-        @if (images.length > 4) {
-          <div class="hotel-gallery__thumb hotel-gallery__more"
-            [attr.data-count]="'+' + (images.length - 4)"
-            (click)="selectImage(3)">
-            <img [src]="images[3]" alt="More">
-          </div>
-        }
-      </div>
-    </div>
-
-    <div class="hotel-detail-grid">
-
-      <div>
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gray-900 mb-2">{{ hotel.hotel_name }}</h1>
-          <div class="flex items-center gap-4 flex-wrap mb-2">
+    <!-- Header info -->
+    <div class="hotel-header-section mb-6">
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-2 flex-wrap">
+            <span class="px-3 py-1 bg-blue-50 text-blue-700 text-xs font-bold rounded-full border border-blue-100 uppercase tracking-wider">Khách sạn</span>
             <div class="flex items-center gap-0.5">
               @for (star of getStars(); track star) {
-                <svg class="w-4 h-4" [class.text-amber-400]="star <= hotel.star_rating" [class.text-gray-200]="star > hotel.star_rating"
-                  fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
-                </svg>
+                <i class="fa-solid fa-star text-xs" 
+                   [class.text-amber-400]="star <= hotel.star_rating" 
+                   [class.text-slate-200]="star > hotel.star_rating"></i>
               }
             </div>
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-lg text-sm font-bold" [ngClass]="getReviewLabelObject(hotel.review_score).color">
-                {{ hotel.review_score }}/10
-              </span>
-              <span class="text-sm text-gray-600">{{ getReviewLabelObject(hotel.review_score).text }}</span>
-              <span class="text-sm text-gray-400">({{ hotel.review_count }} đánh giá)</span>
-            </div>
           </div>
-          <div class="flex items-center gap-2 text-gray-600 text-sm">
-            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            <span>{{ hotel.location }}</span>
+          <h1 class="text-3xl font-extrabold text-slate-900 tracking-tight mb-2">{{ hotel.hotel_name }}</h1>
+          <div class="flex items-center gap-2 text-slate-600 text-sm">
+            <i class="fa-solid fa-location-dot text-blue-600"></i>
+            <span class="font-medium">{{ hotel.location }}</span>
             @if (hotel.address) {
-              <span class="text-gray-400">- {{ hotel.address }}</span>
+              <span class="text-slate-400">|</span>
+              <span class="text-slate-500">{{ hotel.address }}</span>
             }
           </div>
         </div>
 
-        <div class="hotel-stats">
-          <div class="hotel-stat">
-            <p class="hotel-stat__value text-blue-700">{{ hotel.available_rooms }}</p>
-            <p class="hotel-stat__label">Phòng trống</p>
+        <!-- Rating Box -->
+        <div class="flex items-center gap-3 bg-white p-3 rounded-2xl border border-slate-100 shadow-sm self-start">
+          <div class="text-right">
+            <p class="font-bold text-slate-800 text-sm">{{ getReviewLabelObject(hotel.review_score).text }}</p>
+            <p class="text-xs text-slate-500">{{ hotel.review_count }} đánh giá</p>
           </div>
-          <div class="hotel-stat">
-            <p class="hotel-stat__value text-emerald-700">{{ formatPrice(hotel.price) }}</p>
-            <p class="hotel-stat__label">Giá/phòng</p>
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center font-extrabold text-white shadow-md shadow-emerald-100"
+               [ngClass]="hotel.review_score >= 8 ? 'bg-emerald-600' : 'bg-blue-600'">
+            {{ hotel.review_score | number:'1.1-1' }}
           </div>
-          <div class="hotel-stat">
-            <p class="hotel-stat__value text-amber-600">{{ hotel.star_rating }}</p>
-            <p class="hotel-stat__label">Hạng sao</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Photo Gallery (Airbnb Grid Style) -->
+    <div class="hotel-gallery mb-8">
+      @if (images.length === 0) {
+        <div class="hotel-gallery__single">
+          <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80" alt="Placeholder">
+        </div>
+      } @else if (images.length === 1) {
+        <div class="hotel-gallery__single" (click)="openLightbox(0)">
+          <img [src]="images[0]" [alt]="hotel.hotel_name" onerror="this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80'">
+        </div>
+      } @else if (images.length === 2) {
+        <div class="hotel-gallery__double" (click)="openLightbox(0)">
+          <div class="gallery-img-container"><img [src]="images[0]" onerror="this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'"></div>
+          <div class="gallery-img-container"><img [src]="images[1]" onerror="this.src='https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80'"></div>
+        </div>
+      } @else if (images.length === 3) {
+        <div class="hotel-gallery__triple">
+          <div class="gallery-img-container main" (click)="openLightbox(0)">
+            <img [src]="images[0]" onerror="this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'">
           </div>
-          <div class="hotel-stat">
-            <p class="hotel-stat__value text-violet-700">{{ hotel.amenities.length }}</p>
-            <p class="hotel-stat__label">Tiện ích</p>
+          <div class="gallery-side-column">
+            <div class="gallery-img-container" (click)="openLightbox(1)">
+              <img [src]="images[1]" onerror="this.src='https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800&q=80'">
+            </div>
+            <div class="gallery-img-container" (click)="openLightbox(2)">
+              <img [src]="images[2]" onerror="this.src='https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80'">
+            </div>
+          </div>
+        </div>
+      } @else {
+        <!-- Airbnb 5-image grid layout -->
+        <div class="hotel-gallery__grid">
+          <div class="gallery-grid-main" (click)="openLightbox(0)">
+            <img [src]="images[0]" [alt]="hotel.hotel_name" onerror="this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80'">
+          </div>
+          <div class="gallery-grid-sub text-slate-800">
+            <div class="gallery-grid-item" (click)="openLightbox(1)">
+              <img [src]="images[1]" alt="Sub image 1" onerror="this.src='https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=500&q=80'">
+            </div>
+            <div class="gallery-grid-item" (click)="openLightbox(2)">
+              <img [src]="images[2]" alt="Sub image 2" onerror="this.src='https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=500&q=80'">
+            </div>
+            <div class="gallery-grid-item" (click)="openLightbox(3)">
+              <img [src]="images[3]" alt="Sub image 3" onerror="this.src='https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=500&q=80'">
+            </div>
+            <div class="gallery-grid-item relative" (click)="openLightbox(4)">
+              <img [src]="images[4] || images[0]" alt="Sub image 4" onerror="this.src='https://images.unsplash.com/photo-1571896349842-33c89424de2d?auto=format&fit=crop&w=500&q=80'">
+              @if (images.length > 5) {
+                <div class="gallery-overlay-count flex">
+                  <i class="fa-regular fa-images mr-2 text-lg"></i>
+                  <span>+{{ images.length - 5 }} hình ảnh</span>
+                </div>
+              }
+            </div>
+          </div>
+          
+          <button type="button" class="gallery-view-all-btn" (click)="openLightbox(0)">
+            <i class="fa-regular fa-images"></i> Xem tất cả hình ảnh
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Main Grid -->
+    <div class="hotel-detail-grid">
+
+      <!-- Left Column (Main Info) -->
+      <div class="main-info-column">
+        
+        <!-- Stats cards -->
+        <div class="hotel-stats mb-6">
+          <div class="hotel-stat stat-rooms">
+            <div class="stat-icon">
+              <i class="fa-solid fa-bed"></i>
+            </div>
+            <div class="stat-details">
+              <p class="hotel-stat__value text-blue-700">{{ hotel.available_rooms }}</p>
+              <p class="hotel-stat__label">Phòng trống</p>
+            </div>
+          </div>
+          
+          <div class="hotel-stat stat-price">
+            <div class="stat-icon">
+              <i class="fa-solid fa-tags"></i>
+            </div>
+            <div class="stat-details">
+              <p class="hotel-stat__value text-emerald-700">{{ formatPrice(hotel.price) }}</p>
+              <p class="hotel-stat__label">Giá/đêm từ</p>
+            </div>
+          </div>
+          
+          <div class="hotel-stat stat-rating">
+            <div class="stat-icon">
+              <i class="fa-solid fa-star"></i>
+            </div>
+            <div class="stat-details">
+              <p class="hotel-stat__value text-amber-600">{{ hotel.star_rating }} / 5</p>
+              <p class="hotel-stat__label">Hạng sao</p>
+            </div>
+          </div>
+          
+          <div class="hotel-stat stat-amenities">
+            <div class="stat-icon">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div class="stat-details">
+              <p class="hotel-stat__value text-violet-700">{{ hotel.amenities.length }}</p>
+              <p class="hotel-stat__label">Tiện ích sẵn có</p>
+            </div>
           </div>
         </div>
 
+        <!-- Description section -->
         <section class="hotel-section">
           <h2 class="hotel-section__title">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Mô tả khách sạn
+            <i class="fa-solid fa-circle-info text-blue-600 mr-2"></i>
+            Giới thiệu khách sạn
           </h2>
-          <p class="text-gray-700 leading-relaxed whitespace-pre-line">{{ isDescriptionExpanded ? (hotel.description || '') : getShortDescription() }}</p>
+          <div class="relative">
+            <p class="text-slate-700 leading-relaxed whitespace-pre-line text-sm md:text-base font-normal">
+              {{ isDescriptionExpanded ? (hotel.description || '') : getShortDescription() }}
+            </p>
+            @if (!isDescriptionExpanded && shouldShowReadMore) {
+              <div class="description-fade-overlay"></div>
+            }
+          </div>
           @if (shouldShowReadMore) {
-            <button type="button" (click)="isDescriptionExpanded = !isDescriptionExpanded" class="text-blue-600 hover:text-blue-800 font-medium mt-2 text-sm">
-              {{ isDescriptionExpanded ? 'Thu gọn' : 'Xem thêm' }}
+            <button type="button" (click)="isDescriptionExpanded = !isDescriptionExpanded" 
+                    class="text-blue-600 hover:text-blue-800 font-bold mt-3 text-sm flex items-center gap-1 active:scale-95 transition-all">
+              <span>{{ isDescriptionExpanded ? 'Thu gọn' : 'Đọc thêm' }}</span>
+              <i class="fa-solid" [ngClass]="isDescriptionExpanded ? 'fa-angle-up' : 'fa-angle-down'"></i>
             </button>
           }
         </section>
 
+        <!-- Amenities section -->
         @if (hotel.amenities.length > 0) {
           <section class="hotel-section">
             <h2 class="hotel-section__title">
-              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-              Tiện ích khách sạn
+              <i class="fa-solid fa-circle-check text-blue-600 mr-2"></i>
+              Tiện nghi & Dịch vụ
             </h2>
             <div class="hotel-amenity-grid">
               @for (amenity of hotel.amenities; track $index) {
                 <div class="hotel-amenity-item">
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                  <span>{{ amenity }}</span>
+                  <div class="amenity-icon-box">
+                    <i class="fa-solid" [ngClass]="getAmenityIcon(amenity)"></i>
+                  </div>
+                  <span class="font-medium text-slate-700">{{ amenity }}</span>
                 </div>
               }
             </div>
@@ -142,66 +230,147 @@
         }
       </div>
 
-      <aside>
+      <!-- Right Column (Sticky Booking Card) -->
+      <aside class="booking-sidebar">
         <div class="hotel-booking-card">
+          <!-- Card Header Gradient -->
           <div class="hotel-booking-card__header">
-            <p class="hotel-booking-card__meta">Giá từ</p>
-            <p class="hotel-booking-card__price">{{ formatPrice(totalPrice) }}</p>
-            <p class="hotel-booking-card__meta">{{ nights }} đêm x {{ numRooms }} phòng</p>
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="hotel-booking-card__meta">Giá tốt nhất</p>
+                <p class="hotel-booking-card__price">{{ formatPrice(hotel.price) }}<span class="text-xs font-normal text-blue-100"> / đêm</span></p>
+              </div>
+              @if (hotel.discount > 0) {
+                <span class="bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
+                  Gỉảm {{ hotel.discount }}%
+                </span>
+              }
+            </div>
+            
             @if (hotel.original_price && hotel.original_price > hotel.price) {
-              <div class="mt-1">
-                <span class="text-blue-200 text-sm line-through">{{ formatPrice(hotel.original_price * nights * numRooms) }}</span>
-                <span class="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">-{{ hotel.discount }}%</span>
+              <div class="mt-2 text-xs flex items-center gap-2">
+                <span class="text-blue-200 line-through font-medium">{{ formatPrice(hotel.original_price) }}</span>
+                <span class="bg-blue-800/40 text-blue-100 px-1.5 py-0.5 rounded">Tiết kiệm nhiều nhất</span>
               </div>
             }
           </div>
 
+          <!-- Card Body -->
           <div class="hotel-booking-card__body">
-            <div class="hotel-booking-field">
-              <label>Ngày nhận phòng</label>
-              <input type="date" [(ngModel)]="checkIn">
-            </div>
-            <div class="hotel-booking-field">
-              <label>Ngày trả phòng</label>
-              <input type="date" [(ngModel)]="checkOut">
-            </div>
-            <div class="grid grid-cols-2 gap-3">
+            
+            <div class="grid grid-cols-2 gap-3 mb-4">
               <div class="hotel-booking-field">
-                <label>Số phòng</label>
+                <label><i class="fa-solid fa-calendar-import mr-1 text-slate-400"></i> Nhận phòng</label>
+                <input type="date" [(ngModel)]="checkIn" [min]="minDate" (change)="onCheckInChange()" class="w-full">
+              </div>
+              <div class="hotel-booking-field">
+                <label><i class="fa-solid fa-calendar-export mr-1 text-slate-400"></i> Trả phòng</label>
+                <input type="date" [(ngModel)]="checkOut" [min]="minCheckOutDate" class="w-full">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="hotel-booking-field">
+                <label><i class="fa-solid fa-door-open mr-1 text-slate-400"></i> Số phòng</label>
                 <input type="number" [(ngModel)]="numRooms" min="1" [max]="hotel.available_rooms">
               </div>
               <div class="hotel-booking-field">
-                <label>Số khách</label>
+                <label><i class="fa-solid fa-users mr-1 text-slate-400"></i> Số khách</label>
                 <input type="number" [(ngModel)]="numGuests" min="1" max="20">
               </div>
             </div>
 
-            <div class="hotel-booking-summary">
-              <div class="flex justify-between text-gray-600 mb-2">
-                <span>{{ formatPrice(hotel.price) }} × {{ nights }} đêm × {{ numRooms }} phòng</span>
+            <!-- Total Calculation Breakdown -->
+            <div class="hotel-booking-summary mb-5">
+              <div class="flex justify-between text-slate-600 mb-2 font-medium">
+                <span>Giá thuê phòng</span>
+                <span>{{ formatPrice(hotel.price) }} × {{ nights }} đêm</span>
               </div>
-              <div class="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
-                <span>Tổng cộng</span>
-                <span class="text-blue-600">{{ formatPrice(totalPrice) }}</span>
+              <div class="flex justify-between text-slate-600 mb-2 font-medium">
+                <span>Số lượng phòng</span>
+                <span>{{ numRooms }} phòng</span>
+              </div>
+              
+              <div class="pt-3 border-t border-slate-200 flex justify-between items-end">
+                <div>
+                  <span class="font-bold text-slate-900">Tổng cộng</span>
+                  <p class="text-xxs text-slate-400 font-medium">Đã bao gồm thuế & phí</p>
+                </div>
+                <span class="text-2xl font-extrabold text-blue-600 tracking-tight">{{ formatPrice(totalPrice) }}</span>
               </div>
             </div>
 
+            <!-- CTA Button -->
             @if (hotel.available_rooms > 0) {
               <button type="button" (click)="onBookNow()" class="hotel-booking-btn">
                 Đặt phòng ngay
               </button>
-              <p class="text-center text-xs text-gray-500 mt-2">Chỉ còn {{ hotel.available_rooms }} phòng trống</p>
+              <div class="flex justify-center items-center gap-1.5 text-xs text-rose-600 font-bold mt-3">
+                <i class="fa-solid fa-fire-flame-curved animate-pulse"></i>
+                <span>Nhanh tay! Chỉ còn {{ hotel.available_rooms }} phòng trống</span>
+              </div>
             } @else {
               <button type="button" disabled class="hotel-booking-btn hotel-booking-btn--disabled">
-                Hết phòng
+                Hết phòng trống
               </button>
             }
 
-            <p class="text-center text-xs text-gray-400 mt-3">Chưa cần thanh toán ngay</p>
+            <p class="text-center text-xs text-slate-400 mt-4">
+              <i class="fa-solid fa-shield-halved mr-1"></i> Đảm bảo giá tốt nhất & Thanh toán an toàn
+            </p>
           </div>
         </div>
       </aside>
 
+    </div>
+  </div>
+}
+
+<!-- Lightbox Modal Overlay -->
+@if (isLightboxOpen && images.length > 0) {
+  <div class="lightbox-modal" (click)="closeLightbox()">
+    <!-- Top toolbar -->
+    <div class="lightbox-toolbar flex justify-between items-center px-6 py-4 absolute top-0 inset-x-0 z-50 text-white bg-slate-950/40 backdrop-blur-sm">
+      <span class="font-bold text-sm tracking-wide">{{ hotel?.hotel_name }} ({{ activeLightboxImageIndex + 1 }} / {{ images.length }})</span>
+      <button class="lightbox-close-btn flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 active:scale-95 transition-all" (click)="closeLightbox()">
+        <i class="fa-solid fa-xmark text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Main lightbox slider -->
+    <div class="lightbox-content-wrapper relative flex items-center justify-center w-full h-full max-w-6xl mx-auto px-4">
+      <!-- Left arrow -->
+      <button class="lightbox-nav-btn prev-btn flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/50 hover:bg-slate-900/80 active:scale-90 text-white transition-all absolute left-6 z-50 border border-white/10"
+              (click)="prevLightboxImage($event)">
+        <i class="fa-solid fa-chevron-left text-lg"></i>
+      </button>
+
+      <!-- Active image container -->
+      <div class="lightbox-img-box flex items-center justify-center max-h-[80vh] max-w-full select-none" (click)="$event.stopPropagation()">
+        <img [src]="images[activeLightboxImageIndex]" 
+             [alt]="'Room image ' + activeLightboxImageIndex"
+             class="lightbox-img object-contain rounded-lg max-h-[80vh] max-w-full shadow-2xl border border-white/5 animate-fade-in"
+             onerror="this.src='https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80'">
+      </div>
+
+      <!-- Right arrow -->
+      <button class="lightbox-nav-btn next-btn flex items-center justify-center w-12 h-12 rounded-full bg-slate-900/50 hover:bg-slate-900/80 active:scale-90 text-white transition-all absolute right-6 z-50 border border-white/10"
+              (click)="nextLightboxImage($event)">
+        <i class="fa-solid fa-chevron-right text-lg"></i>
+      </button>
+    </div>
+
+    <!-- Thumbnail Strip -->
+    <div class="lightbox-thumbnails-container absolute bottom-4 inset-x-0 z-50 flex justify-center gap-2 overflow-x-auto py-2 px-4 max-w-2xl mx-auto select-none scrollbar-thin scrollbar-thumb-white/20" (click)="$event.stopPropagation()">
+      @for (thumb of images; track $index; let idx = $index) {
+        <div class="lightbox-thumb-wrapper w-16 h-12 rounded overflow-hidden cursor-pointer border-2 transition-all flex-shrink-0"
+             [class.border-blue-500]="activeLightboxImageIndex === idx"
+             [class.border-transparent]="activeLightboxImageIndex !== idx"
+             [class.opacity-60]="activeLightboxImageIndex !== idx"
+             (click)="activeLightboxImageIndex = idx">
+          <img [src]="thumb" alt="Thumbnail" class="w-full h-full object-cover">
+        </div>
+      }
     </div>
   </div>
 }

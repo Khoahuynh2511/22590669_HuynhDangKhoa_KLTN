@@ -7,6 +7,8 @@ import { HotelService } from '../../services/hotel.service';
 import { StateHotel } from '../../shared/models/hotelState.model';
 import { paginateSlice } from '../../shared/utils/pagination.util';
 
+import { ActivatedRoute, Router } from '@angular/router';
+
 @Component({
   selector: 'app-hotel',
   imports: [
@@ -31,10 +33,16 @@ export class HotelComponent implements OnInit {
   activeFilters: FilterOptions | null = null;
   currentSearchTerm = '';
 
-  constructor(private hotelService: HotelService) { }
+  constructor(
+    private hotelService: HotelService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) { }
 
   ngOnInit(): void {
-    this.loadHotels();
+    const q = this.route.snapshot.queryParams['q'] || '';
+    this.loadHotels(q);
+    
     this.hotelService.hotelState.subscribe(res => {
       this.allHotels = [...res];
       this.applyFiltersAndPagination();
@@ -52,6 +60,20 @@ export class HotelComponent implements OnInit {
     const searchEvent = event as HotelSearchData;
     this.currentPage = 1;
     const searchTerm = searchEvent?.name?.trim() || '';
+
+    // Save search parameters in query parameters
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        q: searchTerm || null,
+        check_in: searchEvent.checkIn || null,
+        check_out: searchEvent.checkOut || null,
+        rooms: searchEvent.rooms || null,
+        guests: searchEvent.guests || null
+      },
+      queryParamsHandling: 'merge'
+    });
+
     this.loadHotels(searchTerm);
   }
 

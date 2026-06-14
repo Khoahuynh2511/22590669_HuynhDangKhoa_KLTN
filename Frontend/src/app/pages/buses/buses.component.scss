@@ -1,9 +1,9 @@
+@use '../../styles/ticket-search-form.scss';
+
 :host {
   display: block;
   padding-top: 126px;
 }
-
-@import '../../styles/ticket-search-form.scss';
 
 .ticket-search-swap {
   border-color: #fde68a;

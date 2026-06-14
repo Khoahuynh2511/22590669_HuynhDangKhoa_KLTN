@@ -1,72 +1,109 @@
 @if (visible) {
-  <div class="otp-backdrop" role="dialog" aria-modal="true" aria-labelledby="otp-popup-title">
-    <div class="otp-modal">
+  <div class="otp-backdrop animate-fade-in" role="dialog" aria-modal="true" aria-labelledby="otp-popup-title">
+    <div class="otp-modal animate-scale-up">
+      
+      <!-- Close / Header Icon -->
       <div class="otp-header">
+        <div class="otp-shield-badge">
+          <i class="fa-solid fa-shield-halved text-2xl text-blue-600"></i>
+        </div>
         <h2 id="otp-popup-title" class="otp-title">{{ title }}</h2>
         @if (email) {
-          <p class="otp-subtitle">Mã OTP đã được gửi đến <strong>{{ email }}</strong></p>
+          <p class="otp-subtitle">Mã xác thực giao dịch đã gửi đến email:<br><strong class="text-blue-600 font-semibold">{{ email }}</strong></p>
         } @else {
-          <p class="otp-subtitle">Nhập mã OTP 6 số để xác nhận đặt vé</p>
+          <p class="otp-subtitle">Nhập mã OTP 6 số để xác nhận giao dịch của bạn</p>
         }
       </div>
 
+      <!-- Demo OTP Code Card (For Development/Testing) -->
       @if (otpCode) {
         <div class="otp-code-box">
-          <p class="otp-code-label">Mã OTP của bạn</p>
-          <p class="otp-code-value">{{ otpCode }}</p>
-          <button type="button" class="otp-copy-btn" (click)="copyOtpCode()">Sao chép mã</button>
+          <span class="otp-code-label"><i class="fa-solid fa-key mr-1"></i> Mã OTP</span>
+          <div class="otp-code-inner">
+            <span class="otp-code-value">{{ otpCode }}</span>
+            <button type="button" class="otp-copy-btn group" (click)="copyOtpCode()">
+              <i class="fa-regular fa-copy mr-1 group-hover:scale-105 transition-transform"></i> Sao chép
+            </button>
+          </div>
         </div>
       }
 
+      <!-- Alert Messages -->
       @if (successMessage) {
-        <p class="otp-message otp-message-success">{{ successMessage }}</p>
+        <div class="otp-message otp-message-success animate-fade-in flex items-center gap-2">
+          <i class="fa-solid fa-circle-check text-emerald-600"></i>
+          <span>{{ successMessage }}</span>
+        </div>
       }
 
       @if (errorMessage) {
-        <p class="otp-message otp-message-error">{{ errorMessage }}</p>
+        <div class="otp-message otp-message-error animate-fade-in flex items-center gap-2">
+          <i class="fa-solid fa-circle-xmark text-rose-600"></i>
+          <span>{{ errorMessage }}</span>
+        </div>
       }
 
+      <!-- OTP Input Area -->
       <div class="otp-input-wrap">
-        <input
-          type="text"
-          inputmode="numeric"
-          maxlength="6"
-          placeholder="000000"
-          [value]="otpInput"
-          (input)="onInput($event)"
-          (keydown.enter)="onEnter()"
-          [disabled]="isVerifying"
-          class="otp-input"
-          autocomplete="one-time-code">
+        <label class="block text-center text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Nhập mã xác thực gồm 6 chữ số</label>
+        <div class="relative">
+          <input
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="••••••"
+            [value]="otpInput"
+            (input)="onInput($event)"
+            (keydown.enter)="onEnter()"
+            [disabled]="isVerifying"
+            class="otp-input"
+            autocomplete="one-time-code">
+          <div class="otp-input-glow"></div>
+        </div>
       </div>
 
+      <!-- Countdown timer -->
       @if (countdown > 0) {
-        <p class="otp-countdown">Mã hết hạn sau <strong>{{ formatCountdown() }}</strong></p>
+        <p class="otp-countdown">
+          <i class="fa-regular fa-clock text-blue-500 mr-1"></i> 
+          Mã xác thực sẽ hết hiệu lực sau: <strong class="text-blue-600 font-semibold">{{ formatCountdown() }}</strong>
+        </p>
       }
 
+      <!-- Verify Button -->
       <button
         type="button"
         class="otp-verify-btn"
         (click)="onVerify()"
         [disabled]="isVerifying || otpInput.length !== 6">
         @if (isVerifying) {
-          Đang xác thực...
+          <span class="flex items-center justify-center gap-2">
+            <span class="otp-button-spinner"></span>
+            <span>Đang xác thực giao dịch...</span>
+          </span>
         } @else {
-          Xác nhận OTP
+          <span class="flex items-center justify-center gap-2">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Xác nhận giao dịch</span>
+          </span>
         }
       </button>
 
+      <!-- Resend row -->
       <div class="otp-resend-row">
-        <span>Không nhận được mã?</span>
+        <span>Không nhận được mã xác thực?</span>
         <button
           type="button"
           class="otp-resend-btn"
           (click)="onResend()"
           [disabled]="isResending || resendDisabled">
           @if (isResending) {
-            Đang gửi...
+            <span class="flex items-center gap-1.5 justify-center">
+              <span class="inline-block w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></span>
+              Đang gửi lại...
+            </span>
           } @else {
-            Gửi lại OTP
+            <span>Gửi lại OTP</span>
           }
         </button>
       </div>

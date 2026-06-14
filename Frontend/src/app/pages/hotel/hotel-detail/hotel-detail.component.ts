@@ -42,12 +42,36 @@ export class HotelDetailComponent implements OnInit {
   selectedImage: string = '';
   selectedImageIndex: number = 0;
 
+  // Lightbox
+  isLightboxOpen = false;
+  activeLightboxImageIndex = 0;
+
   // Booking sidebar
   checkIn: string = '';
   checkOut: string = '';
   numRooms: number = 1;
   numGuests: number = 2;
   showBookingSidebar = true;
+
+  get minDate(): string {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  get minCheckOutDate(): string {
+    return this.checkIn || this.minDate;
+  }
+
+  onCheckInChange(): void {
+    if (this.checkIn && this.checkOut) {
+      if (new Date(this.checkOut) < new Date(this.checkIn)) {
+        this.checkOut = this.checkIn;
+      }
+    }
+  }
 
   // Description
   isDescriptionExpanded = false;
@@ -73,6 +97,15 @@ export class HotelDetailComponent implements OnInit {
       this.isLoading = false;
       return;
     }
+
+    // Prefill dates, rooms, and guests from query params if available
+    this.route.queryParams.subscribe(params => {
+      if (params['check_in']) this.checkIn = params['check_in'];
+      if (params['check_out']) this.checkOut = params['check_out'];
+      if (params['rooms']) this.numRooms = parseInt(params['rooms']) || 1;
+      if (params['guests']) this.numGuests = parseInt(params['guests']) || 2;
+    });
+
     await this.loadHotel(hotelId);
   }
 
@@ -180,5 +213,51 @@ export class HotelDetailComponent implements OnInit {
   async retryLoad() {
     const hotelId = this.route.snapshot.paramMap.get('id');
     if (hotelId) await this.loadHotel(hotelId);
+  }
+
+  // Lightbox actions
+  openLightbox(index: number = 0) {
+    this.activeLightboxImageIndex = index;
+    this.isLightboxOpen = true;
+    document.body.style.overflow = 'hidden'; // Lock background scrolling
+  }
+
+  closeLightbox() {
+    this.isLightboxOpen = false;
+    document.body.style.overflow = ''; // Unlock scrolling
+  }
+
+  nextLightboxImage(event?: MouseEvent) {
+    if (event) event.stopPropagation();
+    if (this.images.length === 0) return;
+    this.activeLightboxImageIndex = (this.activeLightboxImageIndex + 1) % this.images.length;
+  }
+
+  prevLightboxImage(event?: MouseEvent) {
+    if (event) event.stopPropagation();
+    if (this.images.length === 0) return;
+    this.activeLightboxImageIndex = (this.activeLightboxImageIndex - 1 + this.images.length) % this.images.length;
+  }
+
+  // Amenity icon mapper
+  getAmenityIcon(amenity: string): string {
+    const a = amenity.toLowerCase();
+    if (a.includes('wifi') || a.includes('internet') || a.includes('mạng')) return 'fa-wifi';
+    if (a.includes('hồ bơi') || a.includes('bể bơi') || a.includes('pool')) return 'fa-person-swimming';
+    if (a.includes('gym') || a.includes('thể hình') || a.includes('fitness') || a.includes('tập thể dục')) return 'fa-dumbbell';
+    if (a.includes('spa') || a.includes('massage') || a.includes('làm đẹp') || a.includes('trị liệu')) return 'fa-spa';
+    if (a.includes('nhà hàng') || a.includes('restaurant') || a.includes('ăn uống') || a.includes('ẩm thực')) return 'fa-utensils';
+    if (a.includes('bar') || a.includes('lounge') || a.includes('rượu')) return 'fa-glass-martini-alt';
+    if (a.includes('bãi đỗ') || a.includes('đỗ xe') || a.includes('parking') || a.includes('gửi xe')) return 'fa-car';
+    if (a.includes('điều hòa') || a.includes('máy lạnh') || a.includes('air cond')) return 'fa-snowflake';
+    if (a.includes('bữa sáng') || a.includes('breakfast') || a.includes('ăn sáng')) return 'fa-mug-saucer';
+    if (a.includes('thang máy') || a.includes('elevator')) return 'fa-elevator';
+    if (a.includes('lễ tân') || a.includes('reception') || a.includes('front desk') || a.includes('hỗ trợ')) return 'fa-bell-concierge';
+    if (a.includes('giặt') || a.includes('laundry') || a.includes('ủi')) return 'fa-jug-detergent';
+    if (a.includes('thú cưng') || a.includes('pet') || a.includes('động vật')) return 'fa-paw';
+    if (a.includes('tivi') || a.includes('tv') || a.includes('truyền hình')) return 'fa-tv';
+    if (a.includes('tủ lạnh') || a.includes('mini bar') || a.includes('fridge')) return 'fa-box';
+    if (a.includes('an ninh') || a.includes('bảo vệ') || a.includes('security')) return 'fa-shield-halved';
+    return 'fa-circle-check'; // default
   }
 }

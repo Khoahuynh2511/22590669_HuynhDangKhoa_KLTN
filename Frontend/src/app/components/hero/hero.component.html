@@ -1,64 +1,399 @@
-<section class="relative hero pt-12 ">
+<section class="relative hero pt-12">
   <div class="relative from-blue-900 to-transparent pt-10">
-    <div class="container mx-auto px-6 py-12 text-white flex flex-col">
+    <div class="container mx-auto px-6 py-12 text-white flex flex-col items-center">
       <h1 class="text-3xl font-bold mx-auto hero-title">Biến Chuyến Đi Thành Hiện Thực Theo Cách Của Bạn</h1>
-      <div class="bg-transparent rounded-lg mt-6 p-6 text-white box-border">
-        
-        <div class="flex justify-center w-full">
-          <div class="mt-6 w-full max-w-4xl wrapper-form relative group">
-              <label class="block text-sm font-semibold mb-2 text-white ml-1">Tìm kiếm tour</label>
-              
-              <div class="relative w-full">
+      
+      <!-- Premium Multi-tab Search Box -->
+      <div class="search-console-card mt-8 w-full max-w-4xl">
+        <!-- Tabs Navigation -->
+        <div class="search-tabs">
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'all'" (click)="switchTab('all')">
+            <i class="fa-solid fa-globe"></i>
+            <span>Tất cả</span>
+          </button>
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'hotel'" (click)="switchTab('hotel')">
+            <i class="fa-solid fa-hotel"></i>
+            <span>Khách sạn</span>
+          </button>
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'tour'" (click)="switchTab('tour')">
+            <i class="fa-solid fa-route"></i>
+            <span>Tour</span>
+          </button>
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'flight'" (click)="switchTab('flight')">
+            <i class="fa-solid fa-plane"></i>
+            <span>Vé máy bay</span>
+          </button>
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'train'" (click)="switchTab('train')">
+            <i class="fa-solid fa-train"></i>
+            <span>Vé tàu hỏa</span>
+          </button>
+          <button type="button" class="tab-btn" [class.active]="activeTab === 'bus'" (click)="switchTab('bus')">
+            <i class="fa-solid fa-bus"></i>
+            <span>Vé xe khách</span>
+          </button>
+        </div>
+
+        <!-- Tab Forms Area -->
+        <div class="search-tab-body relative">
+          
+          <!-- Tab Form: ALL -->
+          @if (activeTab === 'all') {
+            <div class="search-form-single">
+              <div class="input-field-wrapper">
+                <i class="fa-solid fa-magnifying-glass field-icon-left"></i>
                 <input 
                   type="text" 
                   [(ngModel)]="searchQuery" 
-                  (ngModelChange)="onSearchChange()"
-                  (focus)="onFocus()"
+                  (ngModelChange)="onSearchChange(searchQuery)"
+                  (focus)="onFocus(searchQuery)"
                   (blur)="onBlur()"
-                  placeholder="Nhập tên tour hoặc điểm đến bạn muốn tìm..." 
-                  class="w-full p-4 pr-32 border bg-white rounded-lg shadow-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-all" 
+                  (keydown.enter)="onSearch()"
+                  placeholder="Tìm kiếm mọi thứ: điểm đến, tour, khách sạn, chuyến bay..." 
+                  class="search-input" 
                   autocomplete="off"
                 />
-                <button class="absolute top-1/2 right-2 transform -translate-y-1/2 bg-orange-500 text-white px-6 py-2 rounded-md hover:bg-orange-600 transition-colors font-semibold shadow-sm h-10" (click)="onSearch()">
+                <button type="button" class="submit-search-btn" (click)="onSearch()">
                   Tìm kiếm
                 </button>
               </div>
-              
-              <!-- Search Results Dropdown -->
-              @if (showResults && (searchResults.length > 0 || isLoading)) {
-                <div class="absolute z-50 w-full bg-white shadow-xl rounded-b-lg mt-1 border border-gray-200 overflow-hidden max-h-96 overflow-y-auto text-gray-800 left-0">
-                  @if (isLoading) {
-                    <div class="p-4 text-center text-gray-500 flex items-center justify-center">
-                      <div class="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                      <span>Đang tìm kiếm...</span>
-                    </div>
-                  } @else {
-                    @for (tour of searchResults; track tour.package_id) {
-                      <div 
-                        (click)="selectTour(tour)"
-                        class="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-0 flex gap-3 items-center transition-colors duration-150">
-                         <div class="w-12 h-12 flex-shrink-0 bg-gray-200 rounded-md overflow-hidden">
-                            <img [src]="tour.image_url || 'assets/img/default-tour.jpg'" 
-                                class="w-full h-full object-cover" 
-                                alt=""
-                                onerror="this.src='assets/img/default-tour.jpg'">
-                         </div>
+            </div>
+          }
+
+          <!-- Tab Form: TOUR -->
+          @if (activeTab === 'tour') {
+            <div class="search-form-single">
+              <div class="input-field-wrapper">
+                <i class="fa-solid fa-route field-icon-left"></i>
+                <input 
+                  type="text" 
+                  [(ngModel)]="tourQuery" 
+                  (ngModelChange)="onSearchChange(tourQuery)"
+                  (focus)="onFocus(tourQuery)"
+                  (blur)="onBlur()"
+                  (keydown.enter)="searchTour()"
+                  placeholder="Nhập tên tour hoặc điểm đến bạn muốn tìm..." 
+                  class="search-input" 
+                  autocomplete="off"
+                />
+                <button type="button" class="submit-search-btn btn-orange" (click)="searchTour()">
+                  Tìm tour
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Tab Form: HOTEL -->
+          @if (activeTab === 'hotel') {
+            <div class="search-grid-form">
+              <div class="grid-field">
+                <label class="grid-label">Điểm đến / Khách sạn</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-location-dot field-icon-left-sm"></i>
+                  <input 
+                    type="text" 
+                    [(ngModel)]="hotelQuery" 
+                    (ngModelChange)="onSearchChange(hotelQuery)"
+                    (focus)="onFocus(hotelQuery)"
+                    (blur)="onBlur()"
+                    (keydown.enter)="searchHotel()"
+                    placeholder="Đà Lạt, Nha Trang..." 
+                    class="grid-input"
+                    autocomplete="off"
+                  />
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Nhận phòng</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-regular fa-calendar field-icon-left-sm"></i>
+                  <input type="date" [(ngModel)]="hotelCheckIn" [min]="minDate" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Trả phòng</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-regular fa-calendar field-icon-left-sm"></i>
+                  <input type="date" [(ngModel)]="hotelCheckOut" [min]="minCheckOutDate" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field-row">
+                <div class="grid-field-sub">
+                  <label class="grid-label">Khách</label>
+                  <input type="number" [(ngModel)]="hotelGuests" min="1" max="20" class="grid-input-number" />
+                </div>
+                <div class="grid-field-sub">
+                  <label class="grid-label">Phòng</label>
+                  <input type="number" [(ngModel)]="hotelRooms" min="1" max="10" class="grid-input-number" />
+                </div>
+              </div>
+              <div class="grid-field-action">
+                <button type="button" class="search-submit-btn-full" (click)="searchHotel()">
+                  Tìm khách sạn
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Tab Form: FLIGHT -->
+          @if (activeTab === 'flight') {
+            <div class="search-grid-form font-sans">
+              <div class="grid-field">
+                <label class="grid-label">Sân bay đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-plane-departure field-icon-left-sm"></i>
+                  <select [(ngModel)]="flightDeparture" class="grid-select">
+                    <option value="">Chọn sân bay đi</option>
+                    @for (a of airports; track a.code) {
+                      <option [value]="a.code">{{ a.city }} ({{ a.code }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Sân bay đến</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-plane-arrival field-icon-left-sm"></i>
+                  <select [(ngModel)]="flightDestination" class="grid-select">
+                    <option value="">Chọn sân bay đến</option>
+                    @for (a of airports; track a.code) {
+                      <option [value]="a.code">{{ a.city }} ({{ a.code }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Ngày đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-regular fa-calendar field-icon-left-sm"></i>
+                  <input type="date" [(ngModel)]="flightDate" [min]="minDate" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Hành khách</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-user field-icon-left-sm"></i>
+                  <input type="number" [(ngModel)]="flightPassengers" min="1" max="9" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field-action">
+                <button type="button" class="search-submit-btn-full" (click)="searchFlight()">
+                  Tìm chuyến
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Tab Form: TRAIN -->
+          @if (activeTab === 'train') {
+            <div class="search-grid-form font-sans">
+              <div class="grid-field">
+                <label class="grid-label">Ga đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-train field-icon-left-sm"></i>
+                  <select [(ngModel)]="trainDeparture" class="grid-select">
+                    <option value="">Chọn ga đi</option>
+                    @for (s of trainStations; track s.code) {
+                      <option [value]="s.code">{{ s.city }} ({{ s.name }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Ga đến</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-train field-icon-left-sm"></i>
+                  <select [(ngModel)]="trainDestination" class="grid-select">
+                    <option value="">Chọn ga đến</option>
+                    @for (s of trainStations; track s.code) {
+                      <option [value]="s.code">{{ s.city }} ({{ s.name }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Ngày đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-regular fa-calendar field-icon-left-sm"></i>
+                  <input type="date" [(ngModel)]="trainDate" [min]="minDate" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Hành khách</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-user field-icon-left-sm"></i>
+                  <input type="number" [(ngModel)]="trainPassengers" min="1" max="9" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field-action">
+                <button type="button" class="search-submit-btn-full" (click)="searchTrain()">
+                  Tìm tàu
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Tab Form: BUS -->
+          @if (activeTab === 'bus') {
+            <div class="search-grid-form font-sans">
+              <div class="grid-field">
+                <label class="grid-label">Bến đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-bus field-icon-left-sm"></i>
+                  <select [(ngModel)]="busDeparture" class="grid-select">
+                    <option value="">Chọn bến đi</option>
+                    @for (s of busStations; track s.code) {
+                      <option [value]="s.code">{{ s.city }} ({{ s.name }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Bến đến</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-bus field-icon-left-sm"></i>
+                  <select [(ngModel)]="busDestination" class="grid-select">
+                    <option value="">Chọn bến đến</option>
+                    @for (s of busStations; track s.code) {
+                      <option [value]="s.code">{{ s.city }} ({{ s.name }})</option>
+                    }
+                  </select>
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Ngày đi</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-regular fa-calendar field-icon-left-sm"></i>
+                  <input type="date" [(ngModel)]="busDate" [min]="minDate" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field">
+                <label class="grid-label">Hành khách</label>
+                <div class="grid-input-wrapper">
+                  <i class="fa-solid fa-user field-icon-left-sm"></i>
+                  <input type="number" [(ngModel)]="busPassengers" min="1" max="9" class="grid-input" />
+                </div>
+              </div>
+              <div class="grid-field-action">
+                <button type="button" class="search-submit-btn-full" (click)="searchBus()">
+                  Tìm xe
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- Grouped Autocomplete Suggestions Dropdown -->
+          @if (showResults && (searchQuery.trim() !== '' || tourQuery.trim() !== '' || hotelQuery.trim() !== '')) {
+            <div class="absolute z-50 w-full bg-white shadow-2xl rounded-b-xl border border-gray-100 overflow-hidden max-h-[420px] overflow-y-auto text-gray-800 left-0 search-results-dropdown">
+              @if (isLoading) {
+                <div class="p-5 text-center text-gray-500 flex items-center justify-center">
+                  <div class="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mr-3"></div>
+                  <span class="font-medium text-sm">Đang tìm kiếm thông tin...</span>
+                </div>
+              } @else if (searchResults.tours.length === 0 && searchResults.hotels.length === 0 && searchResults.flights.length === 0 && searchResults.trains.length === 0 && searchResults.buses.length === 0) {
+                <div class="p-5 text-center text-gray-500">
+                  <i class="fa-solid fa-magnifying-glass mr-2 text-gray-400"></i>
+                  <span class="font-medium text-sm">Không tìm thấy kết quả phù hợp</span>
+                </div>
+              } @else {
+                <!-- Tours Category -->
+                @if (searchResults.tours.length > 0) {
+                  <div class="dropdown-category-group">
+                    <div class="dropdown-category-title"><i class="fa-solid fa-route mr-2 text-orange-500"></i>Tour du lịch nổi bật</div>
+                    @for (tour of searchResults.tours; track tour.package_id) {
+                      <div (click)="selectTour(tour)" class="dropdown-category-item flex gap-3 items-center cursor-pointer">
+                        <div class="w-10 h-10 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                          <img [src]="getTourImageUrl(tour)" class="w-full h-full object-cover" onerror="this.src='assets/img/default-tour.jpg'">
+                        </div>
                         <div class="flex-1 min-w-0">
-                          <h4 class="font-medium text-gray-900 text-sm truncate">{{ tour.package_name }}</h4>
-                          <div class="flex items-center text-xs text-gray-500 mt-1 justify-between">
-                            <span class="truncate pr-2"><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i> {{ tour.destination }}</span>
-                            <span class="text-orange-600 font-bold whitespace-nowrap">{{ formatPrice(tour.price) }}</span>
+                          <h4 class="font-semibold text-xs text-gray-900 truncate">{{ tour.package_name }}</h4>
+                          <div class="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
+                            <span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>{{ tour.destination }}</span>
+                            <span class="text-orange-600 font-bold">{{ formatPrice(tour.price) }}</span>
                           </div>
                         </div>
                       </div>
                     }
-                  }
-                </div>
-              }
-          </div>
-        </div>
+                  </div>
+                }
 
+                <!-- Hotels Category -->
+                @if (searchResults.hotels.length > 0) {
+                  <div class="dropdown-category-group">
+                    <div class="dropdown-category-title"><i class="fa-solid fa-hotel mr-2 text-blue-500"></i>Khách sạn</div>
+                    @for (hotel of searchResults.hotels; track hotel.hotel_id) {
+                      <div (click)="selectHotel(hotel)" class="dropdown-category-item flex gap-3 items-center cursor-pointer">
+                        <div class="w-10 h-10 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+                          <img [src]="getHotelImageUrl(hotel)" class="w-full h-full object-cover" onerror="this.src='assets/img/default-hotel.jpg'">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-semibold text-xs text-gray-900 truncate">{{ hotel.hotel_name }}</h4>
+                          <div class="flex justify-between items-center text-[10px] text-gray-500 mt-0.5">
+                            <span><i class="fas fa-map-marker-alt text-gray-400 mr-1"></i>{{ hotel.location }}</span>
+                            <span class="text-orange-600 font-bold">{{ formatPrice(hotel.price) }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <!-- Flights Category -->
+                @if (searchResults.flights.length > 0) {
+                  <div class="dropdown-category-group">
+                    <div class="dropdown-category-title"><i class="fa-solid fa-plane mr-2 text-indigo-500"></i>Sân bay & Chuyến bay phù hợp</div>
+                    @for (airport of searchResults.flights; track airport.code) {
+                      <div (click)="selectAirport(airport)" class="dropdown-category-item flex gap-3 items-center cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 flex-shrink-0"><i class="fa-solid fa-plane-arrival"></i></div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-semibold text-xs text-gray-900 truncate">Bay đến/từ {{ airport.city }}</h4>
+                          <p class="text-[10px] text-gray-500 truncate">{{ airport.name }} ({{ airport.code }})</p>
+                        </div>
+                        <span class="text-[10px] text-indigo-600 font-medium whitespace-nowrap bg-indigo-50 px-2 py-0.5 rounded-full">Đặt vé →</span>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <!-- Trains Category -->
+                @if (searchResults.trains.length > 0) {
+                  <div class="dropdown-category-group">
+                    <div class="dropdown-category-title"><i class="fa-solid fa-train mr-2 text-red-500"></i>Ga tàu & Tuyến tàu</div>
+                    @for (train of searchResults.trains; track train.code) {
+                      <div (click)="selectTrainStation(train)" class="dropdown-category-item flex gap-3 items-center cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center text-red-600 flex-shrink-0"><i class="fa-solid fa-train"></i></div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-semibold text-xs text-gray-900 truncate">Đi tàu đến/từ {{ train.city }}</h4>
+                          <p class="text-[10px] text-gray-500 truncate">{{ train.name }} ({{ train.code }})</p>
+                        </div>
+                        <span class="text-[10px] text-red-600 font-medium whitespace-nowrap bg-red-50 px-2 py-0.5 rounded-full">Đặt vé →</span>
+                      </div>
+                    }
+                  </div>
+                }
+
+                <!-- Buses Category -->
+                @if (searchResults.buses.length > 0) {
+                  <div class="dropdown-category-group">
+                    <div class="dropdown-category-title"><i class="fa-solid fa-bus mr-2 text-green-500"></i>Bến xe khách & Tuyến xe</div>
+                    @for (bus of searchResults.buses; track bus.code) {
+                      <div (click)="selectBusStation(bus)" class="dropdown-category-item flex gap-3 items-center cursor-pointer">
+                        <div class="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center text-green-600 flex-shrink-0"><i class="fa-solid fa-bus"></i></div>
+                        <div class="flex-1 min-w-0">
+                          <h4 class="font-semibold text-xs text-gray-900 truncate">Đi xe đến/từ {{ bus.city }}</h4>
+                          <p class="text-[10px] text-gray-500 truncate">{{ bus.name }} ({{ bus.code }})</p>
+                        </div>
+                        <span class="text-[10px] text-green-600 font-medium whitespace-nowrap bg-green-50 px-2 py-0.5 rounded-full">Đặt vé →</span>
+                      </div>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+
+        </div>
       </div>
     </div>
   </div>
 </section>
+

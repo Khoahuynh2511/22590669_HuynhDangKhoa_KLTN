@@ -19,6 +19,9 @@
             @for (item of topMenu; track $index) {
             <a [routerLink]="item.url" [queryParams]="item.queryParams || null" class="menu-item">
               {{ item.label }}
+              @if (item.url === '/my-bookings' && pendingPaymentCount > 0) {
+                <span class="notification-badge">{{ pendingPaymentCount }}</span>
+              }
             </a>
             }
           </nav>

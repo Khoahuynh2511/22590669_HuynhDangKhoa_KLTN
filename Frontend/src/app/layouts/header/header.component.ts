@@ -4,8 +4,14 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/ro
 import { AuthStateService } from '../../services/auth-state.service';
 import { ChatbotService } from '../../services/chatbot.service';
 import { NotificationBellComponent } from '../../components/notification-bell/notification-bell.component';
-import { Subscription } from 'rxjs';
+import { Subscription, forkJoin, of, interval } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { ClickOutsideDirective } from '../../directives/click-outside.directive';
+import { BookingService } from '../../services/booking.service';
+import { TrainBookingService } from '../../services/train-booking.service';
+import { BusBookingService } from '../../services/bus-booking.service';
+import { FlightBookingService } from '../../services/flight-booking.service';
+import { HotelBookingService } from '../../services/hotel-booking.service';
 
 @Component({
   selector: 'app-header',
@@ -19,7 +25,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
   currentUser: any = null;
   showDropdown = false;
+  pendingPaymentCount = 0;
   private chatbotSubscription?: Subscription;
+  private pendingCountSubscription?: Subscription;
 
 
   topMenuPublic: Menu[] = [
@@ -50,7 +58,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
   constructor(
     private router: Router,
     private authStateService: AuthStateService,
-    private chatbotService: ChatbotService
+    private chatbotService: ChatbotService,
+    private bookingService: BookingService,
+    private trainBookingService: TrainBookingService,
+    private busBookingService: BusBookingService,
+    private flightBookingService: FlightBookingService,
+    private hotelBookingService: HotelBookingService
   ) { }
 
   ngOnInit(): void {
@@ -60,11 +73,19 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.events.subscribe((ev) => {
       if (ev instanceof NavigationEnd) {
         this.checkIfHomePage();
+        if (this.isAuthenticated) {
+          this.loadPendingPaymentCount();
+        }
       }
     });
 
     this.authStateService.isAuthenticated$.subscribe(isAuth => {
       this.isAuthenticated = isAuth;
+      if (isAuth) {
+        this.loadPendingPaymentCount();
+      } else {
+        this.pendingPaymentCount = 0;
+      }
     });
 
     this.authStateService.currentUser$.subscribe(user => {
@@ -74,22 +95,81 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.chatbotSubscription = this.chatbotService.openChatbot$.subscribe(() => {
       this.openChatbot();
     });
+
+    // Poll pending payment count every 30 seconds when authenticated
+    const pollSub = interval(30000).subscribe(() => {
+      if (this.isAuthenticated) {
+        this.loadPendingPaymentCount();
+      }
+    });
+    this.pendingCountSubscription = pollSub;
   }
 
   ngOnDestroy() {
     if (this.chatbotSubscription) {
       this.chatbotSubscription.unsubscribe();
     }
+    if (this.pendingCountSubscription) {
+      this.pendingCountSubscription.unsubscribe();
+    }
   }
 
   checkAuthState(): void {
     this.isAuthenticated = this.authStateService.getIsAuthenticated();
     this.currentUser = this.authStateService.getCurrentUser();
+    if (this.isAuthenticated) {
+      this.loadPendingPaymentCount();
+    }
   }
 
   onLogout(): void {
     this.authStateService.logout();
+    this.pendingPaymentCount = 0;
     this.router.navigate(['/home']);
+  }
+
+  loadPendingPaymentCount(): void {
+    if (!this.isAuthenticated) {
+      this.pendingPaymentCount = 0;
+      return;
+    }
+
+    forkJoin({
+      tours: this.bookingService.getMyBookings({ limit: 100 }).pipe(catchError(() => of({ data: [] }))),
+      trains: this.trainBookingService.getMyBookings().pipe(catchError(() => of({ data: [] }))),
+      buses: this.busBookingService.getMyBookings().pipe(catchError(() => of({ data: [] }))),
+      flights: this.flightBookingService.getMyBookings().pipe(catchError(() => of({ data: [] }))),
+      hotels: this.hotelBookingService.getMyBookings().pipe(catchError(() => of({ data: [] })))
+    }).subscribe({
+      next: (results: any) => {
+        let count = 0;
+
+        if (results.tours && results.tours.data) {
+          count += results.tours.data.filter((b: any) => b.status === 'pending' || b.status === 'otp_sent').length;
+        }
+
+        if (results.trains && results.trains.data) {
+          count += results.trains.data.filter((b: any) => (b.status === 'pending' && b.payment_status !== 'paid') || b.status === 'otp_sent').length;
+        }
+
+        if (results.buses && results.buses.data) {
+          count += results.buses.data.filter((b: any) => (b.status === 'pending' && b.payment_status !== 'paid') || b.status === 'otp_sent').length;
+        }
+
+        if (results.flights && results.flights.data) {
+          count += results.flights.data.filter((b: any) => (b.status === 'pending' && b.payment_status !== 'paid') || b.status === 'otp_sent').length;
+        }
+
+        if (results.hotels && results.hotels.data) {
+          count += results.hotels.data.filter((b: any) => (b.status === 'pending' && b.payment_status !== 'paid') || b.status === 'otp_sent').length;
+        }
+
+        this.pendingPaymentCount = count;
+      },
+      error: () => {
+        // Silent fail
+      }
+    });
   }
 
   checkIfHomePage(): void {

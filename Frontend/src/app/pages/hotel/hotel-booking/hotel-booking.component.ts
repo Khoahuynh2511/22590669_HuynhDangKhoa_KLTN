@@ -68,14 +68,21 @@ export class HotelBookingComponent implements OnInit {
       this.checkOut = params['check_out'] || '';
       this.numRooms = parseInt(params['rooms']) || 1;
       this.numGuests = parseInt(params['guests']) || 2;
+      
+      this.calculateNightsAndTotal();
     });
 
+    await this.loadHotel();
+  }
+
+  calculateNightsAndTotal() {
     if (this.checkIn && this.checkOut) {
       const diff = new Date(this.checkOut).getTime() - new Date(this.checkIn).getTime();
       this.nights = Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    } else {
+      this.nights = 1;
     }
-
-    await this.loadHotel();
+    this.totalPrice = this.hotelPrice * this.nights * this.numRooms;
   }
 
   async loadHotel() {
@@ -89,7 +96,7 @@ export class HotelBookingComponent implements OnInit {
         this.hotelPrice = h.price || 0;
         this.hotelStarRating = h.star_rating || 0;
         this.hotelImage = h.image_urls ? h.image_urls.split('|')[0] : '';
-        this.totalPrice = this.hotelPrice * this.nights * this.numRooms;
+        this.calculateNightsAndTotal();
       } else {
         this.errorMessage = 'Không tìm thấy khách sạn';
       }

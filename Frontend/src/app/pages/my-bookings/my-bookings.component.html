@@ -1327,6 +1327,11 @@
       </div>
       <h3 class="delete-modal-title">Hủy đơn hàng?</h3>
       <p class="delete-modal-message">Bạn có chắc chắn muốn hủy đơn này không? Hành động này không thể hoàn tác.</p>
+      @if (errorMessage) {
+        <div class="alert alert-error text-sm my-2" style="background-color: #fef2f2; color: #dc2626; padding: 8px 12px; border-radius: 6px; border: 1px solid #fecaca; margin-bottom: 12px; font-weight: 550;">
+          {{ errorMessage }}
+        </div>
+      }
 
       <div class="delete-modal-actions">
         <button (click)="cancelDelete()" class="delete-btn cancel">Giữ lại</button>

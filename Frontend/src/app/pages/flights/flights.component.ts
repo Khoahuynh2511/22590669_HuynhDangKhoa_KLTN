@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FlightService, Airport, Flight } from '../../services/flight.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { paginateSlice } from '../../shared/utils/pagination.util';
@@ -49,12 +49,38 @@ export class FlightsComponent implements OnInit {
     { from: 'DAD', to: 'SGN', fromCity: 'Đà Nẵng', toCity: 'TP. Hồ Chí Minh', airline: 'Vietnam Airlines', duration: '1h 20m', price: 1090000 },
   ];
 
-  constructor(private flightService: FlightService, private router: Router) {}
+  constructor(
+    private flightService: FlightService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
   async ngOnInit() {
     try {
       const res = await this.flightService.getAirports();
       if (res.EC === 0) this.airports = res.data;
+
+      this.route.queryParams.subscribe(params => {
+        let hasParams = false;
+        if (params['departure']) {
+          this.departure = params['departure'];
+          hasParams = true;
+        }
+        if (params['destination']) {
+          this.destination = params['destination'];
+          hasParams = true;
+        }
+        if (params['date']) {
+          this.departureDate = params['date'];
+        }
+        if (params['passengers']) {
+          this.passengers = parseInt(params['passengers']) || 1;
+        }
+
+        if (hasParams && this.departure && this.destination) {
+          this.onSearch();
+        }
+      });
     } catch (e) {
       console.error('Error loading airports:', e);
     }

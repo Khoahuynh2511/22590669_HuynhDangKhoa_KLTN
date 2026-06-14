@@ -678,7 +678,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   }
 
   canCancelTransport(status: string): boolean {
-    return status === 'confirmed' || status === 'otp_sent';
+    return status === 'confirmed' || status === 'otp_sent' || status === 'pending';
   }
 
   printTransportBill(): void {

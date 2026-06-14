@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TrainService, Train, TrainStation } from '../../services/train.service';
 import { PaginationComponent } from '../../components/pagination/pagination.component';
 import { paginateSlice } from '../../shared/utils/pagination.util';
@@ -52,12 +52,38 @@ export class TrainsComponent implements OnInit {
     { from: 'DNA', to: 'HUE', fromCity: 'Đà Nẵng', toCity: 'Huế', duration: '2h30', price: 80000 },
   ];
 
-  constructor(private trainService: TrainService, private router: Router) {}
+  constructor(
+    private trainService: TrainService,
+    private router: Router,
+    private route: ActivatedRoute
+  ) {}
 
   async ngOnInit() {
     try {
       const res = await this.trainService.getStations();
       if (res.EC === 0) this.stations = res.data;
+
+      this.route.queryParams.subscribe(params => {
+        let hasParams = false;
+        if (params['departure']) {
+          this.departure = params['departure'];
+          hasParams = true;
+        }
+        if (params['destination']) {
+          this.destination = params['destination'];
+          hasParams = true;
+        }
+        if (params['date']) {
+          this.departureDate = params['date'];
+        }
+        if (params['passengers']) {
+          this.passengers = parseInt(params['passengers']) || 1;
+        }
+
+        if (hasParams && this.departure && this.destination) {
+          this.onSearch();
+        }
+      });
     } catch (e) { console.error(e); }
   }
 

@@ -1,9 +1,9 @@
-﻿:host {
+@use '../../styles/ticket-search-form.scss';
+
+:host {
   display: block;
   padding-top: 126px;
 }
-
-@import '../../styles/ticket-search-form.scss';
 
 @media (max-width: 768px) {
   :host {

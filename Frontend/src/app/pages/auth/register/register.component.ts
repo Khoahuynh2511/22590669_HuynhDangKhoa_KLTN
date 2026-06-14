@@ -3,10 +3,13 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../services/auth.service';
+import { MessageService } from 'primeng/api';
+import { ToastModule } from 'primeng/toast';
 
 @Component({
   selector: 'app-register',
-  imports: [FormsModule, RouterLink, CommonModule],
+  imports: [FormsModule, RouterLink, CommonModule, ToastModule],
+  providers: [MessageService],
   templateUrl: './register.component.html',
   styleUrl: './register.component.scss'
 })
@@ -44,7 +47,8 @@ export class RegisterComponent {
 
   constructor(
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private messageService: MessageService
   ) { }
 
   onPasswordChange() {
@@ -86,13 +90,38 @@ export class RegisterComponent {
             console.log('Register success:', response);
             this.isLoading = false;
             if (response.EC === 0) {
-              this.router.navigate(['/login']);
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Đăng ký thành công',
+                detail: 'Tài khoản của bạn đã được tạo thành công! Đang chuyển hướng đến trang Đăng nhập...',
+                life: 2000
+              });
+              setTimeout(() => {
+                this.router.navigate(['/login']);
+              }, 2000);
+            } else {
+              let errMsg = response.EM;
+              if (errMsg === 'Email already exists') {
+                errMsg = 'Email này đã được đăng ký trong hệ thống. Vui lòng sử dụng email khác.';
+              }
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Đăng ký thất bại',
+                detail: errMsg || 'Đăng ký không thành công. Vui lòng thử lại.',
+                life: 4000
+              });
             }
           },
           error: (error) => {
             console.error('Register error:', error);
             this.isLoading = false;
-            // Error handling - removed alert
+            const errMsg = error.error?.EM || error.message || 'Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại sau.';
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Lỗi hệ thống',
+              detail: errMsg,
+              life: 4000
+            });
           }
         });
       }
@@ -107,11 +136,35 @@ export class RegisterComponent {
           next: (response) => {
             console.log('Phone register success:', response);
             this.isLoading = false;
-            // this.router.navigate(['/login']);
+            if (response.success || response.EC === 0) {
+              this.messageService.add({
+                severity: 'success',
+                summary: 'Đăng ký thành công',
+                detail: 'Tài khoản của bạn đã được tạo thành công! Đang chuyển hướng đến trang Đăng nhập...',
+                life: 2000
+              });
+              setTimeout(() => {
+                this.router.navigate(['/login']);
+              }, 2000);
+            } else {
+              this.messageService.add({
+                severity: 'error',
+                summary: 'Đăng ký thất bại',
+                detail: response.EM || 'Đăng ký không thành công. Vui lòng thử lại.',
+                life: 4000
+              });
+            }
           },
           error: (error) => {
             console.error('Phone register error:', error);
             this.isLoading = false;
+            const errMsg = error.error?.EM || error.message || 'Đăng ký bằng số điện thoại thất bại. Vui lòng thử lại.';
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Lỗi',
+              detail: errMsg,
+              life: 4000
+            });
           }
         });
       }
@@ -129,10 +182,22 @@ export class RegisterComponent {
         console.log('OTP sent:', response);
         this.otpSent = true;
         this.isLoading = false;
+        this.messageService.add({
+          severity: 'info',
+          summary: 'Đã gửi mã OTP',
+          detail: 'Mã OTP đã được gửi đến số điện thoại của bạn.',
+          life: 3000
+        });
       },
       error: (error) => {
         console.error('OTP send error:', error);
         this.isLoading = false;
+        this.messageService.add({
+          severity: 'error',
+          summary: 'Không gửi được OTP',
+          detail: error.message || 'Gửi mã OTP thất bại. Vui lòng thử lại.',
+          life: 3000
+        });
       }
     });
   }
@@ -143,18 +208,5 @@ export class RegisterComponent {
     this.sendOTP();
   }
 
-  onGoogleRegister() {
-    this.isLoading = true;
-    this.authService.registerWithGoogle().subscribe({
-      next: (response) => {
-        console.log('Google register success:', response);
-        this.isLoading = false;
-        // this.router.navigate(['/home']);
-      },
-      error: (error) => {
-        console.error('Google register error:', error);
-        this.isLoading = false;
-      }
-    });
-  }
+
 }

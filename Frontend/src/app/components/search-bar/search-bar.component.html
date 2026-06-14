@@ -23,48 +23,66 @@
       <div class="hotel-search-grid">
         <div class="search-field">
           <label class="field-label">Địa điểm</label>
-          <input
-            type="text"
-            [(ngModel)]="hotelSearchObj.name"
-            placeholder="Hồ Chí Minh, Đà Nẵng, Nha Trang..."
-            class="field-input"
-            (keydown.enter)="bindSearch()" />
+          <div class="input-wrapper">
+            <i class="fa-solid fa-location-dot field-icon"></i>
+            <input
+              type="text"
+              [(ngModel)]="hotelSearchObj.name"
+              placeholder="Hồ Chí Minh, Đà Nẵng, Nha Trang..."
+              class="field-input"
+              (keydown.enter)="bindSearch()" />
+          </div>
         </div>
 
         <div class="search-field">
           <label class="field-label">Nhận phòng</label>
-          <input
-            type="date"
-            [(ngModel)]="hotelSearchObj.checkIn"
-            class="field-input" />
+          <div class="input-wrapper">
+            <i class="fa-regular fa-calendar field-icon"></i>
+            <input
+              type="date"
+              [(ngModel)]="hotelSearchObj.checkIn"
+              [min]="minDate"
+              (change)="onCheckInChange()"
+              class="field-input" />
+          </div>
         </div>
 
         <div class="search-field">
           <label class="field-label">Trả phòng</label>
-          <input
-            type="date"
-            [(ngModel)]="hotelSearchObj.checkOut"
-            class="field-input" />
+          <div class="input-wrapper">
+            <i class="fa-regular fa-calendar field-icon"></i>
+            <input
+              type="date"
+              [(ngModel)]="hotelSearchObj.checkOut"
+              [min]="minCheckOutDate"
+              class="field-input" />
+          </div>
         </div>
 
         <div class="search-field search-field-sm">
           <label class="field-label">Khách</label>
-          <input
-            type="number"
-            [(ngModel)]="hotelSearchObj.guests"
-            min="1"
-            max="20"
-            class="field-input" />
+          <div class="input-wrapper">
+            <i class="fa-solid fa-users field-icon"></i>
+            <input
+              type="number"
+              [(ngModel)]="hotelSearchObj.guests"
+              min="1"
+              max="20"
+              class="field-input" />
+          </div>
         </div>
 
         <div class="search-field search-field-sm">
           <label class="field-label">Phòng</label>
-          <input
-            type="number"
-            [(ngModel)]="hotelSearchObj.rooms"
-            min="1"
-            max="10"
-            class="field-input" />
+          <div class="input-wrapper">
+            <i class="fa-solid fa-bed field-icon"></i>
+            <input
+              type="number"
+              [(ngModel)]="hotelSearchObj.rooms"
+              min="1"
+              max="10"
+              class="field-input" />
+          </div>
         </div>
 
         <div class="search-field search-action">

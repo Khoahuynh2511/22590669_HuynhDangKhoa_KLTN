@@ -56,6 +56,14 @@ export class HotelService {
     return this.http.get<{ EC: number; EM: string; data: string[] }>(`${this.apiBaseUrl}/hotels/locations`);
   }
 
+  searchHotels(search: string, limit: number = 5): Observable<HotelListResponse> {
+    const params: string[] = [];
+    if (search) params.push(`search=${encodeURIComponent(search)}`);
+    params.push(`limit=${limit}`);
+    const query = params.length ? `?${params.join('&')}` : '';
+    return this.http.get<HotelListResponse>(`${this.apiBaseUrl}/hotels${query}`);
+  }
+
   public filterHotels(
     name?: string,
     location?: string,

@@ -1,10 +1,8 @@
 import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DecimalPipe } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { StateHotel } from '../../shared/models/hotelState.model';
-
-
 
 @Component({
   selector: 'app-hotel-card',
@@ -17,10 +15,31 @@ export class HotelCardComponent {
 
   @Input('hotel') public hotel!: StateHotel;
 
-  constructor(private router: Router, private decimalPipe: DecimalPipe) { }
+  constructor(
+    private router: Router,
+    private decimalPipe: DecimalPipe,
+    private route: ActivatedRoute
+  ) { }
+
+  get nights(): number {
+    const qp = this.route.snapshot.queryParams;
+    const checkIn = qp['check_in'];
+    const checkOut = qp['check_out'];
+    if (!checkIn || !checkOut) return 1;
+    const diff = new Date(checkOut).getTime() - new Date(checkIn).getTime();
+    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+  }
 
   toDetail(_param?: string): void {
-    this.router.navigate(['hotel/detail', this.hotel.hotel_id]);
+    const qp = this.route.snapshot.queryParams;
+    this.router.navigate(['hotel/detail', this.hotel.hotel_id], {
+      queryParams: {
+        check_in: qp['check_in'] || null,
+        check_out: qp['check_out'] || null,
+        rooms: qp['rooms'] || null,
+        guests: qp['guests'] || null
+      }
+    });
   }
 
   onSelectClick(event: Event): void {

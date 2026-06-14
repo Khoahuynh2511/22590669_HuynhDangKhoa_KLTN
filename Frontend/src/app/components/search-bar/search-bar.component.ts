@@ -1,7 +1,7 @@
-import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, Output, OnChanges, SimpleChanges, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 
 export interface HotelSearchData {
   name: string;
@@ -24,7 +24,7 @@ export interface TourSearchData {
   templateUrl: './search-bar.component.html',
   styleUrl: './search-bar.component.scss'
 })
-export class SearchBarComponent implements OnChanges {
+export class SearchBarComponent implements OnChanges, OnInit {
   @Input() searchType: 'hotel' | 'tour' = 'hotel';
   @Input() showTabs = true;
   @Input() initialQueryText = '';
@@ -41,7 +41,41 @@ export class SearchBarComponent implements OnChanges {
 
   queryText = '';
 
-  constructor(private router: Router) {}
+  constructor(private router: Router, private route: ActivatedRoute) {}
+
+  get minDate(): string {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  get minCheckOutDate(): string {
+    return this.hotelSearchObj.checkIn || this.minDate;
+  }
+
+  onCheckInChange(): void {
+    if (this.hotelSearchObj.checkIn && this.hotelSearchObj.checkOut) {
+      if (new Date(this.hotelSearchObj.checkOut) < new Date(this.hotelSearchObj.checkIn)) {
+        this.hotelSearchObj.checkOut = this.hotelSearchObj.checkIn;
+      }
+    }
+  }
+
+  ngOnInit(): void {
+    this.route.queryParams.subscribe(params => {
+      if (this.searchType === 'hotel') {
+        if (params['check_in']) this.hotelSearchObj.checkIn = params['check_in'];
+        if (params['check_out']) this.hotelSearchObj.checkOut = params['check_out'];
+        if (params['rooms']) this.hotelSearchObj.rooms = parseInt(params['rooms']) || 1;
+        if (params['guests']) this.hotelSearchObj.guests = parseInt(params['guests']) || 2;
+        if (params['q']) this.hotelSearchObj.name = params['q'];
+      } else {
+        if (params['q']) this.queryText = params['q'];
+      }
+    });
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['initialQueryText'] && this.initialQueryText !== undefined) {

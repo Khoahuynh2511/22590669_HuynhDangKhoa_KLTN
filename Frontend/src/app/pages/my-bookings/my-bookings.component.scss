@@ -576,16 +576,22 @@ $purple-color: $purple;
   }
 
   &.pay {
-    background: $ink;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    border: none;
 
     &:hover:not(:disabled) {
-      background: #1e293b;
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+      transform: translateY(-1px);
     }
 
     &:disabled {
       opacity: 0.55;
       cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
     }
   }
 
