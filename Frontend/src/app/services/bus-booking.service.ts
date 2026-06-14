@@ -10,6 +10,7 @@ export interface BusBookingCreateRequest {
   passenger_name: string;
   passenger_email: string;
   passenger_phone: string;
+  selected_seats?: string;
 }
 
 export interface BusBookingOTPResponse {
@@ -52,6 +53,7 @@ export interface BusBookingDetail {
   total_price: number;
   created_at: string;
   updated_at: string;
+  selected_seats?: string;
   bus: {
     bus_id: string;
     bus_number: string;
@@ -126,6 +128,13 @@ export class BusBookingService {
     return this.http.post<BusBookingOTPResponse>(
       `${this.apiBaseUrl}/${bookingId}/cancel`,
       { reason },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getOccupiedSeats(busId: string): Observable<{ EC: number; EM: string; data: string[] }> {
+    return this.http.get<{ EC: number; EM: string; data: string[] }>(
+      `${this.apiBaseUrl}/occupied-seats/${busId}`,
       { headers: this.getHeaders() }
     );
   }

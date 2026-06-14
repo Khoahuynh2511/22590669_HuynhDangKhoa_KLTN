@@ -5,12 +5,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { BusBookingService, BusBookingCreateRequest } from '../../../services/bus-booking.service';
 import { Bus } from '../../../services/bus.service';
 import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
+import { SeatSelectionComponent } from '../../../components/seat-selection/seat-selection.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-bus-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, OtpPopupComponent],
+  imports: [CommonModule, FormsModule, OtpPopupComponent, SeatSelectionComponent],
   templateUrl: './bus-booking.component.html',
   styleUrl: './bus-booking.component.scss'
 })
@@ -19,7 +20,8 @@ export class BusBookingComponent implements OnInit {
   busId: string = '';
 
   selectedSeatType: string = '';
-  numPassengers: number = 1;
+  numPassengers: number = 0; // starts at 0, updated by seat selection
+  selectedSeats: string[] = [];
   passengerName: string = '';
   passengerEmail: string = '';
   passengerPhone: string = '';
@@ -70,7 +72,13 @@ export class BusBookingComponent implements OnInit {
   updatePrice() {
     if (!this.bus || !this.selectedSeatType) return;
     this.unitPrice = this.bus.seats[this.selectedSeatType]?.price || 0;
-    this.totalPrice = this.unitPrice * this.numPassengers;
+    this.totalPrice = this.unitPrice * (this.selectedSeats.length || 1);
+  }
+
+  onSeatsSelected(seats: string[]) {
+    this.selectedSeats = seats;
+    this.numPassengers = seats.length;
+    this.updatePrice();
   }
 
   getSeatTypeEntries(): { key: string; name: string; price: number; available: number; desc: string }[] {
@@ -105,6 +113,7 @@ export class BusBookingComponent implements OnInit {
 
   async submitBooking() {
     if (!this.selectedSeatType) { this.errorMessage = 'Vui lòng chọn loại ghế'; return; }
+    if (this.selectedSeats.length === 0) { this.errorMessage = 'Vui lòng chọn ít nhất một ghế trên sơ đồ'; return; }
     if (!this.passengerName || !this.passengerEmail || !this.passengerPhone) {
       this.errorMessage = 'Vui lòng điền đầy đủ thông tin liên hệ'; return;
     }
@@ -116,7 +125,8 @@ export class BusBookingComponent implements OnInit {
       const data: BusBookingCreateRequest = {
         bus_id: this.busId, seat_type_id: this.selectedSeatType,
         num_passengers: this.numPassengers, passenger_name: this.passengerName,
-        passenger_email: this.passengerEmail, passenger_phone: this.passengerPhone
+        passenger_email: this.passengerEmail, passenger_phone: this.passengerPhone,
+        selected_seats: this.selectedSeats.join(',')
       };
       const response = await firstValueFrom(this.busBookingService.createBooking(data));
       if (response.EC === 0 && response.data) {

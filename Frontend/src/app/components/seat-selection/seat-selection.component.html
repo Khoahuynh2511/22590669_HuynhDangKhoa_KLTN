@@ -1,0 +1,238 @@
+<div class="seat-map-container" [class.bus-theme]="type === 'bus'" [class.train-theme]="type === 'train'" [class.flight-theme]="type === 'flight'">
+  <div class="seat-map-header">
+    <h3 class="seat-map-title">
+      <i class="fas" [class.fa-bus]="type === 'bus'" [class.fa-train]="type === 'train'" [class.fa-plane]="type === 'flight'"></i>
+      Chọn vị trí ghế ngồi
+    </h3>
+    <p class="seat-map-subtitle">Vui lòng chọn ghế bạn muốn ngồi trên chuyến đi. Bạn có thể chọn tối đa {{ maxSeats }} ghế.</p>
+  </div>
+
+  <!-- Legend -->
+  <div class="seat-legend">
+    <div class="legend-item">
+      <div class="legend-color seat-available"></div>
+      <span class="legend-label">Ghế trống</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color seat-selected"></div>
+      <span class="legend-label">Đang chọn</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color seat-occupied"></div>
+      <span class="legend-label">Đã đặt / Khóa</span>
+    </div>
+  </div>
+
+  @if (isLoading) {
+    <div class="seat-loading">
+      <div class="spinner"></div>
+      <p>Đang tải sơ đồ ghế...</p>
+    </div>
+  } @else {
+    <!-- 1. BUS VIEW -->
+    @if (type === 'bus') {
+      <div class="bus-deck-toggle">
+        <button type="button" class="deck-btn" [class.active]="activeDeck === 'lower'" (click)="activeDeck = 'lower'">
+          Tầng dưới (Lower Deck)
+        </button>
+        <button type="button" class="deck-btn" [class.active]="activeDeck === 'upper'" (click)="activeDeck = 'upper'">
+          Tầng trên (Upper Deck)
+        </button>
+      </div>
+
+      <div class="vehicle-body bus-body">
+        <div class="driver-cabin">
+          <div class="steering-wheel">
+            <i class="fas fa-dharmachakra"></i>
+          </div>
+          <span class="cabin-label">Tài xế</span>
+        </div>
+
+        <div class="seats-grid bus-grid">
+          <!-- Aisle columns & sleeper rows -->
+          @for (rowNum of [1, 2, 3, 4, 5, 6]; track rowNum) {
+            <div class="bus-row">
+              @for (colLetter of ['A', 'B', 'C']; track colLetter) {
+                @for (seat of getSeatsByDeck(activeDeck); track seat.code) {
+                  @if (seat.row === rowNum && seat.col === colLetter) {
+                    <button type="button"
+                      class="seat-item sleeper"
+                      [class.available]="seat.status === 'available'"
+                      [class.selected]="seat.status === 'selected'"
+                      [class.occupied]="seat.status === 'occupied'"
+                      [disabled]="seat.status === 'occupied'"
+                      (click)="selectSeat(seat)">
+                      <span class="seat-code">{{ seat.code }}</span>
+                      <span class="seat-icon-inner"><i class="fas fa-bed"></i></span>
+                    </button>
+                  }
+                }
+                <!-- Aisle between columns A & B, and B & C can be handled by css grid gaps -->
+              }
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- 2. TRAIN VIEW -->
+    @if (type === 'train') {
+      <div class="vehicle-body train-body">
+        <div class="train-carriage-header">
+          <span class="carriage-label">Toa hành khách số 02</span>
+        </div>
+
+        <div class="train-cabins">
+          @for (cabinNum of [1, 2, 3, 4, 5, 6]; track cabinNum) {
+            <div class="train-cabin-box">
+              <div class="cabin-title">Khoang {{ cabinNum }}</div>
+              <div class="train-beds-grid">
+                <!-- Upper/Lower Beds layout inside cabin -->
+                @for (seat of getSeatsByCabin(cabinNum); track seat.code) {
+                  <button type="button"
+                    class="seat-item bed"
+                    [class.available]="seat.status === 'available'"
+                    [class.selected]="seat.status === 'selected'"
+                    [class.occupied]="seat.status === 'occupied'"
+                    [disabled]="seat.status === 'occupied'"
+                    (click)="selectSeat(seat)">
+                    <span class="seat-code">{{ seat.code.split('-')[1] }}</span>
+                    <span class="seat-icon-inner"><i class="fas fa-couch"></i></span>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- 3. FLIGHT VIEW -->
+    @if (type === 'flight') {
+      <div class="airplane-container">
+        <!-- SVG/CSS Airplane outline wrapper -->
+        <div class="vehicle-body airplane-body">
+          <div class="cockpit">
+            <div class="cockpit-windows"></div>
+            <span class="cabin-label">Buồng lái</span>
+          </div>
+
+          <div class="airplane-aisle-grid">
+            <!-- Business Class Divider -->
+            <div class="class-divider">Hạng Thương Gia (Business Class)</div>
+
+            @for (rowNum of [1, 2, 3]; track rowNum) {
+              <div class="airplane-row business-row">
+                <div class="seat-pair left-pair">
+                  @for (colLetter of ['A', 'C']; track colLetter) {
+                    @for (seat of getSeatsByRow(rowNum); track seat.code) {
+                      @if (seat.col === colLetter) {
+                        <button type="button"
+                          class="seat-item flight-seat premium"
+                          [class.available]="seat.status === 'available'"
+                          [class.selected]="seat.status === 'selected'"
+                          [class.occupied]="seat.status === 'occupied'"
+                          [disabled]="seat.status === 'occupied'"
+                          (click)="selectSeat(seat)">
+                          <span class="seat-code">{{ seat.code }}</span>
+                          <span class="seat-icon-inner"><i class="fas fa-chair"></i></span>
+                        </button>
+                      }
+                    }
+                  }
+                </div>
+                
+                <div class="airplane-aisle-label">{{ rowNum }}</div>
+
+                <div class="seat-pair right-pair">
+                  @for (colLetter of ['D', 'F']; track colLetter) {
+                    @for (seat of getSeatsByRow(rowNum); track seat.code) {
+                      @if (seat.col === colLetter) {
+                        <button type="button"
+                          class="seat-item flight-seat premium"
+                          [class.available]="seat.status === 'available'"
+                          [class.selected]="seat.status === 'selected'"
+                          [class.occupied]="seat.status === 'occupied'"
+                          [disabled]="seat.status === 'occupied'"
+                          (click)="selectSeat(seat)">
+                          <span class="seat-code">{{ seat.code }}</span>
+                          <span class="seat-icon-inner"><i class="fas fa-chair"></i></span>
+                        </button>
+                      }
+                    }
+                  }
+                </div>
+              </div>
+            }
+
+            <!-- Economy Class Divider -->
+            <div class="class-divider">Hạng Phổ Thông (Economy Class)</div>
+
+            @for (rowNum of [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; track rowNum) {
+              <div class="airplane-row economy-row">
+                <div class="seat-trio left-trio">
+                  @for (colLetter of ['A', 'B', 'C']; track colLetter) {
+                    @for (seat of getSeatsByRow(rowNum); track seat.code) {
+                      @if (seat.col === colLetter) {
+                        <button type="button"
+                          class="seat-item flight-seat"
+                          [class.available]="seat.status === 'available'"
+                          [class.selected]="seat.status === 'selected'"
+                          [class.occupied]="seat.status === 'occupied'"
+                          [disabled]="seat.status === 'occupied'"
+                          (click)="selectSeat(seat)">
+                          <span class="seat-code">{{ seat.code }}</span>
+                          <span class="seat-icon-inner"><i class="fas fa-chair"></i></span>
+                        </button>
+                      }
+                    }
+                  }
+                </div>
+
+                <div class="airplane-aisle-label">{{ rowNum }}</div>
+
+                <div class="seat-trio right-trio">
+                  @for (colLetter of ['D', 'E', 'F']; track colLetter) {
+                    @for (seat of getSeatsByRow(rowNum); track seat.code) {
+                      @if (seat.col === colLetter) {
+                        <button type="button"
+                          class="seat-item flight-seat"
+                          [class.available]="seat.status === 'available'"
+                          [class.selected]="seat.status === 'selected'"
+                          [class.occupied]="seat.status === 'occupied'"
+                          [disabled]="seat.status === 'occupied'"
+                          (click)="selectSeat(seat)">
+                          <span class="seat-code">{{ seat.code }}</span>
+                          <span class="seat-icon-inner"><i class="fas fa-chair"></i></span>
+                        </button>
+                      }
+                    }
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Selection summary -->
+  <div class="selection-summary-footer">
+    <div class="summary-info">
+      <span class="summary-label">Ghế đã chọn:</span>
+      <span class="summary-value">
+        @if (selectedSeatsList.length > 0) {
+          {{ selectedSeatsList.join(', ') }}
+        } @else {
+          <span class="no-selection">Chưa có ghế nào được chọn</span>
+        }
+      </span>
+    </div>
+    @if (selectedSeatsList.length > 0) {
+      <div class="summary-badge">
+        {{ selectedSeatsList.length }} vé
+      </div>
+    }
+  </div>
+</div>

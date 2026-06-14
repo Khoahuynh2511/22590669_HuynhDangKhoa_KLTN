@@ -116,6 +116,7 @@ class ReviewService:
                             "rating": row['rating'],
                             "comment": row['comment'],
                             "status": row['status'],
+                            "is_approved": row['status'] == 'approved',
                             "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                             "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
                             "user_full_name": row.get('user_full_name'),
@@ -181,6 +182,7 @@ class ReviewService:
                     review['booking_id'] = str(review['booking_id']) if review['booking_id'] else None
                     review['user_id'] = str(review['user_id']) if review['user_id'] else None
                     review['package_id'] = str(review['package_id']) if review['package_id'] else None
+                    review['is_approved'] = review.get('status') == 'approved'
                     review['created_at'] = review['created_at'].isoformat() if review['created_at'] else None
                     review['updated_at'] = review['updated_at'].isoformat() if review['updated_at'] else None
 
@@ -241,6 +243,7 @@ class ReviewService:
                         "rating": row['rating'],
                         "comment": row['comment'],
                         "status": row['status'],
+                        "is_approved": row['status'] == 'approved',
                         "created_at": row['created_at'].isoformat() if row['created_at'] else None,
                         "updated_at": row['updated_at'].isoformat() if row['updated_at'] else None,
                         "user_full_name": row.get('user_full_name'),
@@ -367,6 +370,7 @@ class ReviewService:
                     result['booking_id'] = str(result['booking_id'])
                     result['user_id'] = str(result['user_id'])
                     result['package_id'] = str(result['package_id'])
+                    result['is_approved'] = result.get('status') == 'approved'
                     result['created_at'] = result['created_at'].isoformat()
                     result['updated_at'] = result['updated_at'].isoformat()
 
@@ -431,6 +435,17 @@ class ReviewService:
                                 "data": None
                             }
 
+                    # Map is_approved boolean to status string if present in update_data
+                    if 'is_approved' in update_data:
+                        if not is_admin:
+                            return {
+                                "EC": 3,
+                                "EM": "Only admins can change review status",
+                                "data": None
+                            }
+                        is_approved_val = update_data.pop('is_approved')
+                        update_data['status'] = 'approved' if is_approved_val else 'rejected'
+
                     # Only admin can update status
                     if 'status' in update_data and not is_admin:
                         return {
@@ -486,6 +501,7 @@ class ReviewService:
                     result['booking_id'] = str(result['booking_id']) if result['booking_id'] else None
                     result['user_id'] = str(result['user_id']) if result['user_id'] else None
                     result['package_id'] = str(result['package_id']) if result['package_id'] else None
+                    result['is_approved'] = result.get('status') == 'approved'
                     result['created_at'] = result['created_at'].isoformat() if result['created_at'] else None
                     result['updated_at'] = result['updated_at'].isoformat() if result['updated_at'] else None
 

@@ -86,6 +86,7 @@ class PaymentService:
                         RETURNING payment_id, booking_id, amount, payment_method, status, created_at
                     """, (booking_id, amount, payment_method, now))
                     payment = dict(cur.fetchone())
+                    payment["payment_status"] = payment["status"]
                     conn.commit()
 
                     # 5. Generate VNPay URL
@@ -132,6 +133,9 @@ class PaymentService:
                 with conn.cursor() as cur:
                     cur.execute("SELECT * FROM payments WHERE payment_id = %s", (payment_id,))
                     payment = dict(cur.fetchone()) if cur.rowcount else {}
+                    if payment:
+                        payment["payment_status"] = payment["status"]
+                        payment["amount"] = float(payment["amount"])
 
             payment['payment_url'] = payment_url
             return {"EC": 0, "EM": "Payment URL regenerated", "data": payment}
@@ -151,7 +155,14 @@ class PaymentService:
             if not payment:
                 return {"EC": 1, "EM": "Payment not found", "data": None}
 
-            return {"EC": 0, "EM": "Success", "data": dict(payment)}
+            payment_dict = dict(payment)
+            payment_dict["payment_status"] = payment_dict["status"]
+            payment_dict["amount"] = float(payment_dict["amount"])
+            if payment_dict.get("booking_type") == "flight" and payment_dict.get("flight_booking_id"):
+                payment_dict["booking_id"] = payment_dict["flight_booking_id"]
+            elif payment_dict.get("booking_type") == "train" and payment_dict.get("train_booking_id"):
+                payment_dict["booking_id"] = payment_dict["train_booking_id"]
+            return {"EC": 0, "EM": "Success", "data": payment_dict}
 
         except Exception as e:
             logger.error(f"Error getting payment {payment_id}: {str(e)}")
@@ -163,14 +174,25 @@ class PaymentService:
             with self._pg_conn() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        SELECT * FROM payments WHERE booking_id = %s ORDER BY created_at DESC LIMIT 1
-                    """, (booking_id,))
+                        SELECT * FROM payments 
+                        WHERE booking_id = %s 
+                           OR flight_booking_id = %s 
+                           OR train_booking_id = %s 
+                        ORDER BY created_at DESC LIMIT 1
+                    """, (booking_id, booking_id, booking_id))
                     payment = cur.fetchone()
 
             if not payment:
                 return {"EC": 1, "EM": "Payment not found for this booking", "data": None}
 
-            return {"EC": 0, "EM": "Success", "data": dict(payment)}
+            payment_dict = dict(payment)
+            payment_dict["payment_status"] = payment_dict["status"]
+            payment_dict["amount"] = float(payment_dict["amount"])
+            if payment_dict.get("booking_type") == "flight" and payment_dict.get("flight_booking_id"):
+                payment_dict["booking_id"] = payment_dict["flight_booking_id"]
+            elif payment_dict.get("booking_type") == "train" and payment_dict.get("train_booking_id"):
+                payment_dict["booking_id"] = payment_dict["train_booking_id"]
+            return {"EC": 0, "EM": "Success", "data": payment_dict}
 
         except Exception as e:
             logger.error(f"Error getting payment for booking {booking_id}: {str(e)}")
@@ -202,8 +224,10 @@ class PaymentService:
             if not payment:
                 return {"EC": 1, "EM": "Payment not found", "data": None}
 
+            payment_dict = dict(payment)
+            payment_dict["payment_status"] = payment_dict["status"]
             logger.info(f"Updated payment {payment_id} status to {status}")
-            return {"EC": 0, "EM": "Payment status updated", "data": dict(payment)}
+            return {"EC": 0, "EM": "Payment status updated", "data": payment_dict}
 
         except Exception as e:
             logger.error(f"Error updating payment {payment_id}: {str(e)}")
@@ -336,30 +360,32 @@ class PaymentService:
                         return {"EC": 3, "EM": "Booking already paid", "data": None}
 
                     cur.execute(
-                        f"SELECT payment_id, status FROM payments WHERE {id_col} = %s AND status IN ('pending', 'completed')",
+                        f"SELECT * FROM payments WHERE {id_col} = %s AND status IN ('pending', 'completed')",
                         (booking_id,)
                     )
                     existing = cur.fetchone()
                     if existing:
-                        if existing["status"] == "completed":
+                        existing_payment = dict(existing)
+                        if existing_payment["status"] == "completed":
                             return {"EC": 3, "EM": "Already paid", "data": None}
                         amount = float(booking["total_price"])
                         order_info = f"Thanh toan ve {'may bay' if booking_type == 'flight' else 'tau'} {booking_id}"
                         payment_url = self.vnpay_service.create_payment_url(
-                            payment_id=str(existing["payment_id"]),
+                            payment_id=str(existing_payment["payment_id"]),
                             amount=amount,
                             order_info=order_info,
                             ip_addr=ip_addr,
                             client_return_url=client_return_url
                         )
+                        existing_payment["payment_url"] = payment_url
+                        existing_payment["payment_status"] = existing_payment["status"]
+                        existing_payment["booking_id"] = booking_id
+                        existing_payment["amount"] = float(existing_payment["amount"])
                         return {
                             "EC": 0,
                             "EM": "Payment URL regenerated",
-                            "data": {
-                                "payment_id": str(
-                                    existing["payment_id"]),
-                                "payment_url": payment_url,
-                                "amount": amount}}
+                            "data": existing_payment
+                        }
 
                     amount = float(booking["total_price"])
                     now = datetime.now(timezone.utc)
@@ -372,6 +398,8 @@ class PaymentService:
                          payment_method,
                          now))
                     payment = dict(cur.fetchone())
+                    payment["payment_status"] = payment["status"]
+                    payment["amount"] = float(payment["amount"])
                     conn.commit()
 
                     order_info = f"Thanh toan ve {'may bay' if booking_type == 'flight' else 'tau'} {booking_id}"
@@ -387,8 +415,7 @@ class PaymentService:
                     payment["booking_type"] = booking_type
                     payment["booking_id"] = booking_id
                     logger.info(
-                        f"Created transport payment {
-                            payment['payment_id']} for {booking_type} booking {booking_id}")
+                        f"Created transport payment {payment['payment_id']} for {booking_type} booking {booking_id}")
 
                     return {"EC": 0, "EM": "Payment created successfully", "data": payment}
 
@@ -506,6 +533,7 @@ class PaymentService:
                         RETURNING *
                     """, (booking_id, booking['total_amount'], payment_method, transaction_id, now, now))
                     payment = dict(cur.fetchone())
+                    payment["payment_status"] = payment["status"]
 
                     # 4. Cập nhật booking status
                     cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
@@ -572,6 +600,8 @@ class PaymentService:
                         """, (booking_id, booking['total_amount'], now, now))
                         payment = dict(cur.fetchone())
 
+                    payment["payment_status"] = payment["status"]
+
                     # Update booking status
                     cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
                     conn.commit()
@@ -635,6 +665,7 @@ class PaymentService:
                         WHERE payment_id = %s RETURNING *
                     """, (now, payment['amount'], refund_reason, payment_id))
                     refunded = dict(cur.fetchone())
+                    refunded["payment_status"] = refunded["status"]
 
                     # 4. Update booking status về pending
                     cur.execute("UPDATE bookings SET status = 'pending' WHERE booking_id = %s",

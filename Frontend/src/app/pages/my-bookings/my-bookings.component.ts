@@ -43,6 +43,8 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
   detailErrorMessage = '';
   paymentInfo: PaymentData | null = null;
   isLoadingPayment = false;
+  customItinerary: any = null;
+  isCustomTrip = false;
 
   showEditModal = false;
   showDeleteConfirm = false;
@@ -459,6 +461,7 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         if (response.EC === 0) {
           this.bookingDetail = response.data;
+          this.checkAndParseCustomItinerary();
           this.loadPaymentInfo(bookingId);
         } else {
           this.detailErrorMessage = response.EM || 'Không thể tải chi tiết đơn hàng';
@@ -539,6 +542,54 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     this.transportDetail = null;
     this.detailErrorMessage = '';
     this.paymentInfo = null;
+    this.customItinerary = null;
+    this.isCustomTrip = false;
+  }
+
+  checkAndParseCustomItinerary(): void {
+    this.customItinerary = null;
+    this.isCustomTrip = false;
+    
+    if (this.bookingDetail && this.bookingDetail.special_requests) {
+      try {
+        const parsed = JSON.parse(this.bookingDetail.special_requests);
+        if (parsed && parsed.source === 'trip_planner') {
+          this.customItinerary = parsed;
+          this.isCustomTrip = true;
+        }
+      } catch (e) {
+        // Ignored - not custom trip plan
+      }
+    }
+  }
+
+  getItineraryDays(itinerary: any): string[] {
+    if (!itinerary) return [];
+    return Object.keys(itinerary).sort((a, b) => {
+      const numA = parseInt(a.replace('day_', '')) || 0;
+      const numB = parseInt(b.replace('day_', '')) || 0;
+      return numA - numB;
+    });
+  }
+
+  getDayLabel(dayKey: string): string {
+    const num = parseInt(dayKey.replace('day_', '')) || 0;
+    return `Ngày ${num}`;
+  }
+
+  hasItineraryActivities(daySlots: any): boolean {
+    if (!daySlots) return false;
+    return (
+      (daySlots.morning && daySlots.morning.length > 0) ||
+      (daySlots.afternoon && daySlots.afternoon.length > 0) ||
+      (daySlots.evening && daySlots.evening.length > 0)
+    );
+  }
+
+  asArray(val: any): string[] {
+    if (!val) return [];
+    if (Array.isArray(val)) return val;
+    return [val];
   }
 
   formatTime(dateString: string): string {
@@ -805,6 +856,12 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
     return status === 'pending';
   }
 
+  canPayTransport(status: string, paymentStatus?: string): boolean {
+    return (this.activeTab === 'flight' || this.activeTab === 'train') && 
+           status === 'pending' && 
+           paymentStatus !== 'paid';
+  }
+
   processPayment(bookingId: string): void {
     if (this.isProcessingPayment.has(bookingId)) {
       return;
@@ -832,6 +889,32 @@ export class MyBookingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error creating payment:', error);
         console.error('Error details:', error.error);
+        this.paymentErrorMessage.set(bookingId, 'Có lỗi xảy ra khi tạo yêu cầu thanh toán. Vui lòng thử lại sau.');
+        this.isProcessingPayment.delete(bookingId);
+      }
+    });
+  }
+
+  processTransportPayment(bookingId: string, bookingType: string): void {
+    if (this.isProcessingPayment.has(bookingId)) {
+      return;
+    }
+
+    this.isProcessingPayment.add(bookingId);
+    this.paymentErrorMessage.delete(bookingId);
+
+    this.paymentService.createTransportPayment(bookingType, bookingId).subscribe({
+      next: (response) => {
+        if (response.EC === 0 && response.data.payment_url) {
+          console.log('Transport Payment URL created:', response.data.payment_url);
+          window.location.href = response.data.payment_url;
+        } else {
+          this.paymentErrorMessage.set(bookingId, response.EM || 'Không thể tạo yêu cầu thanh toán');
+          this.isProcessingPayment.delete(bookingId);
+        }
+      },
+      error: (error) => {
+        console.error('Error creating transport payment:', error);
         this.paymentErrorMessage.set(bookingId, 'Có lỗi xảy ra khi tạo yêu cầu thanh toán. Vui lòng thử lại sau.');
         this.isProcessingPayment.delete(bookingId);
       }

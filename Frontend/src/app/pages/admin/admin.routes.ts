@@ -14,6 +14,10 @@ export const ADMIN_ROUTES: Routes = [
         loadComponent: () => import('./tours/tour-list.component').then(m => m.TourListComponent)
       },
       {
+        path: 'activities',
+        loadComponent: () => import('./activities/activity-list.component').then(m => m.ActivityListComponent)
+      },
+      {
         path: 'bookings',
         loadComponent: () => import('./bookings/booking-list.component').then(m => m.BookingListComponent)
       },

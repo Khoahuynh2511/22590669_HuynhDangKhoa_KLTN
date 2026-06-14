@@ -116,6 +116,16 @@
             </div>
           </div>
 
+          @if (selectedSeatType) {
+            <app-seat-selection
+              [type]="'train'"
+              [transportId]="trainId"
+              [selectedSeatTypeOrClass]="selectedSeatType"
+              [availableSeatsCount]="train ? (train.availability[selectedSeatType] || 0) : 0"
+              (seatsSelected)="onSeatsSelected($event)">
+            </app-seat-selection>
+          }
+
           <div class="tb-card tb-form">
             <h2 class="tb-section-title">Thông tin hành khách</h2>
 
@@ -135,8 +145,8 @@
               </div>
               <div class="tb-field">
                 <label>Số hành khách</label>
-                <input type="number" class="tb-input" [(ngModel)]="numPassengers" min="1" max="9" placeholder="1"
-                  (ngModelChange)="updatePrice()">
+                <input type="number" class="tb-input" [ngModel]="numPassengers" disabled placeholder="0">
+                <p class="tb-hint">Được tính tự động dựa trên số ghế chọn trên sơ đồ</p>
               </div>
             </div>
 
@@ -241,6 +251,10 @@
             <div class="tb-row">
               <span class="tb-row-label">Số hành khách</span>
               <span class="tb-row-value">{{ numPassengers }}</span>
+            </div>
+            <div class="tb-row" *ngIf="selectedSeats.length > 0">
+              <span class="tb-row-label">Danh sách ghế</span>
+              <span class="tb-row-value" style="color: var(--tb-accent); font-weight: 700;">{{ selectedSeats.join(', ') }}</span>
             </div>
             <div class="tb-row">
               <span class="tb-row-label">Giá/vé</span>

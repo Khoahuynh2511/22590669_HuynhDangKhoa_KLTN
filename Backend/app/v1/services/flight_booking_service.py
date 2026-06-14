@@ -77,17 +77,18 @@ class FlightBookingService:
                     # Create booking
                     booking_id = f"FLB{uuid.uuid4().hex[:16].upper()}"
                     now = datetime.now(timezone.utc).isoformat()
+                    selected_seats = booking_data.get('selected_seats', '')
 
                     cur.execute(
                         """INSERT INTO flight_bookings
                            (booking_id, flight_id, user_id, passenger_name, passenger_phone,
                             passenger_email, seat_class, num_passengers, total_price,
-                            status, payment_status, created_at, updated_at)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            status, payment_status, selected_seats, created_at, updated_at)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            RETURNING booking_id""",
                         (booking_id, flight_id, user_id, booking_data['passenger_name'],
                          booking_data['passenger_phone'], passenger_email, seat_class,
-                         num_passengers, total_price, 'otp_sent', 'unpaid', now, now)
+                         num_passengers, total_price, 'otp_sent', 'unpaid', selected_seats, now, now)
                     )
                     if not cur.fetchone():
                         return {"EC": 5, "EM": "Không thể tạo đặt vé", "data": None}
@@ -200,7 +201,7 @@ class FlightBookingService:
                     now = datetime.now(timezone.utc).isoformat()
                     cur.execute(
                         """UPDATE flight_bookings
-                           SET status = 'confirmed', payment_status = 'paid', updated_at = %s
+                           SET status = 'pending', payment_status = 'unpaid', updated_at = %s
                            WHERE booking_id = %s""",
                         (now, booking_id)
                     )
@@ -287,11 +288,10 @@ class FlightBookingService:
         try:
             with self._get_conn() as conn:
                 with conn.cursor() as cur:
-                    # Get bookings with flight and airline info via JOIN
                     cur.execute("""
                         SELECT
                             fb.booking_id, fb.num_passengers, fb.total_price,
-                            fb.status, fb.created_at, fb.seat_class,
+                            fb.status, fb.payment_status, fb.created_at, fb.seat_class,
                             f.flight_number, f.departure_airport, f.arrival_airport,
                             f.departure_time, f.arrival_time,
                             a.name as airline_name
@@ -320,6 +320,7 @@ class FlightBookingService:
                             "num_passengers": row['num_passengers'],
                             "total_price": float(row['total_price']),
                             "status": row['status'],
+                            "payment_status": row.get('payment_status', 'unpaid'),
                             "created_at": str(row['created_at']) if row.get('created_at') else ''
                         })
 
@@ -360,6 +361,8 @@ class FlightBookingService:
                         "seat_class": row['seat_class'],
                         "num_passengers": row['num_passengers'],
                         "total_price": float(row['total_price']),
+                        "selected_seats": row.get('selected_seats', ''),
+                        "payment_status": row.get('payment_status', 'unpaid'),
                         "created_at": str(row['created_at']) if row.get('created_at') else '',
                         "updated_at": str(row['updated_at']) if row.get('updated_at') else '',
                         "flight": {
@@ -439,6 +442,27 @@ class FlightBookingService:
         except Exception as e:
             logger.error(f"Error cancelling flight booking: {str(e)}")
             return {"EC": 3, "EM": str(e), "data": None}
+
+    def get_occupied_seats(self, flight_id: str) -> Dict[str, Any]:
+        """Get list of occupied seats for a specific flight"""
+        try:
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT selected_seats FROM flight_bookings WHERE flight_id = %s AND status != 'cancelled' AND selected_seats IS NOT NULL",
+                        (flight_id,)
+                    )
+                    rows = cur.fetchall()
+                    occupied = []
+                    for row in rows:
+                        seats_str = row.get('selected_seats', '')
+                        if seats_str:
+                            occupied.extend([s.strip() for s in seats_str.split(',') if s.strip()])
+            return {"EC": 0, "EM": "Success", "data": list(set(occupied))}
+        except Exception as e:
+            logger.error(f"Error getting occupied seats for flight {flight_id}: {str(e)}")
+            return {"EC": 1, "EM": str(e), "data": []}
+
 
 
 def get_flight_booking_service():

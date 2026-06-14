@@ -5,12 +5,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FlightBookingService, FlightBookingCreateRequest } from '../../../services/flight-booking.service';
 import { Flight } from '../../../services/flight.service';
 import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
+import { SeatSelectionComponent } from '../../../components/seat-selection/seat-selection.component';
 import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-flight-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, OtpPopupComponent],
+  imports: [CommonModule, FormsModule, OtpPopupComponent, SeatSelectionComponent],
   templateUrl: './flight-booking.component.html',
   styleUrl: './flight-booking.component.scss'
 })
@@ -20,7 +21,8 @@ export class FlightBookingComponent implements OnInit {
 
   // Form
   seatClass: string = 'economy';
-  numPassengers: number = 1;
+  numPassengers: number = 0; // starts at 0, updated by seat selection
+  selectedSeats: string[] = [];
   passengerName: string = '';
   passengerEmail: string = '';
   passengerPhone: string = '';
@@ -75,7 +77,13 @@ export class FlightBookingComponent implements OnInit {
   updatePrice() {
     if (!this.flight) return;
     this.unitPrice = this.getPriceByClass(this.seatClass);
-    this.totalPrice = this.unitPrice * this.numPassengers;
+    this.totalPrice = this.unitPrice * (this.selectedSeats.length || 1);
+  }
+
+  onSeatsSelected(seats: string[]) {
+    this.selectedSeats = seats;
+    this.numPassengers = seats.length;
+    this.updatePrice();
   }
 
   getPriceByClass(cls: string): number {
@@ -88,7 +96,11 @@ export class FlightBookingComponent implements OnInit {
     return Number(prices[cls]) || 0;
   }
 
-  onSeatClassChange() { this.updatePrice(); }
+  onSeatClassChange() { 
+    this.selectedSeats = [];
+    this.numPassengers = 0;
+    this.updatePrice(); 
+  }
   onPassengersChange() { this.updatePrice(); }
 
   getSeatClassDesc(cls: string): string {
@@ -126,6 +138,10 @@ export class FlightBookingComponent implements OnInit {
   }
 
   async submitBooking() {
+    if (this.selectedSeats.length === 0) {
+      this.errorMessage = 'Vui lòng chọn ít nhất một ghế trên sơ đồ';
+      return;
+    }
     if (!this.passengerName || !this.passengerEmail || !this.passengerPhone) {
       this.errorMessage = 'Vui lòng điền đầy đủ thông tin liên hệ';
       return;
@@ -147,7 +163,8 @@ export class FlightBookingComponent implements OnInit {
         num_passengers: this.numPassengers,
         passenger_name: this.passengerName,
         passenger_email: this.passengerEmail,
-        passenger_phone: this.passengerPhone
+        passenger_phone: this.passengerPhone,
+        selected_seats: this.selectedSeats.join(',')
       };
       const response = await firstValueFrom(this.flightBookingService.createBooking(data));
       if (response.EC === 0 && response.data) {

@@ -105,3 +105,17 @@ async def cancel_bus_booking(
     if result["EC"] != 0:
         raise HTTPException(status_code=400, detail=result["EM"])
     return result
+
+
+@router.get("/occupied-seats/{bus_id}")
+async def get_occupied_bus_seats(
+    bus_id: str,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    service=Depends(get_bus_booking_service)
+):
+    """Lấy danh sách các ghế đã được đặt của chuyến xe"""
+    result = service.get_occupied_seats(bus_id)
+    if result["EC"] != 0:
+        raise HTTPException(status_code=400, detail=result["EM"])
+    return result
+

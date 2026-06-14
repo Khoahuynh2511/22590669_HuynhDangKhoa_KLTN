@@ -10,6 +10,7 @@ export interface FlightBookingCreateRequest {
   passenger_name: string;
   passenger_email: string;
   passenger_phone: string;
+  selected_seats?: string;
 }
 
 export interface FlightBookingOTPResponse {
@@ -37,6 +38,7 @@ export interface MyFlightBooking {
   num_passengers: number;
   total_price: number;
   status: string;
+  payment_status?: string;
   created_at: string;
 }
 
@@ -49,8 +51,10 @@ export interface FlightBookingDetail {
   seat_class: string;
   num_passengers: number;
   total_price: number;
+  payment_status?: string;
   created_at: string;
   updated_at: string;
+  selected_seats?: string;
   flight: {
     flight_id: string;
     flight_number: string;
@@ -125,6 +129,13 @@ export class FlightBookingService {
     return this.http.post<FlightBookingOTPResponse>(
       `${this.apiBaseUrl}/${bookingId}/cancel`,
       { reason },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getOccupiedSeats(flightId: string): Observable<{ EC: number; EM: string; data: string[] }> {
+    return this.http.get<{ EC: number; EM: string; data: string[] }>(
+      `${this.apiBaseUrl}/occupied-seats/${flightId}`,
       { headers: this.getHeaders() }
     );
   }

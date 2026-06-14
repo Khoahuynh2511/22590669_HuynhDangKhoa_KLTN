@@ -80,17 +80,18 @@ class BusBookingService:
                     # Create booking
                     booking_id = f"BSB{uuid.uuid4().hex[:16].upper()}"
                     now = datetime.now(timezone.utc).isoformat()
+                    selected_seats = booking_data.get('selected_seats', '')
 
                     cur.execute(
                         """INSERT INTO bus_bookings
                            (booking_id, bus_id, user_id, passenger_name, passenger_phone,
                             passenger_email, seat_type_id, num_passengers, total_price,
-                            status, payment_status, created_at, updated_at)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            status, payment_status, selected_seats, created_at, updated_at)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            RETURNING booking_id""",
                         (booking_id, bus_id, user_id, booking_data['passenger_name'],
                          booking_data['passenger_phone'], passenger_email, seat_type_id,
-                         num_passengers, total_price, 'otp_sent', 'unpaid', now, now)
+                         num_passengers, total_price, 'otp_sent', 'unpaid', selected_seats, now, now)
                     )
                     if not cur.fetchone():
                         return {"EC": 5, "EM": "Không thể tạo đặt vé", "data": None}
@@ -370,6 +371,7 @@ class BusBookingService:
                         "seat_type": row.get('seat_type_name', row.get('seat_type_id', '')),
                         "num_passengers": row['num_passengers'],
                         "total_price": float(row['total_price']),
+                        "selected_seats": row.get('selected_seats', ''),
                         "created_at": str(row['created_at']) if row.get('created_at') else '',
                         "updated_at": str(row['updated_at']) if row.get('updated_at') else '',
                         "bus": {
@@ -438,6 +440,27 @@ class BusBookingService:
         except Exception as e:
             logger.error(f"Error cancelling bus booking: {str(e)}")
             return {"EC": 3, "EM": str(e), "data": None}
+
+    def get_occupied_seats(self, bus_id: str) -> Dict[str, Any]:
+        """Get list of occupied seats for a specific bus"""
+        try:
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT selected_seats FROM bus_bookings WHERE bus_id = %s AND status != 'cancelled' AND selected_seats IS NOT NULL",
+                        (bus_id,)
+                    )
+                    rows = cur.fetchall()
+                    occupied = []
+                    for row in rows:
+                        seats_str = row.get('selected_seats', '')
+                        if seats_str:
+                            occupied.extend([s.strip() for s in seats_str.split(',') if s.strip()])
+            return {"EC": 0, "EM": "Success", "data": list(set(occupied))}
+        except Exception as e:
+            logger.error(f"Error getting occupied seats for bus {bus_id}: {str(e)}")
+            return {"EC": 1, "EM": str(e), "data": []}
+
 
 
 def get_bus_booking_service():

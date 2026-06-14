@@ -21,6 +21,54 @@ except ImportError:
     from mock_data.bus_data import BUS_STATIONS, BUS_SEAT_TYPES
 
 
+def get_or_create_user_id(passenger_phone: str, passenger_email: str, user_id: Optional[str] = None) -> str:
+    """Resolve user_id from passenger info or create a new user profile if not exists"""
+    import uuid
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    from app.v1.core.config import settings
+    
+    phone_digits = ''.join(filter(str.isdigit, passenger_phone))
+    if len(phone_digits) == 10:
+        passenger_phone = phone_digits
+        
+    try:
+        with psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor) as conn:
+            with conn.cursor() as cur:
+                # 1. Try to find user by user_id
+                if user_id:
+                    cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+                    row = cur.fetchone()
+                    if row:
+                        return str(row['user_id'])
+                
+                # 2. Try to find user by phone_number
+                cur.execute("SELECT user_id FROM users WHERE phone_number = %s", (passenger_phone,))
+                row = cur.fetchone()
+                if row:
+                    return str(row['user_id'])
+                
+                # 3. Try to find user by email
+                cur.execute("SELECT user_id FROM users WHERE email = %s", (passenger_email,))
+                row = cur.fetchone()
+                if row:
+                    return str(row['user_id'])
+                
+                # 4. Create new user
+                new_id = user_id or str(uuid.uuid4())
+                cur.execute(
+                    "INSERT INTO users (user_id, phone_number, full_name, email) VALUES (%s, %s, %s, %s) RETURNING user_id",
+                    (new_id, passenger_phone, f"Khách hàng {passenger_phone[-4:]}", passenger_email)
+                )
+                conn.commit()
+                row = cur.fetchone()
+                if row:
+                    return str(row['user_id'])
+                return new_id
+    except Exception as e:
+        return user_id or str(uuid.uuid4())
+
+
 class BusService:
     """Bus Service sử dụng Mock Data Generator"""
 
@@ -196,42 +244,45 @@ class BusService:
         if num_passengers < 1:
             return {"success": False, "error": "Số hành khách phải >= 1"}
 
-        result = self.generator.generate_bus_booking(
-            bus_id=bus_id,
-            passenger_name=passenger_name,
-            passenger_phone=passenger_phone,
-            passenger_email=passenger_email,
-            seat_type=seat_type,
-            num_passengers=num_passengers
-        )
-
-        if not result.get("success"):
-            return result
+        # Resolve or create user profile to get a valid user_id
+        resolved_user_id = get_or_create_user_id(passenger_phone, passenger_email, user_id)
 
         try:
-            with psycopg2.connect(settings.DATABASE_URL, cursor_factory=RealDictCursor) as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "INSERT INTO bus_bookings (booking_id, bus_id, user_id, passenger_name, passenger_phone, passenger_email, seat_type_id, num_passengers, total_price, status, payment_status) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (booking_id) DO NOTHING",
-                        (result["booking_id"],
-                         bus_id,
-                         user_id,
-                         passenger_name,
-                         passenger_phone,
-                         passenger_email,
-                         seat_type,
-                         num_passengers,
-                         result["total_price"],
-                            "pending_payment",
-                            "unpaid"))
-                    conn.commit()
+            from app.v1.services.bus_booking_service import BusBookingService
+            service = BusBookingService()
+            booking_res = await service.create_booking_with_otp({
+                "bus_id": bus_id,
+                "user_id": resolved_user_id,
+                "passenger_name": passenger_name,
+                "passenger_phone": passenger_phone,
+                "passenger_email": passenger_email,
+                "seat_type_id": seat_type,
+                "num_passengers": num_passengers
+            })
+            
+            if booking_res["EC"] != 0:
+                return {"success": False, "error": booking_res["EM"]}
+                
+            data = booking_res["data"]
+            return {
+                "success": True,
+                "booking_id": data["booking_id"],
+                "bus_id": bus_id,
+                "passenger": {
+                    "name": passenger_name,
+                    "phone": passenger_phone,
+                    "email": passenger_email
+                },
+                "seat_type": {
+                    "name": data.get("seat_type_name", seat_type)
+                },
+                "num_passengers": num_passengers,
+                "total_price": data["total_price"],
+                "otp_code": data["otp_code"],
+                "awaiting_otp": True
+            }
         except Exception as e:
             return {"success": False, "error": f"Lưu booking thất bại: {str(e)}"}
-
-        result["booking_type"] = "bus"
-        result["payment_status"] = "unpaid"
-        result["next_action"] = "payment_not_supported"
-        return result
 
 
 def register_bus_tools(mcp: FastMCP):
@@ -319,7 +370,7 @@ def register_bus_tools(mcp: FastMCP):
 
         if result["success"]:
             return f"""
-✅ ĐẶT VÉ XE THÀNH CÔNG!
+✅ ĐẶT VÉ XE THÀNH CÔNG (CHỜ XÁC THỰC OTP)!
 {'=' * 40}
 📋 Mã đặt chỗ: {result['booking_id']}
 🚌 Chuyến xe: {result['bus_id']}
@@ -332,8 +383,9 @@ def register_bus_tools(mcp: FastMCP):
 👥 Số người: {result['num_passengers']}
 💰 Tổng tiền: {result['total_price']:,} VND
 
-⏰ Trạng thái: Chờ thanh toán
-🔔 Tiếp theo: Thanh toán online cho vé xe bus chưa được hỗ trợ bởi create_transport_payment. Vui lòng chờ xử lý thanh toán.
+⏰ Trạng thái: Chờ xác thực OTP
+🔑 Mã OTP: {result.get('otp_code')} (Đã gửi qua email {result['passenger']['email']})
+🔔 Tiếp theo: Nhập mã OTP để xác nhận đặt vé bằng verify_otp_and_confirm_booking(booking_id="{result['booking_id']}", otp_code="...").
 {'=' * 40}
 """
         else:

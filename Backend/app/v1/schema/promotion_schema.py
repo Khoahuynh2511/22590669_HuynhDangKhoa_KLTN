@@ -16,7 +16,8 @@ class PromotionCreate(BaseModel):
     discount_value: float = Field(..., gt=0, description="Giá trị giảm (VD: 10 nếu %, 500000 nếu tiền)")
     start_date: datetime = Field(..., description="Ngày bắt đầu áp dụng")
     end_date: datetime = Field(..., description="Ngày hết hạn")
-    usage_limit: int = Field(default=5, ge=1, description="Số lượng mã ban đầu")
+    usage_limit: Optional[int] = Field(None, ge=1, description="Số lượng mã ban đầu (usage_limit)")
+    quantity: Optional[int] = Field(None, ge=1, description="Số lượng mã ban đầu (quantity)")
     is_active: bool = Field(default=True, description="Trạng thái kích hoạt")
     # code sẽ được tự động tạo bởi service, không cần truyền vào
 
@@ -29,6 +30,7 @@ class PromotionUpdate(BaseModel):
     start_date: Optional[datetime] = Field(None, description="Ngày bắt đầu")
     end_date: Optional[datetime] = Field(None, description="Ngày hết hạn")
     usage_limit: Optional[int] = Field(None, ge=1, description="Số lượng mã")
+    quantity: Optional[int] = Field(None, ge=1, description="Số lượng mã")
     is_active: Optional[bool] = Field(None, description="Trạng thái kích hoạt")
     code: Optional[str] = Field(None, description="Mã khuyến mãi (8 ký tự)")
 
@@ -41,7 +43,8 @@ class PromotionResponse(BaseModel):
     discount_value: float
     start_date: datetime
     end_date: datetime
-    usage_limit: int
+    usage_limit: Optional[int] = None
+    quantity: Optional[int] = None
     used_count: int
     is_active: bool
     code: str

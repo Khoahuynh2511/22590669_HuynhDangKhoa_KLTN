@@ -50,8 +50,18 @@ class TripCheckoutService:
             if not isinstance(slots, dict):
                 continue
             for slot, activity in slots.items():
-                if activity and isinstance(activity, dict):
+                if isinstance(activity, list):
+                    serialized_list = []
+                    for act in activity:
+                        if isinstance(act, dict):
+                            serialized_list.append(act.get("activity_id") or act.get("name"))
+                        elif isinstance(act, str):
+                            serialized_list.append(act)
+                    itinerary_data[day_key][slot] = serialized_list
+                elif activity and isinstance(activity, dict):
                     itinerary_data[day_key][slot] = activity.get("activity_id") or activity.get("name")
+                elif isinstance(activity, str):
+                    itinerary_data[day_key][slot] = activity
                 else:
                     itinerary_data[day_key][slot] = None
         return itinerary_data
@@ -86,7 +96,7 @@ class TripCheckoutService:
                 with conn.cursor() as cur:
                     cur.execute(
                         """
-                        SELECT full_name, email, phone_number
+                        SELECT full_name, email, phone as phone_number
                         FROM users WHERE user_id = %s
                         """,
                         (user_id,),

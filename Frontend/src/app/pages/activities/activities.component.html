@@ -1,58 +1,587 @@
-<div class="min-h-screen bg-gray-50">
-  <div class="bg-gradient-to-r from-pink-600 to-orange-600 py-10">
+<div class="min-h-screen bg-slate-50 font-sans pb-12">
+  <!-- Header Banner -->
+  <div class="bg-gradient-to-r from-rose-600 to-amber-500 py-12 shadow-lg">
     <div class="container mx-auto px-6">
-      <h1 class="text-3xl font-bold text-white mb-6">Giải trí & Hoạt động</h1>
-      <p class="text-pink-100 mb-6">Khám phá các hoạt động giải trí, tour trải nghiệm và điểm tham quan hàng đầu</p>
+      <h1 class="text-4xl font-extrabold text-white mb-2 tracking-tight">Tự Thiết Kế Lịch Trình Hoạt Động</h1>
+      <p class="text-rose-100 text-lg max-w-2xl font-light">
+        Khám phá các điểm đến, tự tay kéo thả sắp xếp các hoạt động và trải nghiệm du lịch theo gói tự chọn của riêng bạn.
+      </p>
     </div>
   </div>
 
-  <!-- Coming Soon Section -->
-  <div class="container mx-auto px-6 py-12">
-    <div class="max-w-2xl mx-auto text-center">
-      <div class="w-24 h-24 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-6">
-        <svg class="w-12 h-12 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-      </div>
-      <h2 class="text-2xl font-bold text-gray-800 mb-4">Tính năng đang được cập nhật</h2>
-      <p class="text-gray-600 mb-8">Các hoạt động giải trí và trải nghiệm sẽ sớm có mặt. Hãy chat với AI để được tư vấn ngay.</p>
+  <div class="container mx-auto px-6 mt-8">
+    <!-- Notifications -->
+    <div *ngIf="errorMessage" class="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-3 animate-pulse">
+      <svg class="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <span class="font-medium">{{ errorMessage }}</span>
+    </div>
 
-      <!-- AI Chat CTA -->
-      <div class="bg-pink-50 border border-pink-200 rounded-lg p-5 flex items-center justify-between max-w-lg mx-auto">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-pink-600 rounded-full flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </svg>
-          </div>
-          <div class="text-left">
-            <h3 class="font-semibold text-pink-900">AI Agent gợi ý hoạt động</h3>
-            <p class="text-sm text-pink-700">Chat với AI để tìm hoạt động phù hợp</p>
+    <div *ngIf="successMessage" class="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl flex items-center gap-3">
+      <svg class="w-6 h-6 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <span class="font-medium">{{ successMessage }}</span>
+    </div>
+
+    <!-- STEP 1: INITIAL CONFIGURATION -->
+    <div *ngIf="!setupCompleted" class="max-w-3xl mx-auto bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+      <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+        <span class="text-rose-500">⚙️</span> Thiết Lập Lịch Trình Chuyến Đi
+      </h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Destination Selection -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-2">Điểm đến</label>
+          <div class="relative">
+            <select
+              [(ngModel)]="selectedDestination"
+              class="w-full bg-slate-50 border border-slate-200 text-slate-700 py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition"
+              [disabled]="isLoadingDestinations"
+            >
+              <option *ngFor="let dest of destinations" [value]="dest">{{ dest }}</option>
+            </select>
+            <div *ngIf="isLoadingDestinations" class="absolute right-3 top-3.5">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-rose-500"></div>
+            </div>
           </div>
         </div>
-        <button type="button" (click)="openAIChat()" class="bg-pink-600 hover:bg-pink-700 text-white px-5 py-2 rounded-lg font-medium transition-colors">
-          Chat ngay
+
+        <!-- Travel Date -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-2">Ngày xuất phát</label>
+          <input
+            type="date"
+            [(ngModel)]="travelDate"
+            class="w-full bg-slate-50 border border-slate-200 text-slate-700 py-3 px-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition"
+          />
+        </div>
+
+        <!-- Duration in Days -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-2">Số ngày chuyến đi</label>
+          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2">
+            <button
+              (click)="durationDays = durationDays > 1 ? durationDays - 1 : 1"
+              type="button"
+              class="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-rose-500 font-bold text-xl transition"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              [(ngModel)]="durationDays"
+              min="1"
+              max="7"
+              class="w-full bg-transparent border-none text-center text-slate-800 font-semibold focus:outline-none py-3"
+            />
+            <button
+              (click)="durationDays = durationDays < 7 ? durationDays + 1 : 7"
+              type="button"
+              class="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-rose-500 font-bold text-xl transition"
+            >
+              +
+            </button>
+          </div>
+          <span class="text-xs text-slate-400 mt-1 block">Tối đa lên đến 7 ngày thiết kế.</span>
+        </div>
+
+        <!-- Group Size -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 mb-2">Số lượng khách</label>
+          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2">
+            <button
+              (click)="groupSize = groupSize > 1 ? groupSize - 1 : 1"
+              type="button"
+              class="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-rose-500 font-bold text-xl transition"
+            >
+              -
+            </button>
+            <input
+              type="number"
+              [(ngModel)]="groupSize"
+              min="1"
+              max="20"
+              class="w-full bg-transparent border-none text-center text-slate-800 font-semibold focus:outline-none py-3"
+            />
+            <button
+              (click)="groupSize = groupSize < 20 ? groupSize + 1 : 20"
+              type="button"
+              class="w-10 h-10 flex items-center justify-center text-slate-500 hover:text-rose-500 font-bold text-xl transition"
+            >
+              +
+            </button>
+          </div>
+          <span class="text-xs text-slate-400 mt-1 block">Tối đa 20 người trong một gói tự chọn.</span>
+        </div>
+      </div>
+
+      <!-- Start Button -->
+      <div class="mt-8 text-center">
+        <button
+          type="button"
+          (click)="startPlanning()"
+          class="bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-bold py-4 px-10 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 active:translate-y-0"
+          [disabled]="isLoadingActivities"
+        >
+          <span *ngIf="!isLoadingActivities" class="flex items-center gap-2">
+            Bắt đầu thiết kế <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
+          </span>
+          <span *ngIf="isLoadingActivities" class="flex items-center gap-2">
+            <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            Đang tải dữ liệu...
+          </span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 2: WORKSPACE (DRAG & DROP BOARD) -->
+    <div *ngIf="setupCompleted" class="animate-fade-in" [class.dragging-active]="isDragging">
+      <!-- Config Overview Banner -->
+      <div class="bg-white rounded-2xl shadow border border-slate-100 p-4 mb-8 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-6 flex-wrap">
+          <div class="flex items-center gap-2 text-slate-700">
+            <span class="text-xl">📍</span>
+            <span class="font-bold text-slate-800">{{ selectedDestination }}</span>
+          </div>
+          <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <span class="text-xl">📅</span>
+            <span>Khởi hành: <strong>{{ travelDate | date:'dd/MM/yyyy' }}</strong></span>
+          </div>
+          <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <span class="text-xl">⏱️</span>
+            <span>Thời lượng: <strong>{{ durationDays }} Ngày</strong></span>
+          </div>
+          <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
+          <div class="flex items-center gap-2 text-slate-700">
+            <span class="text-xl">👥</span>
+            <span>Số khách: <strong>{{ groupSize }} Người</strong></span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          (click)="resetSetup()"
+          class="text-rose-500 hover:text-rose-600 font-semibold border border-rose-200 hover:bg-rose-50 px-4 py-2 rounded-xl transition"
+        >
+          Thay đổi thiết lập
         </button>
       </div>
 
-      <!-- Other services -->
-      <div class="mt-12">
-        <h3 class="text-lg font-semibold text-gray-700 mb-4">Khám phá các dịch vụ khác</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-lg mx-auto">
-          <a routerLink="/flights" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
-            <div class="text-2xl mb-2">✈️</div>
-            <span class="text-sm font-medium text-gray-700">Vé máy bay</span>
-          </a>
-          <a routerLink="/trains" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
-            <div class="text-2xl mb-2">🚂</div>
-            <span class="text-sm font-medium text-gray-700">Vé tàu hỏa</span>
-          </a>
-          <a routerLink="/tours" class="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow border border-gray-100 text-center">
-            <div class="text-2xl mb-2">🗺️</div>
-            <span class="text-sm font-medium text-gray-700">Tour du lịch</span>
-          </a>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- COLUMN 1: AVAILABLE ACTIVITIES POOL (lg:col-span-3) -->
+        <div class="lg:col-span-3 bg-white rounded-3xl shadow border border-slate-100 p-5 sticky top-8">
+          <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <span>🎒</span> Kho hoạt động
+          </h3>
+
+          <!-- Search Input -->
+          <div class="relative mb-4">
+            <input
+              type="text"
+              [(ngModel)]="searchQuery"
+              (ngModelChange)="onSearchChange()"
+              placeholder="Tìm kiếm hoạt động..."
+              class="w-full bg-slate-50 border border-slate-200 py-2 px-3 pl-9 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 transition"
+            />
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+
+          <!-- Category Badges -->
+          <div class="flex flex-wrap gap-2 mb-5">
+            <button
+              *ngFor="let cat of categories"
+              (click)="onCategoryChange(cat)"
+              class="text-xs font-semibold py-1.5 px-3 rounded-full border transition"
+              [class.bg-rose-500]="selectedCategory === cat"
+              [class.text-white]="selectedCategory === cat"
+              [class.border-rose-500]="selectedCategory === cat"
+              [class.bg-slate-50]="selectedCategory !== cat"
+              [class.text-slate-600]="selectedCategory !== cat"
+              [class.border-slate-200]="selectedCategory !== cat"
+            >
+              {{ cat }}
+            </button>
+          </div>
+
+          <!-- Draggable Pool List -->
+          <div class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            <div *ngIf="filteredPool.length === 0" class="text-center py-8 text-slate-400">
+              Không tìm thấy hoạt động nào phù hợp.
+            </div>
+
+            <div
+              *ngFor="let act of filteredPool"
+              draggable="true"
+              (dragstart)="onPoolActivityDragStart($event, act)"
+              (dragend)="onDragEnd()"
+              class="bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing hover:border-rose-200 transition group"
+            >
+              <div class="relative w-full h-24 rounded-lg overflow-hidden mb-2 bg-slate-200">
+                <img
+                  *ngIf="act.image_url"
+                  [src]="act.image_url"
+                  class="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                  alt="Activity image"
+                />
+                <div *ngIf="!act.image_url" class="w-full h-full flex items-center justify-center text-slate-400 text-2xl font-bold">
+                  🏝️
+                </div>
+                <span class="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-sm text-[10px] text-white font-semibold py-0.5 px-2 rounded-full">
+                  {{ act.category }}
+                </span>
+              </div>
+
+              <div class="flex justify-between items-start gap-1">
+                <h4 class="font-bold text-slate-800 text-sm line-clamp-1 leading-snug">{{ act.name }}</h4>
+                <span class="text-xs font-semibold text-rose-500 flex-shrink-0">{{ formatPrice(act.price) }}</span>
+              </div>
+              <p class="text-xs text-slate-500 line-clamp-2 mt-1">{{ act.description }}</p>
+              
+              <div class="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 text-[10px] text-slate-400">
+                <span class="truncate max-w-[120px]">📍 {{ act.location || 'Liên hệ' }}</span>
+                <span class="flex items-center gap-1 font-medium text-slate-500">
+                  ⠿ Kéo thả
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- COLUMN 2: ITINERARY SLOTS (lg:col-span-6) -->
+        <div class="lg:col-span-6 space-y-6">
+          <!-- AI Assistant Recommendation Card -->
+          <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-3xl p-5 shadow-sm text-left">
+            <div class="flex items-start gap-3">
+              <span class="text-3xl">🤖</span>
+              <div class="flex-grow">
+                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2 mb-1">
+                  Trợ Lý Lên Kế Hoạch AI
+                </h4>
+                <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+                  Để AI Agent tự động điền và đề xuất các hoạt động hấp dẫn nhất tại <strong>{{ selectedDestination }}</strong> dựa trên thời gian chuyến đi của bạn.
+                </p>
+                <div class="flex gap-2">
+                  <button
+                    type="button"
+                    (click)="autoFillItinerary()"
+                    class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-4 rounded-xl transition flex items-center gap-1.5 shadow-sm"
+                  >
+                    🪄 Tự động điền lịch trình
+                  </button>
+                  <button
+                    type="button"
+                    (click)="clearItinerary()"
+                    class="bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 text-xs font-semibold py-2 px-4 rounded-xl transition"
+                  >
+                    ✕ Xóa hết
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngFor="let dayItem of getItineraryDays(); let dayIdx = index" class="bg-white rounded-3xl shadow border border-slate-100 p-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-5 flex items-center gap-2 border-b border-slate-100 pb-3">
+              <span class="text-amber-500">📅</span> Ngày {{ dayItem.num }}
+            </h3>
+
+            <div class="space-y-4">
+              <!-- Slot: Morning -->
+              <div
+                [class.drag-over]="isDragOver(dayItem.key, 'morning')"
+                (dragover)="onActivityDragOver($event, dayItem.key, 'morning')"
+                (dragleave)="onActivityDragLeave(dayItem.key, 'morning')"
+                (drop)="onActivityDrop($event, dayItem.key, 'morning')"
+                class="border-2 border-dashed border-slate-200 rounded-2xl p-4 transition duration-200 relative itinerary-slot"
+                [ngClass]="isDragOver(dayItem.key, 'morning') ? 'border-rose-500 bg-rose-50/50' : 'bg-white hover:border-slate-300'"
+              >
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
+                  <span>🌅</span> Buổi Sáng
+                </div>
+
+                <div *ngFor="let act of dayItem.day.morning; let actIdx = index"
+                  draggable="true"
+                  (dragstart)="onItineraryActivityDragStart($event, dayItem.key, 'morning', act, actIdx)"
+                  (dragend)="onDragEnd()"
+                  class="bg-rose-50/20 border border-rose-100 rounded-xl p-3 flex gap-3 cursor-grab active:cursor-grabbing hover:border-rose-300 transition mb-2 last:mb-0"
+                >
+                  <span class="text-slate-400 font-bold self-center cursor-grab">⠿</span>
+                  <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                    <img *ngIf="act.image_url" [src]="act.image_url" class="w-full h-full object-cover" alt="Image"/>
+                    <div *ngIf="!act.image_url" class="w-full h-full flex items-center justify-center text-xl">🌅</div>
+                  </div>
+                  <div class="flex-grow text-left">
+                    <div class="flex justify-between items-start gap-1">
+                      <h4 class="font-bold text-slate-800 text-sm leading-tight">{{ act.name }}</h4>
+                      <button (click)="removeActivity(dayItem.key, 'morning', actIdx)" class="text-slate-400 hover:text-rose-500 text-xs px-1.5 py-0.5 rounded transition">
+                        ✕
+                      </button>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">📍 {{ act.location }}</div>
+                    <div class="text-xs font-bold text-rose-500 mt-1">{{ formatPrice(act.price) }}</div>
+                  </div>
+                </div>
+
+                <div *ngIf="dayItem.day.morning.length === 0" class="text-center py-6 text-slate-400 text-sm flex flex-col items-center justify-center">
+                  <span class="text-2xl mb-1 opacity-60">➕</span>
+                  Kéo thả hoạt động sáng vào đây
+                </div>
+
+                <!-- Quick Suggest Button & Panel -->
+                <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    (click)="toggleReplacePanel(dayItem.key, 'morning')"
+                    class="text-xs font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                  >
+                    <span>➕ Gợi ý nhanh</span>
+                  </button>
+                </div>
+
+                <div *ngIf="isReplacePanelOpen(dayItem.key, 'morning')" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 max-h-[200px] overflow-y-auto z-10 relative">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 text-left">Gợi ý từ Trợ lý AI</div>
+                  <div *ngFor="let cand of getReplaceCandidates(dayItem.key, 'morning')"
+                    (click)="selectReplacement(dayItem.key, 'morning', cand)"
+                    class="bg-white hover:bg-rose-50 border border-slate-150 p-2 rounded-lg flex justify-between items-center cursor-pointer transition"
+                  >
+                    <div class="min-w-0 flex-grow pr-2 text-left">
+                      <div class="text-xs font-bold text-slate-800 truncate">{{ cand.name }}</div>
+                      <div class="text-[10px] text-slate-400 truncate">📍 {{ cand.location }}</div>
+                    </div>
+                    <div class="text-xs font-bold text-rose-500 flex-shrink-0">{{ formatPrice(cand.price) }}</div>
+                  </div>
+                  <div *ngIf="getReplaceCandidates(dayItem.key, 'morning').length === 0" class="text-center py-2 text-xs text-slate-400 italic">
+                    Không còn gợi ý phù hợp.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slot: Afternoon -->
+              <div
+                [class.drag-over]="isDragOver(dayItem.key, 'afternoon')"
+                (dragover)="onActivityDragOver($event, dayItem.key, 'afternoon')"
+                (dragleave)="onActivityDragLeave(dayItem.key, 'afternoon')"
+                (drop)="onActivityDrop($event, dayItem.key, 'afternoon')"
+                class="border-2 border-dashed border-slate-200 rounded-2xl p-4 transition duration-200 relative itinerary-slot"
+                [ngClass]="isDragOver(dayItem.key, 'afternoon') ? 'border-rose-500 bg-rose-50/50' : 'bg-white hover:border-slate-300'"
+              >
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
+                  <span>☀️</span> Buổi Trưa/Chiều
+                </div>
+
+                <div *ngFor="let act of dayItem.day.afternoon; let actIdx = index"
+                  draggable="true"
+                  (dragstart)="onItineraryActivityDragStart($event, dayItem.key, 'afternoon', act, actIdx)"
+                  (dragend)="onDragEnd()"
+                  class="bg-amber-50/20 border border-amber-100 rounded-xl p-3 flex gap-3 cursor-grab active:cursor-grabbing hover:border-amber-300 transition mb-2 last:mb-0"
+                >
+                  <span class="text-slate-400 font-bold self-center cursor-grab">⠿</span>
+                  <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                    <img *ngIf="act.image_url" [src]="act.image_url" class="w-full h-full object-cover" alt="Image"/>
+                    <div *ngIf="!act.image_url" class="w-full h-full flex items-center justify-center text-xl">☀️</div>
+                  </div>
+                  <div class="flex-grow text-left">
+                    <div class="flex justify-between items-start gap-1">
+                      <h4 class="font-bold text-slate-800 text-sm leading-tight">{{ act.name }}</h4>
+                      <button (click)="removeActivity(dayItem.key, 'afternoon', actIdx)" class="text-slate-400 hover:text-rose-500 text-xs px-1.5 py-0.5 rounded transition">
+                        ✕
+                      </button>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">📍 {{ act.location }}</div>
+                    <div class="text-xs font-bold text-rose-500 mt-1">{{ formatPrice(act.price) }}</div>
+                  </div>
+                </div>
+
+                <div *ngIf="dayItem.day.afternoon.length === 0" class="text-center py-6 text-slate-400 text-sm flex flex-col items-center justify-center">
+                  <span class="text-2xl mb-1 opacity-60">➕</span>
+                  Kéo thả hoạt động trưa vào đây
+                </div>
+
+                <!-- Quick Suggest Button & Panel -->
+                <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    (click)="toggleReplacePanel(dayItem.key, 'afternoon')"
+                    class="text-xs font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                  >
+                    <span>➕ Gợi ý nhanh</span>
+                  </button>
+                </div>
+
+                <div *ngIf="isReplacePanelOpen(dayItem.key, 'afternoon')" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 max-h-[200px] overflow-y-auto z-10 relative">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 text-left">Gợi ý từ Trợ lý AI</div>
+                  <div *ngFor="let cand of getReplaceCandidates(dayItem.key, 'afternoon')"
+                    (click)="selectReplacement(dayItem.key, 'afternoon', cand)"
+                    class="bg-white hover:bg-rose-50 border border-slate-150 p-2 rounded-lg flex justify-between items-center cursor-pointer transition"
+                  >
+                    <div class="min-w-0 flex-grow pr-2 text-left">
+                      <div class="text-xs font-bold text-slate-800 truncate">{{ cand.name }}</div>
+                      <div class="text-[10px] text-slate-400 truncate">📍 {{ cand.location }}</div>
+                    </div>
+                    <div class="text-xs font-bold text-rose-500 flex-shrink-0">{{ formatPrice(cand.price) }}</div>
+                  </div>
+                  <div *ngIf="getReplaceCandidates(dayItem.key, 'afternoon').length === 0" class="text-center py-2 text-xs text-slate-400 italic">
+                    Không còn gợi ý phù hợp.
+                  </div>
+                </div>
+              </div>
+
+              <!-- Slot: Evening -->
+              <div
+                [class.drag-over]="isDragOver(dayItem.key, 'evening')"
+                (dragover)="onActivityDragOver($event, dayItem.key, 'evening')"
+                (dragleave)="onActivityDragLeave(dayItem.key, 'evening')"
+                (drop)="onActivityDrop($event, dayItem.key, 'evening')"
+                class="border-2 border-dashed border-slate-200 rounded-2xl p-4 transition duration-200 relative itinerary-slot"
+                [ngClass]="isDragOver(dayItem.key, 'evening') ? 'border-rose-500 bg-rose-50/50' : 'bg-white hover:border-slate-300'"
+              >
+                <div class="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2.5">
+                  <span>🌙</span> Buổi Tối
+                </div>
+
+                <div *ngFor="let act of dayItem.day.evening; let actIdx = index"
+                  draggable="true"
+                  (dragstart)="onItineraryActivityDragStart($event, dayItem.key, 'evening', act, actIdx)"
+                  (dragend)="onDragEnd()"
+                  class="bg-indigo-50/20 border border-indigo-100 rounded-xl p-3 flex gap-3 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition mb-2 last:mb-0"
+                >
+                  <span class="text-slate-400 font-bold self-center cursor-grab">⠿</span>
+                  <div class="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                    <img *ngIf="act.image_url" [src]="act.image_url" class="w-full h-full object-cover" alt="Image"/>
+                    <div *ngIf="!act.image_url" class="w-full h-full flex items-center justify-center text-xl">🌙</div>
+                  </div>
+                  <div class="flex-grow text-left">
+                    <div class="flex justify-between items-start gap-1">
+                      <h4 class="font-bold text-slate-800 text-sm leading-tight">{{ act.name }}</h4>
+                      <button (click)="removeActivity(dayItem.key, 'evening', actIdx)" class="text-slate-400 hover:text-rose-500 text-xs px-1.5 py-0.5 rounded transition">
+                        ✕
+                      </button>
+                    </div>
+                    <div class="text-xs text-slate-400 mt-1">📍 {{ act.location }}</div>
+                    <div class="text-xs font-bold text-rose-500 mt-1">{{ formatPrice(act.price) }}</div>
+                  </div>
+                </div>
+
+                <div *ngIf="dayItem.day.evening.length === 0" class="text-center py-6 text-slate-400 text-sm flex flex-col items-center justify-center">
+                  <span class="text-2xl mb-1 opacity-60">➕</span>
+                  Kéo thả hoạt động tối vào đây
+                </div>
+
+                <!-- Quick Suggest Button & Panel -->
+                <div class="flex justify-between items-center mt-3 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    (click)="toggleReplacePanel(dayItem.key, 'evening')"
+                    class="text-xs font-semibold text-rose-500 hover:text-rose-600 flex items-center gap-1"
+                  >
+                    <span>➕ Gợi ý nhanh</span>
+                  </button>
+                </div>
+
+                <div *ngIf="isReplacePanelOpen(dayItem.key, 'evening')" class="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 max-h-[200px] overflow-y-auto z-10 relative">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 text-left">Gợi ý từ Trợ lý AI</div>
+                  <div *ngFor="let cand of getReplaceCandidates(dayItem.key, 'evening')"
+                    (click)="selectReplacement(dayItem.key, 'evening', cand)"
+                    class="bg-white hover:bg-rose-50 border border-slate-150 p-2 rounded-lg flex justify-between items-center cursor-pointer transition"
+                  >
+                    <div class="min-w-0 flex-grow pr-2 text-left">
+                      <div class="text-xs font-bold text-slate-800 truncate">{{ cand.name }}</div>
+                      <div class="text-[10px] text-slate-400 truncate">📍 {{ cand.location }}</div>
+                    </div>
+                    <div class="text-xs font-bold text-rose-500 flex-shrink-0">{{ formatPrice(cand.price) }}</div>
+                  </div>
+                  <div *ngIf="getReplaceCandidates(dayItem.key, 'evening').length === 0" class="text-center py-2 text-xs text-slate-400 italic">
+                    Không còn gợi ý phù hợp.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COLUMN 3: BOOKING SUMMARY & CHECKOUT (lg:col-span-3) -->
+        <div class="lg:col-span-3 bg-white rounded-3xl shadow border border-slate-100 p-5 sticky top-8">
+          <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+            <span>📋</span> Chi tiết gói tour tự chọn
+          </h3>
+
+          <div class="space-y-4">
+            <!-- Details list -->
+            <div class="text-sm space-y-2.5 text-slate-600 border-b border-slate-100 pb-4">
+              <div class="flex justify-between">
+                <span>Điểm đến:</span>
+                <span class="font-semibold text-slate-800">{{ selectedDestination }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Thời gian:</span>
+                <span class="font-semibold text-slate-800">{{ durationDays }} ngày</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Số khách:</span>
+                <span class="font-semibold text-slate-800">{{ groupSize }} người</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Khởi hành:</span>
+                <span class="font-semibold text-slate-800">{{ travelDate | date:'dd/MM/yyyy' }}</span>
+              </div>
+            </div>
+
+            <!-- Price Breakdown -->
+            <div>
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Hoạt động đã chọn</span>
+              <div class="space-y-2 max-h-[180px] overflow-y-auto pr-1">
+                <ng-container *ngFor="let dayItem of getItineraryDays()">
+                  <!-- Morning Activities -->
+                  <div *ngFor="let act of dayItem.day.morning" class="flex justify-between text-xs text-slate-700">
+                    <span class="truncate max-w-[150px] font-medium">N{{ dayItem.num }}: {{ act.name }} (Sáng)</span>
+                    <span class="text-rose-500 font-semibold flex-shrink-0">{{ formatPrice(act.price) }}</span>
+                  </div>
+                  <!-- Afternoon Activities -->
+                  <div *ngFor="let act of dayItem.day.afternoon" class="flex justify-between text-xs text-slate-700">
+                    <span class="truncate max-w-[150px] font-medium">N{{ dayItem.num }}: {{ act.name }} (Trưa)</span>
+                    <span class="text-rose-500 font-semibold flex-shrink-0">{{ formatPrice(act.price) }}</span>
+                  </div>
+                  <!-- Evening Activities -->
+                  <div *ngFor="let act of dayItem.day.evening" class="flex justify-between text-xs text-slate-700">
+                    <span class="truncate max-w-[150px] font-medium">N{{ dayItem.num }}: {{ act.name }} (Tối)</span>
+                    <span class="text-rose-500 font-semibold flex-shrink-0">{{ formatPrice(act.price) }}</span>
+                  </div>
+                </ng-container>
+                <div *ngIf="totalPrice === 0" class="text-center py-4 text-xs text-slate-400 italic">
+                  Chưa có hoạt động nào được chọn.
+                </div>
+              </div>
+            </div>
+
+            <!-- Grand Total -->
+            <div class="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-1.5">
+              <span class="text-xs text-slate-500">Tổng thanh toán ({{ groupSize }} khách):</span>
+              <span class="text-2xl font-extrabold text-rose-500 leading-none">{{ formatPrice(totalPrice) }}</span>
+            </div>
+
+            <!-- Checkout Action -->
+            <button
+              type="button"
+              (click)="checkout()"
+              class="w-full bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg hover:shadow-xl transition flex items-center justify-center gap-2"
+              [disabled]="isCheckingOut || totalPrice === 0"
+            >
+              <svg *ngIf="isCheckingOut" class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              <span>{{ isCheckingOut ? 'Đang tạo đơn đặt...' : 'Tiến hành đặt gói tour' }}</span>
+            </button>
+          </div>
+        </div>
+
       </div>
     </div>
+
   </div>
 </div>

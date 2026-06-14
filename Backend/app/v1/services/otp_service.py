@@ -143,6 +143,7 @@ class OTPService:
         """
         if not self.sendgrid_client:
             logger.error("SendGrid client not available")
+            print(f"\n🔑 [FALLBACK] SendGrid not configured. OTP for {email}: {otp}\n")
             return False
 
         try:
@@ -215,6 +216,7 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
                 print("\n❌ SendGrid Error:")
                 print(f"   Status Code: {response.status_code}")
                 print(f"   Response Body: {error_body}")
+                print(f"\n🔑 [FALLBACK] SendGrid error occurred. OTP for {email}: {otp}\n")
                 return False
 
         except Exception as e:
@@ -253,6 +255,7 @@ Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
                             print(f"   Field: {err.get('field', 'Unknown')}")
                 except BaseException:
                     print(f"   Error Body: {error_body}")
+            print(f"\n🔑 [FALLBACK] SendGrid exception occurred. OTP for {email}: {otp}\n")
             return False
 
     def store_pending_booking(self, email: str, booking_data: Dict[str, Any]) -> bool:

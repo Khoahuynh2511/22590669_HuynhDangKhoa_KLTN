@@ -344,6 +344,11 @@
                   <div class="booking-id-section">
                     <span class="booking-id">#{{ booking.booking_id.slice(-6) }}</span>
                     <span class="status-badge" [class]="'badge-' + booking.status">{{ getStatusText(booking.status) }}</span>
+                    @if (booking.payment_status) {
+                      <span class="status-badge" [class]="booking.payment_status === 'paid' ? 'badge-completed' : 'badge-pending'">
+                        {{ booking.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                      </span>
+                    }
                   </div>
                   <div class="booking-price-mobile">
                     <span class="price-label-mobile">Tổng</span>
@@ -531,6 +536,18 @@
                       </svg>
                     </button>
                   }
+                  @if (canPayTransport(booking.status, booking.payment_status)) {
+                    <button (click)="processTransportPayment(booking.booking_id, activeTab)" [disabled]="isBookingProcessingPayment(booking.booking_id)" class="action-btn pay">
+                      @if (isBookingProcessingPayment(booking.booking_id)) {
+                        <div class="spinner-small"></div>
+                      } @else {
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      }
+                      <span>Thanh toán</span>
+                    </button>
+                  }
                   <button (click)="openDetailModal(booking.booking_id)" class="action-btn detail">
                     <span>Chi tiết</span>
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -621,19 +638,117 @@
                     </svg>
                     Lịch trình &amp; Chi tiết
                   </h4>
-                  <div class="description-content">
-                    {{ getDescriptionParts(bookingDetail.tour_package.description).main }}
-                  </div>
-                  @if (getDescriptionParts(bookingDetail.tour_package.description).note) {
-                    <div class="description-note">
-                      <p class="note-text">{{ getDescriptionParts(bookingDetail.tour_package.description).note }}</p>
+
+                  @if (isCustomTrip && customItinerary) {
+                    <!-- Custom Itinerary day-by-day slots -->
+                    <div class="custom-itinerary-detail mt-4 space-y-6">
+                      @for (day of getItineraryDays(customItinerary.itinerary); track day) {
+                        <div class="day-section border-l-2 border-blue-500 pl-4 py-1">
+                          <h5 class="day-title text-sm font-bold text-blue-700 flex items-center gap-1.5 mb-3">
+                            <span class="day-badge bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-xs">{{ getDayLabel(day) }}</span>
+                          </h5>
+                          
+                          <div class="space-y-3">
+                            <!-- Morning slot -->
+                            @if (customItinerary.itinerary[day]?.morning && customItinerary.itinerary[day].morning.length > 0) {
+                              <div class="slot-item">
+                                <span class="slot-label text-xs uppercase font-bold text-sky-600 block mb-1">🌅 Buổi sáng</span>
+                                <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                                  @for (act of asArray(customItinerary.itinerary[day].morning); track act) {
+                                    <li>{{ act }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            }
+
+                            <!-- Afternoon slot -->
+                            @if (customItinerary.itinerary[day]?.afternoon && customItinerary.itinerary[day].afternoon.length > 0) {
+                              <div class="slot-item">
+                                <span class="slot-label text-xs uppercase font-bold text-orange-600 block mb-1">☀️ Buổi chiều</span>
+                                <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                                  @for (act of asArray(customItinerary.itinerary[day].afternoon); track act) {
+                                    <li>{{ act }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            }
+
+                            <!-- Evening slot -->
+                            @if (customItinerary.itinerary[day]?.evening && customItinerary.itinerary[day].evening.length > 0) {
+                              <div class="slot-item">
+                                <span class="slot-label text-xs uppercase font-bold text-indigo-600 block mb-1">🌙 Buổi tối</span>
+                                <ul class="list-disc pl-4 space-y-1 text-sm text-gray-700">
+                                  @for (act of asArray(customItinerary.itinerary[day].evening); track act) {
+                                    <li>{{ act }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            }
+
+                            @if (!hasItineraryActivities(customItinerary.itinerary[day])) {
+                              <div class="text-xs text-gray-400 italic">Không có hoạt động nào được lên lịch</div>
+                            }
+                          </div>
+                        </div>
+                      }
+                      
+                      <!-- Transportation Section if present -->
+                      @if (customItinerary.transport && (customItinerary.transport.flight || customItinerary.transport.train)) {
+                        <div class="transport-section border-t pt-4 mt-4 space-y-3">
+                          <h5 class="text-xs uppercase font-bold text-gray-500 mb-2">🚗 Vé phương tiện đã đặt kèm</h5>
+                          
+                          <!-- Flight -->
+                          @if (customItinerary.transport.flight; as flight) {
+                            <div class="transport-card bg-sky-50 border border-sky-100 rounded-lg p-3 flex items-start gap-2.5">
+                              <span class="text-xl">✈️</span>
+                              <div class="text-sm">
+                                <div class="font-bold text-sky-800">Chuyến bay: {{ flight.flight_number || 'N/A' }}</div>
+                                <div class="text-xs text-gray-500">{{ flight.airline_name || flight.airline?.name }}</div>
+                                <div class="text-xs text-gray-600 mt-1">
+                                  Tuyến: {{ flight.departure_airport }} → {{ flight.arrival_airport }}
+                                </div>
+                                <div class="text-xs text-gray-600">
+                                  Khởi hành: {{ formatDateTime(flight.departure_time) }}
+                                </div>
+                              </div>
+                            </div>
+                          }
+
+                          <!-- Train -->
+                          @if (customItinerary.transport.train; as train) {
+                            <div class="transport-card bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex items-start gap-2.5">
+                              <span class="text-xl">🚂</span>
+                              <div class="text-sm">
+                                <div class="font-bold text-emerald-800">Tàu hỏa: {{ train.train_number || 'N/A' }}</div>
+                                <div class="text-xs text-gray-500">Hạng: {{ train.seat_type }}</div>
+                                <div class="text-xs text-gray-600 mt-1">
+                                  Tuyến: {{ train.departure_city }} → {{ train.arrival_city }}
+                                </div>
+                                <div class="text-xs text-gray-600">
+                                  Khởi hành: {{ formatDateTime(train.departure_time) }}
+                                </div>
+                              </div>
+                            </div>
+                          }
+                        </div>
+                      }
                     </div>
-                  }
-                  @if (bookingDetail.special_requests) {
-                    <div class="special-requests">
-                      <p class="special-requests-label">Ghi chú của bạn:</p>
-                      <p class="special-requests-text">{{ bookingDetail.special_requests }}</p>
+                  } @else {
+                    <!-- Original representation -->
+                    <div class="description-content">
+                      {{ getDescriptionParts(bookingDetail.tour_package.description).main }}
                     </div>
+                    @if (getDescriptionParts(bookingDetail.tour_package.description).note) {
+                      <div class="description-note">
+                        <p class="note-text">{{ getDescriptionParts(bookingDetail.tour_package.description).note }}</p>
+                      </div>
+                    }
+                    @if (bookingDetail.special_requests) {
+                      <div class="special-requests">
+                        <p class="special-requests-label">Ghi chú của bạn:</p>
+                        <p class="special-requests-text">{{ bookingDetail.special_requests }}</p>
+                      </div>
+                    }
                   }
                 </div>
               </div>
@@ -807,6 +922,12 @@
                         <span class="bill-detail-label">Số hành khách</span>
                         <span class="bill-detail-value">{{ fd.num_passengers }}</span>
                       </div>
+                      @if (fd.selected_seats) {
+                        <div class="bill-detail-row">
+                          <span class="bill-detail-label">Danh sách ghế</span>
+                          <span class="bill-detail-value">{{ fd.selected_seats }}</span>
+                        </div>
+                      }
                     </div>
                   </div>
 
@@ -824,6 +945,12 @@
                       <div class="bill-detail-row">
                         <span class="bill-detail-label">Trạng thái</span>
                         <span class="bill-detail-value">{{ getStatusText(fd.status) }}</span>
+                      </div>
+                      <div class="bill-detail-row">
+                        <span class="bill-detail-label">Thanh toán</span>
+                        <span class="bill-detail-value font-medium" [class.text-green-600]="fd.payment_status === 'paid'" [class.text-yellow-600]="fd.payment_status !== 'paid'">
+                          {{ fd.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -857,6 +984,20 @@
                     <div class="bill-receipt-note">
                       Thanh toán tại quầy hoặc qua ứng dụng. Vui lòng giữ mã đơn để đổi vé.
                     </div>
+                    
+                    @if (getPaymentErrorMessage(fd.booking_id)) {
+                      <div class="payment-error-msg text-red-600 text-xs my-2 font-medium">
+                        {{ getPaymentErrorMessage(fd.booking_id) }}
+                      </div>
+                    }
+
+                    @if (canPayTransport(fd.status, fd.payment_status)) {
+                      <button (click)="processTransportPayment(fd.booking_id, 'flight')" [disabled]="isBookingProcessingPayment(fd.booking_id)" class="payment-btn primary bill-pay-btn mb-2 w-full">
+                        @if (isBookingProcessingPayment(fd.booking_id)) { <span class="spinner-small mr-1"></span> }
+                        <span>{{ isBookingProcessingPayment(fd.booking_id) ? 'Đang xử lý...' : 'Thanh toán VNPay' }}</span>
+                      </button>
+                    }
+
                     @if (canCancelTransport(fd.status)) {
                       <button (click)="confirmDelete(fd.booking_id)" class="payment-btn danger bill-cancel-btn">Hủy đặt vé</button>
                     }
@@ -906,6 +1047,12 @@
                       }
                       <div class="bill-detail-row"><span class="bill-detail-label">Loại ghế</span><span class="bill-detail-value">{{ bd.seat_type }}</span></div>
                       <div class="bill-detail-row"><span class="bill-detail-label">Số hành khách</span><span class="bill-detail-value">{{ bd.num_passengers }}</span></div>
+                      @if (bd.selected_seats) {
+                        <div class="bill-detail-row">
+                          <span class="bill-detail-label">Danh sách ghế</span>
+                          <span class="bill-detail-value">{{ bd.selected_seats }}</span>
+                        </div>
+                      }
                     </div>
                   </div>
                   <div class="bill-section">
@@ -975,6 +1122,12 @@
                       }
                       <div class="bill-detail-row"><span class="bill-detail-label">Loại ghế/toa</span><span class="bill-detail-value">{{ td.seat_type }}</span></div>
                       <div class="bill-detail-row"><span class="bill-detail-label">Số hành khách</span><span class="bill-detail-value">{{ td.num_passengers }}</span></div>
+                      @if (td.selected_seats) {
+                        <div class="bill-detail-row">
+                          <span class="bill-detail-label">Danh sách ghế</span>
+                          <span class="bill-detail-value">{{ td.selected_seats }}</span>
+                        </div>
+                      }
                     </div>
                   </div>
                   <div class="bill-section">
@@ -983,6 +1136,12 @@
                       <div class="bill-detail-row"><span class="bill-detail-label">Ngày đặt</span><span class="bill-detail-value">{{ formatDateTime(td.created_at) }}</span></div>
                       <div class="bill-detail-row"><span class="bill-detail-label">Cập nhật lần cuối</span><span class="bill-detail-value">{{ formatDateTime(td.updated_at) }}</span></div>
                       <div class="bill-detail-row"><span class="bill-detail-label">Trạng thái</span><span class="bill-detail-value">{{ getStatusText(td.status) }}</span></div>
+                      <div class="bill-detail-row">
+                        <span class="bill-detail-label">Thanh toán</span>
+                        <span class="bill-detail-value font-medium" [class.text-green-600]="td.payment_status === 'paid'" [class.text-yellow-600]="td.payment_status !== 'paid'">
+                          {{ td.payment_status === 'paid' ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -996,6 +1155,23 @@
                     <div class="bill-receipt-row muted"><span>Thuế &amp; phí</span><span>Miễn phí</span></div>
                     <div class="bill-receipt-divider"></div>
                     <div class="bill-receipt-total"><span>Tổng cộng</span><span>{{ formatPrice(td.total_price) }}</span></div>
+                    <div class="bill-receipt-note">
+                      Thanh toán tại quầy hoặc qua ứng dụng. Vui lòng giữ mã đơn để đổi vé.
+                    </div>
+                    
+                    @if (getPaymentErrorMessage(td.booking_id)) {
+                      <div class="payment-error-msg text-red-600 text-xs my-2 font-medium">
+                        {{ getPaymentErrorMessage(td.booking_id) }}
+                      </div>
+                    }
+
+                    @if (canPayTransport(td.status, td.payment_status)) {
+                      <button (click)="processTransportPayment(td.booking_id, 'train')" [disabled]="isBookingProcessingPayment(td.booking_id)" class="payment-btn primary bill-pay-btn mb-2 w-full">
+                        @if (isBookingProcessingPayment(td.booking_id)) { <span class="spinner-small mr-1"></span> }
+                        <span>{{ isBookingProcessingPayment(td.booking_id) ? 'Đang xử lý...' : 'Thanh toán VNPay' }}</span>
+                      </button>
+                    }
+
                     @if (canCancelTransport(td.status)) {
                       <button (click)="confirmDelete(td.booking_id)" class="payment-btn danger bill-cancel-btn">Hủy đặt vé</button>
                     }

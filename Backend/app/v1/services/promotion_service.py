@@ -66,6 +66,14 @@ class PromotionService:
             Dict với EC, EM và promotion data
         """
         try:
+            # Map quantity to usage_limit if present
+            if 'quantity' in promotion_data:
+                if 'usage_limit' not in promotion_data or promotion_data['usage_limit'] is None:
+                    promotion_data['usage_limit'] = promotion_data['quantity']
+                promotion_data.pop('quantity')
+            elif 'usage_limit' not in promotion_data:
+                promotion_data['usage_limit'] = 5
+
             # Convert datetime to ISO format strings
             if isinstance(promotion_data.get('start_date'), datetime):
                 promotion_data['start_date'] = promotion_data['start_date'].isoformat()
@@ -110,6 +118,7 @@ class PromotionService:
                 result = dict(result)
                 if 'promotion_id' in result:
                     result['promotion_id'] = str(result['promotion_id'])
+                result['quantity'] = result.get('usage_limit')
 
                 logger.info(f"Created promotion: {result['promotion_id']}")
                 return {
@@ -155,6 +164,7 @@ class PromotionService:
                 result = dict(result)
                 if 'promotion_id' in result:
                     result['promotion_id'] = str(result['promotion_id'])
+                result['quantity'] = result.get('usage_limit')
 
                 return {
                     "EC": 0,
@@ -199,6 +209,7 @@ class PromotionService:
                 result = dict(result)
                 if 'promotion_id' in result:
                     result['promotion_id'] = str(result['promotion_id'])
+                result['quantity'] = result.get('usage_limit')
 
                 return {
                     "EC": 0,
@@ -262,6 +273,7 @@ class PromotionService:
                     row = dict(row)
                     if 'promotion_id' in row:
                         row['promotion_id'] = str(row['promotion_id'])
+                    row['quantity'] = row.get('usage_limit')
                     promotions.append(row)
 
                 return {
@@ -328,6 +340,7 @@ class PromotionService:
                     row = dict(row)
                     if 'promotion_id' in row:
                         row['promotion_id'] = str(row['promotion_id'])
+                    row['quantity'] = row.get('usage_limit')
                     promotions.append(row)
 
                 return {
@@ -411,6 +424,7 @@ class PromotionService:
                     row = dict(row)
                     if 'promotion_id' in row:
                         row['promotion_id'] = str(row['promotion_id'])
+                    row['quantity'] = row.get('usage_limit')
                     promotions.append(row)
 
                 return {
@@ -477,6 +491,7 @@ class PromotionService:
                     row = dict(row)
                     if 'promotion_id' in row:
                         row['promotion_id'] = str(row['promotion_id'])
+                    row['quantity'] = row.get('usage_limit')
                     promotions.append(row)
 
                 return {
@@ -543,6 +558,7 @@ class PromotionService:
                     row = dict(row)
                     if 'promotion_id' in row:
                         row['promotion_id'] = str(row['promotion_id'])
+                    row['quantity'] = row.get('usage_limit')
                     promotions.append(row)
 
                 return {
@@ -573,6 +589,12 @@ class PromotionService:
             Dict với EC, EM và promotion data
         """
         try:
+            # Map quantity to usage_limit if present
+            if 'quantity' in update_data:
+                if 'usage_limit' not in update_data or update_data['usage_limit'] is None:
+                    update_data['usage_limit'] = update_data['quantity']
+                update_data.pop('quantity')
+
             # Convert datetime to ISO format strings
             if isinstance(update_data.get('start_date'), datetime):
                 update_data['start_date'] = update_data['start_date'].isoformat()
@@ -610,6 +632,7 @@ class PromotionService:
                 result = dict(result)
                 if 'promotion_id' in result:
                     result['promotion_id'] = str(result['promotion_id'])
+                result['quantity'] = result.get('usage_limit')
 
                 logger.info(f"Updated promotion: {promotion_id}")
                 return {
@@ -715,6 +738,7 @@ class PromotionService:
                             # Convert UUID to string
                             if 'promotion_id' in promo:
                                 promo['promotion_id'] = str(promo['promotion_id'])
+                            promo['quantity'] = promo.get('usage_limit')
                             valid_promotions.append(promo)
                     except Exception as date_error:
                         logger.warning(f"Error parsing dates for promotion {promo.get('promotion_id')}: {str(date_error)}")

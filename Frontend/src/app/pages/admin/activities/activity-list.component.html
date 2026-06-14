@@ -1,0 +1,397 @@
+<div class="p-6">
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-gray-800">Quản lý Gói Hoạt Động</h1>
+      <p class="text-gray-500 text-sm mt-1">Quản lý các hoạt động (tham quan, vui chơi, ăn uống) dùng để lập lịch trình tự chọn</p>
+    </div>
+    <button type="button" (click)="openAddModal()"
+      class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+      </svg>
+      Thêm hoạt động
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap gap-4 items-center justify-between">
+    <div class="flex flex-wrap gap-4 items-center flex-1">
+      <div class="min-w-[200px] flex-1 max-w-sm">
+        <input type="text" [(ngModel)]="searchTerm" (ngModelChange)="applyFilters()"
+          placeholder="Tìm theo tên hoạt động, địa điểm..."
+          class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
+      </div>
+      
+      <select [(ngModel)]="destinationFilter" (ngModelChange)="applyFilters()"
+        class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm min-w-[150px]">
+        <option value="">Tất cả điểm đến</option>
+        @for (d of destinations; track d) {
+          <option [value]="d">{{ d }}</option>
+        }
+      </select>
+
+      <select [(ngModel)]="categoryFilter" (ngModelChange)="applyFilters()"
+        class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm min-w-[150px]">
+        <option value="">Tất cả thể loại</option>
+        @for (c of categories; track c) {
+          <option [value]="c">{{ getCategoryLabel(c) }}</option>
+        }
+      </select>
+
+      <select [(ngModel)]="timeSlotFilter" (ngModelChange)="applyFilters()"
+        class="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm min-w-[150px]">
+        <option value="">Tất cả buổi</option>
+        @for (s of timeSlots; track s) {
+          <option [value]="s">{{ getTimeSlotLabel(s) }}</option>
+        }
+      </select>
+    </div>
+    
+    <span class="text-sm text-gray-500 font-medium">{{ filteredActivities.length }} hoạt động</span>
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading) {
+    <div class="flex items-center justify-center py-20">
+      <div class="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+      <span class="ml-3 text-gray-600">Đang tải...</span>
+    </div>
+  }
+
+  <!-- Table -->
+  @if (!isLoading) {
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">STT</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Hình ảnh</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Tên hoạt động</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Điểm đến</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Địa điểm</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thời gian</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thể loại</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Độ khó</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Giá vé (VND)</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Trạng thái</th>
+              <th class="px-4 py-3 text-left font-semibold text-gray-600">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (act of filteredActivities; track act.activity_id; let i = $index) {
+              <tr class="border-b hover:bg-gray-50 transition-colors">
+                <td class="px-4 py-3 text-gray-500">{{ i + 1 }}</td>
+                <td class="px-4 py-3">
+                  <img [src]="act.image_url || 'https://via.placeholder.com/60x40'" 
+                    alt="activity thumbnail" 
+                    class="w-16 h-10 object-cover rounded shadow-sm" />
+                </td>
+                <td class="px-4 py-3 font-semibold text-gray-800">
+                  <a (click)="openDetailModal(act)" class="hover:text-blue-600 cursor-pointer">{{ act.name }}</a>
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ act.destination }}</td>
+                <td class="px-4 py-3 text-gray-600 truncate max-w-[150px]" [title]="act.location">{{ act.location }}</td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold {{ getTimeSlotClass(act.time_slot) }}">
+                    {{ getTimeSlotLabel(act.time_slot) }}
+                  </span>
+                  <div class="text-[10px] text-gray-400 mt-0.5">{{ act.duration_hours }} giờ</div>
+                </td>
+                <td class="px-4 py-3 text-gray-600">{{ getCategoryLabel(act.category || '') }}</td>
+                <td class="px-4 py-3">
+                  <span class="px-2 py-0.5 rounded text-[11px] font-medium {{ getDifficultyClass(act.difficulty || '') }}">
+                    {{ getDifficultyLabel(act.difficulty || '') }}
+                  </span>
+                </td>
+                <td class="px-4 py-3 font-bold text-orange-600">{{ formatPrice(act.price) }}</td>
+                <td class="px-4 py-3">
+                  <button type="button" (click)="toggleStatus(act)"
+                    class="px-2 py-1 rounded-full text-xs font-semibold transition-colors focus:outline-none"
+                    [class.bg-green-100]="act.is_active"
+                    [class.text-green-700]="act.is_active"
+                    [class.hover:bg-green-200]="act.is_active"
+                    [class.bg-red-100]="!act.is_active"
+                    [class.text-red-700]="!act.is_active"
+                    [class.hover:bg-red-200]="!act.is_active">
+                    {{ act.is_active ? 'Hoạt động' : 'Tạm dừng' }}
+                  </button>
+                </td>
+                <td class="px-4 py-3 text-gray-600">
+                  <div class="flex items-center gap-2">
+                    <button type="button" (click)="openDetailModal(act)"
+                      class="text-gray-500 hover:text-blue-600 p-1" title="Chi tiết">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                      </svg>
+                    </button>
+                    <button type="button" (click)="openEditModal(act)"
+                      class="text-blue-600 hover:text-blue-800 p-1" title="Chỉnh sửa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                      </svg>
+                    </button>
+                    <button type="button" (click)="confirmDelete(act)"
+                      class="text-red-600 hover:text-red-800 p-1" title="Xóa">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (filteredActivities.length === 0) {
+              <tr>
+                <td colspan="11" class="px-4 py-8 text-center text-gray-500">
+                  @if (activities.length === 0) {
+                    Chưa có gói hoạt động nào. Nhấn "Thêm hoạt động" để bắt đầu.
+                  } @else {
+                    Không tìm thấy hoạt động nào phù hợp với bộ lọc.
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showAddModal || showEditModal) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+    (click.self)="closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b">
+        <h2 class="text-xl font-bold text-gray-800">
+          {{ showAddModal ? 'Thêm hoạt động mới' : 'Chỉnh sửa hoạt động' }}
+        </h2>
+        <button type="button" (click)="closeModal()" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Form -->
+      <div class="px-6 py-4 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Tên hoạt động <span class="text-red-500">*</span></label>
+            <input type="text" [(ngModel)]="formData.name" placeholder="VD: Thác Datanla - Trải nghiệm máng trượt"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Điểm đến <span class="text-red-500">*</span></label>
+            <select [(ngModel)]="formData.destination"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              @for (d of destinations; track d) {
+                <option [value]="d">{{ d }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Địa điểm cụ thể <span class="text-red-500">*</span></label>
+            <input type="text" [(ngModel)]="formData.location" placeholder="VD: KDL Thác Datanla, QL20, Đà Lạt"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Buổi hoạt động</label>
+            <select [(ngModel)]="formData.time_slot"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              @for (s of timeSlots; track s) {
+                <option [value]="s">{{ getTimeSlotLabel(s) }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Thể loại</label>
+            <select [(ngModel)]="formData.category"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              @for (c of categories; track c) {
+                <option [value]="c">{{ getCategoryLabel(c) }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Thời lượng (giờ)</label>
+            <input type="number" step="0.5" [(ngModel)]="formData.duration_hours"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Giá vé (VND)</label>
+            <input type="number" [(ngModel)]="formData.price"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Độ khó</label>
+            <select [(ngModel)]="formData.difficulty"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500">
+              @for (diff of difficulties; track diff) {
+                <option [value]="diff">{{ getDifficultyLabel(diff) }}</option>
+              }
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Ảnh minh họa (URL)</label>
+            <input type="text" [(ngModel)]="formData.image_url" placeholder="URL hình ảnh"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Số khách tối thiểu</label>
+            <input type="number" [(ngModel)]="formData.min_participants"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Số khách tối đa</label>
+            <input type="number" [(ngModel)]="formData.max_participants"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500" />
+          </div>
+
+          <div class="col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Mô tả hoạt động</label>
+            <textarea [(ngModel)]="formData.description" rows="3" placeholder="Nhập mô tả hoạt động..."
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"></textarea>
+          </div>
+
+          <div class="col-span-2">
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Dịch vụ bao gồm (mỗi dòng một dịch vụ)</label>
+            <textarea [(ngModel)]="formData.included_services" rows="2" placeholder="Ví dụ:&#10;Vé vào cổng&#10;Nước suối&#10;Bảo hiểm du lịch"
+              class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-blue-500"></textarea>
+          </div>
+
+          <div class="flex items-center gap-2 mt-2">
+            <input type="checkbox" id="is_active" [(ngModel)]="formData.is_active" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+            <label for="is_active" class="text-sm font-semibold text-gray-700">Kích hoạt hoạt động này</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+        <button type="button" (click)="closeModal()"
+          class="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none">
+          Hủy
+        </button>
+        <button type="button" (click)="showAddModal ? saveActivity() : updateActivity()"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors focus:outline-none shadow">
+          {{ showAddModal ? 'Tạo hoạt động' : 'Cập nhật' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Detail Modal -->
+@if (showDetailModal && currentActivity) {
+  <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+    (click.self)="closeModal()">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden">
+      <!-- Image Header -->
+      <div class="relative h-60 bg-gray-200">
+        <img [src]="currentActivity.image_url || 'https://via.placeholder.com/600x300'" 
+          alt="activity image" class="w-full h-full object-cover" />
+        <button type="button" (click)="closeModal()" 
+          class="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full transition-colors focus:outline-none">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+        <div class="absolute bottom-4 left-4 right-4 bg-gradient-to-t from-black/80 to-transparent p-4 rounded text-white">
+          <div class="text-xs uppercase font-bold tracking-wider opacity-90">{{ currentActivity.destination }} • {{ getCategoryLabel(currentActivity.category || '') }}</div>
+          <h2 class="text-xl font-bold mt-1">{{ currentActivity.name }}</h2>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 space-y-4 max-h-[50vh] overflow-y-auto">
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-4 text-center">
+          <div class="bg-gray-50 p-2.5 rounded-lg">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Khung giờ</div>
+            <div class="text-xs font-semibold text-gray-800 mt-0.5">{{ getTimeSlotLabel(currentActivity.time_slot || '') }}</div>
+          </div>
+          <div class="bg-gray-50 p-2.5 rounded-lg">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Thời lượng</div>
+            <div class="text-xs font-semibold text-gray-800 mt-0.5">{{ currentActivity.duration_hours }} giờ</div>
+          </div>
+          <div class="bg-gray-50 p-2.5 rounded-lg">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Độ khó</div>
+            <div class="text-xs font-semibold text-gray-800 mt-0.5">{{ getDifficultyLabel(currentActivity.difficulty || '') }}</div>
+          </div>
+          <div class="bg-gray-50 p-2.5 rounded-lg">
+            <div class="text-[10px] text-gray-400 uppercase font-semibold">Giá vé</div>
+            <div class="text-xs font-bold text-orange-600 mt-0.5">{{ formatPrice(currentActivity.price || 0) }}</div>
+          </div>
+        </div>
+
+        <!-- Details -->
+        <div>
+          <h3 class="text-sm font-bold text-gray-700 mb-1">📍 Địa điểm</h3>
+          <p class="text-sm text-gray-600">{{ currentActivity.location }}</p>
+        </div>
+
+        @if (currentActivity.description) {
+          <div>
+            <h3 class="text-sm font-bold text-gray-700 mb-1">📝 Mô tả chi tiết</h3>
+            <p class="text-sm text-gray-600 leading-relaxed white-space-pre-line">{{ currentActivity.description }}</p>
+          </div>
+        }
+
+        <!-- Included Services -->
+        @if (currentActivity.included_services && currentActivity.included_services.length > 0) {
+          <div>
+            <h3 class="text-sm font-bold text-gray-700 mb-2">✓ Dịch vụ bao gồm</h3>
+            <ul class="grid grid-cols-2 gap-2 text-sm text-gray-600">
+              @for (service of currentActivity.included_services; track service) {
+                <li class="flex items-center gap-1.5">
+                  <svg class="w-4 h-4 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <span>{{ service }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
+        <!-- Max/Min people -->
+        <div class="text-xs text-gray-400 flex justify-between border-t pt-3">
+          <span>Quy mô: {{ currentActivity.min_participants }} - {{ currentActivity.max_participants }} người</span>
+          <span>Trạng thái: {{ currentActivity.is_active ? 'Đang hoạt động' : 'Tạm ngừng' }}</span>
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <div class="px-6 py-4 bg-gray-50 flex items-center justify-end gap-2 border-t">
+        <button type="button" (click)="closeModal()"
+          class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm font-semibold focus:outline-none transition-colors">
+          Đóng
+        </button>
+        <button type="button" (click)="openEditModal(currentActivity); showDetailModal = false"
+          class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold focus:outline-none transition-colors shadow">
+          Chỉnh sửa
+        </button>
+      </div>
+    </div>
+  </div>
+}

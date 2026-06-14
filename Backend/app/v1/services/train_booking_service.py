@@ -85,17 +85,18 @@ class TrainBookingService:
                     # Create booking
                     booking_id = f"TNB{uuid.uuid4().hex[:16].upper()}"
                     now = datetime.now(timezone.utc).isoformat()
+                    selected_seats = booking_data.get('selected_seats', '')
 
                     cur.execute(
                         """INSERT INTO train_bookings
                            (booking_id, train_id, user_id, passenger_name, passenger_phone,
                             passenger_email, seat_type_id, num_passengers, total_price,
-                            status, payment_status, created_at, updated_at)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            status, payment_status, selected_seats, created_at, updated_at)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                            RETURNING booking_id""",
                         (booking_id, train_id, user_id, booking_data['passenger_name'],
                          booking_data['passenger_phone'], passenger_email, seat_type_id,
-                         num_passengers, total_price, 'otp_sent', 'unpaid', now, now)
+                         num_passengers, total_price, 'otp_sent', 'unpaid', selected_seats, now, now)
                     )
                     if not cur.fetchone():
                         return {"EC": 5, "EM": "Không thể tạo đặt vé", "data": None}
@@ -209,7 +210,7 @@ class TrainBookingService:
                     now = datetime.now(timezone.utc).isoformat()
                     cur.execute(
                         """UPDATE train_bookings
-                           SET status = 'confirmed', payment_status = 'paid', updated_at = %s
+                           SET status = 'pending', payment_status = 'unpaid', updated_at = %s
                            WHERE booking_id = %s""",
                         (now, booking_id)
                     )
@@ -300,7 +301,7 @@ class TrainBookingService:
                     cur.execute("""
                         SELECT
                             tb.booking_id, tb.num_passengers, tb.total_price,
-                            tb.status, tb.created_at, tb.seat_type_id,
+                            tb.status, tb.payment_status, tb.created_at, tb.seat_type_id,
                             t.train_number, t.departure_station, t.arrival_station, t.departure_time,
                             st.name as seat_type_name
                         FROM train_bookings tb
@@ -327,6 +328,7 @@ class TrainBookingService:
                             "num_passengers": row['num_passengers'],
                             "total_price": float(row['total_price']),
                             "status": row['status'],
+                            "payment_status": row.get('payment_status', 'unpaid'),
                             "created_at": to_json_value(row.get('created_at')) or ''
                         })
 
@@ -369,6 +371,8 @@ class TrainBookingService:
                         "seat_type": row.get('seat_type_name', row.get('seat_type_id', '')),
                         "num_passengers": row['num_passengers'],
                         "total_price": float(row['total_price']),
+                        "selected_seats": row.get('selected_seats', ''),
+                        "payment_status": row.get('payment_status', 'unpaid'),
                         "created_at": str(row['created_at']) if row.get('created_at') else '',
                         "updated_at": str(row['updated_at']) if row.get('updated_at') else '',
                         "train": {
@@ -439,6 +443,27 @@ class TrainBookingService:
         except Exception as e:
             logger.error(f"Error cancelling train booking: {str(e)}")
             return {"EC": 3, "EM": str(e), "data": None}
+
+    def get_occupied_seats(self, train_id: str) -> Dict[str, Any]:
+        """Get list of occupied seats for a specific train"""
+        try:
+            with self._get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT selected_seats FROM train_bookings WHERE train_id = %s AND status != 'cancelled' AND selected_seats IS NOT NULL",
+                        (train_id,)
+                    )
+                    rows = cur.fetchall()
+                    occupied = []
+                    for row in rows:
+                        seats_str = row.get('selected_seats', '')
+                        if seats_str:
+                            occupied.extend([s.strip() for s in seats_str.split(',') if s.strip()])
+            return {"EC": 0, "EM": "Success", "data": list(set(occupied))}
+        except Exception as e:
+            logger.error(f"Error getting occupied seats for train {train_id}: {str(e)}")
+            return {"EC": 1, "EM": str(e), "data": []}
+
 
 
 def get_train_booking_service():

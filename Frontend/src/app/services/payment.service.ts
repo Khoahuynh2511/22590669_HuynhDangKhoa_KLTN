@@ -89,6 +89,20 @@ export class PaymentService {
     );
   }
 
+  createTransportPayment(bookingType: string, bookingId: string, paymentMethod: string = 'vnpay'): Observable<PaymentCreateResponse> {
+    return this.http.post<PaymentCreateResponse>(
+      `${this.apiBaseUrl}/payments/create-transport`,
+      {
+        booking_type: bookingType,
+        booking_id: bookingId,
+        payment_method: paymentMethod
+      },
+      {
+        headers: this.getHeaders()
+      }
+    );
+  }
+
   getMyPayments(params?: PaymentListParams): Observable<PaymentListResponse> {
     let httpParams = new HttpParams();
     

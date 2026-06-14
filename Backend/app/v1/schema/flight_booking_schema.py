@@ -14,6 +14,7 @@ class FlightBookingCreate(BaseModel):
     passenger_name: str = Field(..., min_length=2, max_length=100, description="Tên hành khách")
     passenger_email: str = Field(..., description="Email để nhận OTP")
     passenger_phone: str = Field(..., min_length=10, max_length=20, description="Số điện thoại")
+    selected_seats: Optional[str] = Field(None, description="Danh sách mã ghế đã chọn, ví dụ: 'A1,A2'")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -23,7 +24,8 @@ class FlightBookingCreate(BaseModel):
                 "num_passengers": 2,
                 "passenger_name": "Nguyen Van A",
                 "passenger_email": "user@example.com",
-                "passenger_phone": "0901234567"
+                "passenger_phone": "0901234567",
+                "selected_seats": "A1,A2"
             }
         }
     )
@@ -64,6 +66,7 @@ class MyFlightBookingItem(BaseModel):
     num_passengers: int
     total_price: float
     status: str
+    payment_status: Optional[str] = None
     created_at: str
 
 
@@ -85,6 +88,8 @@ class MyFlightBookingDetail(BaseModel):
     seat_class: str
     num_passengers: int
     total_price: float
+    selected_seats: Optional[str] = None
+    payment_status: Optional[str] = None
     created_at: str
     updated_at: str
     flight: Optional[dict] = None
@@ -95,3 +100,4 @@ class MyFlightBookingDetailResponse(BaseModel):
     EC: int
     EM: str
     data: Optional[MyFlightBookingDetail] = None
+

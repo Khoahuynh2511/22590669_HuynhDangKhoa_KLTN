@@ -62,3 +62,12 @@ bug.txt
 
 # Temp notes
 bug.txt
+
+# Assets
+asset/
+assets/
+
+# Temporary files
+~$*
+
+

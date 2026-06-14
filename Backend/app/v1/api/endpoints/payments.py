@@ -10,6 +10,7 @@ from uuid import UUID
 
 from ...schema.payment_schema import (
     PaymentCreate,
+    TransportPaymentCreate,
     PaymentCreateResponse,
     PaymentStatusResponse,
     PaymentListResponse,
@@ -73,16 +74,25 @@ async def create_payment(
         client_ip = request.client.host if request.client else "127.0.0.1"
 
         # Verify user owns the booking
-        supabase = get_supabase_client()
-        booking_result = supabase.table('bookings')\
-            .select('user_id')\
-            .eq('booking_id', str(payment.booking_id))\
-            .execute()
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        try:
+            with psycopg2.connect(url, cursor_factory=RealDictCursor) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT user_id FROM bookings WHERE booking_id = %s",
+                        (str(payment.booking_id),)
+                    )
+                    booking_row = cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error querying PostgreSQL in create_payment: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
 
-        if not booking_result.data:
+        if not booking_row:
             raise HTTPException(status_code=404, detail="Booking not found")
 
-        booking_data = booking_result.data[0]
+        booking_data = dict(booking_row)
 
         # Check if booking has user_id
         if 'user_id' not in booking_data or booking_data['user_id'] is None:
@@ -119,6 +129,72 @@ async def create_payment(
         raise
     except Exception as e:
         logger.error(f"Error in create_payment endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/create-transport", response_model=PaymentCreateResponse)
+async def create_transport_payment(
+    payment: TransportPaymentCreate,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+    service: PaymentService = Depends(get_payment_service)
+):
+    """
+    Tạo payment request cho vé máy bay hoặc tàu hỏa và nhận VNPay URL
+    """
+    try:
+        client_ip = request.client.host if request.client else "127.0.0.1"
+
+        if payment.booking_type not in ("flight", "train"):
+            raise HTTPException(status_code=400, detail="booking_type must be 'flight' or 'train'")
+
+        table = "flight_bookings" if payment.booking_type == "flight" else "train_bookings"
+
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        try:
+            with psycopg2.connect(url, cursor_factory=RealDictCursor) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"SELECT user_id FROM {table} WHERE booking_id = %s",
+                        (payment.booking_id,)
+                    )
+                    booking_row = cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error querying PostgreSQL in create_transport_payment: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
+
+        if not booking_row:
+            raise HTTPException(status_code=404, detail="Booking not found")
+
+        booking_data = dict(booking_row)
+
+        if 'user_id' not in booking_data or booking_data['user_id'] is None:
+            raise HTTPException(status_code=400, detail="Booking does not have user_id")
+
+        if str(booking_data['user_id']) != str(current_user['user_id']):
+            raise HTTPException(status_code=403, detail="Access denied. You can only create payment for your own bookings.")
+
+        client_return_url = payment.return_url or request.headers.get("referer")
+
+        result = await service.create_transport_payment(
+            booking_type=payment.booking_type,
+            booking_id=payment.booking_id,
+            payment_method=payment.payment_method,
+            ip_addr=client_ip,
+            client_return_url=client_return_url
+        )
+
+        if result["EC"] != 0:
+            raise HTTPException(status_code=400, detail=result["EM"])
+
+        return PaymentCreateResponse(**result)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in create_transport_payment endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -453,52 +529,64 @@ async def confirm_payment_by_admin(
     """
     try:
         admin_id = current_admin.get("user_id")
-        supabase = get_supabase_client()
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        try:
+            with psycopg2.connect(url, cursor_factory=RealDictCursor) as conn:
+                with conn.cursor() as cur:
+                    # Get payment
+                    cur.execute(
+                        "SELECT * FROM payments WHERE payment_id = %s",
+                        (str(payment_id),)
+                    )
+                    payment_row = cur.fetchone()
+                    if not payment_row:
+                        raise HTTPException(status_code=404, detail="Payment not found")
+                    payment = dict(payment_row)
 
-        # Get payment
-        payment_result = supabase.table('payments')\
-            .select('*')\
-            .eq('payment_id', str(payment_id))\
-            .execute()
+                    if payment['payment_status'] != 'pending':
+                        raise HTTPException(
+                            status_code=400, detail=f"Payment status is {payment['payment_status']}, expected pending"
+                        )
 
-        if not payment_result.data:
-            raise HTTPException(status_code=404, detail="Payment not found")
+                    # Update payment to completed
+                    from datetime import datetime
+                    update_data = {
+                        'payment_status': 'completed',
+                        'paid_at': datetime.utcnow().isoformat(),
+                        'created_by_admin_id': admin_id
+                    }
 
-        payment = payment_result.data[0]
+                    cur.execute(
+                        """UPDATE payments
+                           SET payment_status = %s, paid_at = %s, created_by_admin_id = %s
+                           WHERE payment_id = %s RETURNING *""",
+                        (update_data['payment_status'], update_data['paid_at'], update_data['created_by_admin_id'], str(payment_id))
+                    )
+                    updated_payment_row = cur.fetchone()
+                    if not updated_payment_row:
+                        raise HTTPException(status_code=500, detail="Failed to update payment")
+                    updated_payment = dict(updated_payment_row)
 
-        if payment['payment_status'] != 'pending':
-            raise HTTPException(
-                status_code=400, detail=f"Payment status is {
-                    payment['payment_status']}, expected pending")
-
-        # Update payment to completed
-        from datetime import datetime
-        update_data = {
-            'payment_status': 'completed',
-            'paid_at': datetime.utcnow().isoformat(),
-            'created_by_admin_id': admin_id
-        }
-
-        update_result = supabase.table('payments')\
-            .update(update_data)\
-            .eq('payment_id', str(payment_id))\
-            .execute()
-
-        if not update_result.data:
-            raise HTTPException(status_code=500, detail="Failed to update payment")
-
-        # Update booking to confirmed
-        supabase.table('bookings')\
-            .update({'status': 'confirmed'})\
-            .eq('booking_id', payment['booking_id'])\
-            .execute()
+                    # Update booking to confirmed
+                    cur.execute(
+                        "UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s",
+                        (payment['booking_id'],)
+                    )
+                    conn.commit()
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Database error in confirm_payment_by_admin: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
 
         logger.info(f"Admin {admin_id} confirmed payment {payment_id}")
 
         return AdminPaymentCreateResponse(
             EC=0,
             EM="Payment confirmed successfully",
-            data=update_result.data[0]
+            data=updated_payment
         )
 
     except HTTPException:
@@ -641,17 +729,26 @@ async def get_payment_by_booking(
     """
     try:
         # Verify user owns the booking
-        supabase = get_supabase_client()
-        booking_result = supabase.table('bookings')\
-            .select('user_id')\
-            .eq('booking_id', str(booking_id))\
-            .execute()
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        try:
+            with psycopg2.connect(url, cursor_factory=RealDictCursor) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT user_id FROM bookings WHERE booking_id = %s",
+                        (str(booking_id),)
+                    )
+                    booking_row = cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error querying PostgreSQL in get_payment_by_booking: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
 
-        if not booking_result.data:
+        if not booking_row:
             raise HTTPException(status_code=404, detail="Booking not found")
 
         # Convert to string for comparison
-        booking_user_id = str(booking_result.data[0]['user_id'])
+        booking_user_id = str(booking_row['user_id'])
         current_user_id = str(current_user['user_id'])
 
         if booking_user_id != current_user_id:
@@ -700,15 +797,24 @@ async def get_payment_status(
 
         # Verify user owns the payment's booking
         payment = result['data']
-        supabase = get_supabase_client()
-        booking_result = supabase.table('bookings')\
-            .select('user_id')\
-            .eq('booking_id', payment['booking_id'])\
-            .execute()
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        try:
+            with psycopg2.connect(url, cursor_factory=RealDictCursor) as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT user_id FROM bookings WHERE booking_id = %s",
+                        (payment['booking_id'],)
+                    )
+                    booking_row = cur.fetchone()
+        except Exception as e:
+            logger.error(f"Error querying PostgreSQL in get_payment_status: {e}")
+            raise HTTPException(status_code=500, detail="Database error")
 
         # Convert to string for comparison
-        if booking_result.data:
-            booking_user_id = str(booking_result.data[0]['user_id'])
+        if booking_row:
+            booking_user_id = str(booking_row['user_id'])
             current_user_id = str(current_user['user_id'])
             if booking_user_id != current_user_id:
                 # Allow admin to view any payment

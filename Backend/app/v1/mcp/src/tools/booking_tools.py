@@ -410,21 +410,78 @@ def register_booking_tools(mcp: FastMCP):
     async def _verify_otp_impl(booking_id: str, otp_code: str) -> Dict[str, Any]:
         """Verify OTP and confirm booking via unified BookingService API."""
         try:
-            booking_service = BookingService()
-            result = await booking_service.verify_otp(booking_id, otp_code)
+            if booking_id.startswith("FLB"):
+                from app.v1.services.flight_booking_service import FlightBookingService
+                flight_booking_service = FlightBookingService()
+                result = await flight_booking_service.verify_otp(booking_id, otp_code)
+            elif booking_id.startswith("TNB"):
+                from app.v1.services.train_booking_service import TrainBookingService
+                train_booking_service = TrainBookingService()
+                result = await train_booking_service.verify_otp(booking_id, otp_code)
+            elif booking_id.startswith("BSB"):
+                from app.v1.services.bus_booking_service import BusBookingService
+                bus_booking_service = BusBookingService()
+                result = await bus_booking_service.verify_otp(booking_id, otp_code)
+            else:
+                booking_service = BookingService()
+                result = await booking_service.verify_otp(booking_id, otp_code)
 
             if result["EC"] != 0:
                 return {"success": False, "error": result["EM"]}
 
             data = result.get("data") or {}
+            total_amount = data.get("total_amount")
+            status = data.get("status", "pending")
+            
+            # Retrieve specific details from database for transport bookings
+            if booking_id.startswith("FLB"):
+                try:
+                    import psycopg2
+                    from app.v1.core.config import settings
+                    with psycopg2.connect(settings.DATABASE_URL) as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT total_price, status FROM flight_bookings WHERE booking_id = %s", (booking_id,))
+                            row = cur.fetchone()
+                            if row:
+                                total_amount = float(row[0])
+                                status = row[1]
+                except Exception as db_err:
+                    logger.error(f"Error fetching flight booking total_price: {db_err}")
+            elif booking_id.startswith("TNB"):
+                try:
+                    import psycopg2
+                    from app.v1.core.config import settings
+                    with psycopg2.connect(settings.DATABASE_URL) as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT total_price, status FROM train_bookings WHERE booking_id = %s", (booking_id,))
+                            row = cur.fetchone()
+                            if row:
+                                total_amount = float(row[0])
+                                status = row[1]
+                except Exception as db_err:
+                    logger.error(f"Error fetching train booking total_price: {db_err}")
+            elif booking_id.startswith("BSB"):
+                try:
+                    import psycopg2
+                    from app.v1.core.config import settings
+                    with psycopg2.connect(settings.DATABASE_URL) as conn:
+                        with conn.cursor() as cur:
+                            cur.execute("SELECT total_price, status FROM bus_bookings WHERE booking_id = %s", (booking_id,))
+                            row = cur.fetchone()
+                            if row:
+                                total_amount = float(row[0])
+                                status = row[1]
+                except Exception as db_err:
+                    logger.error(f"Error fetching bus booking total_price: {db_err}")
+
             return {
                 "success": True,
                 "message": result["EM"],
                 "booking_id": booking_id,
                 "confirmation": {
                     "booking_id": booking_id,
-                    "status": data.get("status", "pending"),
-                    "total_amount": data.get("total_amount"),
+                    "status": status,
+                    "total_amount": total_amount,
                 },
             }
         except Exception as e:
@@ -434,8 +491,21 @@ def register_booking_tools(mcp: FastMCP):
     async def _resend_otp_impl(booking_id: str) -> Dict[str, Any]:
         """Resend OTP for a booking via unified BookingService API."""
         try:
-            booking_service = BookingService()
-            result = await booking_service.resend_otp(booking_id)
+            if booking_id.startswith("FLB"):
+                from app.v1.services.flight_booking_service import FlightBookingService
+                flight_booking_service = FlightBookingService()
+                result = await flight_booking_service.resend_otp(booking_id)
+            elif booking_id.startswith("TNB"):
+                from app.v1.services.train_booking_service import TrainBookingService
+                train_booking_service = TrainBookingService()
+                result = await train_booking_service.resend_otp(booking_id)
+            elif booking_id.startswith("BSB"):
+                from app.v1.services.bus_booking_service import BusBookingService
+                bus_booking_service = BusBookingService()
+                result = await bus_booking_service.resend_otp(booking_id)
+            else:
+                booking_service = BookingService()
+                result = await booking_service.resend_otp(booking_id)
 
             if result["EC"] == 0:
                 data = result.get("data") or {}

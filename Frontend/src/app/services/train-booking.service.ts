@@ -10,6 +10,7 @@ export interface TrainBookingCreateRequest {
   passenger_name: string;
   passenger_email: string;
   passenger_phone: string;
+  selected_seats?: string;
 }
 
 export interface TrainBookingOTPResponse {
@@ -37,6 +38,7 @@ export interface MyTrainBooking {
   num_passengers: number;
   total_price: number;
   status: string;
+  payment_status?: string;
   created_at: string;
 }
 
@@ -49,8 +51,10 @@ export interface TrainBookingDetail {
   seat_type: string;
   num_passengers: number;
   total_price: number;
+  payment_status?: string;
   created_at: string;
   updated_at: string;
+  selected_seats?: string;
   train: {
     train_id: string;
     train_number: string;
@@ -124,6 +128,13 @@ export class TrainBookingService {
     return this.http.post<TrainBookingOTPResponse>(
       `${this.apiBaseUrl}/${bookingId}/cancel`,
       { reason },
+      { headers: this.getHeaders() }
+    );
+  }
+
+  getOccupiedSeats(trainId: string): Observable<{ EC: number; EM: string; data: string[] }> {
+    return this.http.get<{ EC: number; EM: string; data: string[] }>(
+      `${this.apiBaseUrl}/occupied-seats/${trainId}`,
       { headers: this.getHeaders() }
     );
   }

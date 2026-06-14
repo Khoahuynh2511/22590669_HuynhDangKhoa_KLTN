@@ -3,7 +3,7 @@ Payment Schemas
 Schemas cho UC Payment: Thanh toán VNPay
 """
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 from uuid import UUID
 
@@ -27,10 +27,31 @@ class PaymentCreate(BaseModel):
     )
 
 
+class TransportPaymentCreate(BaseModel):
+    """Schema for creating a new transport payment (flight/train)"""
+    booking_type: str = Field(..., description="Loại đặt vé (flight hoặc train)")
+    booking_id: str = Field(..., description="ID/Code của đặt vé (ví dụ: FLB... hoặc TNB...)")
+    payment_method: str = Field(default="vnpay", description="Phương thức thanh toán (vnpay)")
+    return_url: Optional[str] = Field(
+        default=None,
+        description="Optional: URL frontend muốn quay lại sau thanh toán"
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "booking_type": "flight",
+                "booking_id": "FLB1234567890",
+                "payment_method": "vnpay"
+            }
+        }
+    )
+
+
 class PaymentResponse(BaseModel):
     """Schema for payment response"""
     payment_id: UUID
-    booking_id: UUID
+    booking_id: Union[UUID, str]
     amount: float = Field(..., description="Số tiền thanh toán")
     payment_method: str = Field(..., description="Phương thức thanh toán")
     payment_status: str = Field(..., description="Trạng thái: pending/completed/failed")
@@ -59,7 +80,7 @@ class PaymentStatusResponse(BaseModel):
 class PaymentListItem(BaseModel):
     """Schema for payment item in list"""
     payment_id: UUID
-    booking_id: UUID
+    booking_id: Union[UUID, str]
     amount: float
     payment_method: str
     payment_status: str
@@ -182,7 +203,7 @@ class AdminPaymentRefundResponse(BaseModel):
 class AdminPaymentListItem(BaseModel):
     """Schema for payment item in admin list with full details"""
     payment_id: UUID
-    booking_id: UUID
+    booking_id: Union[UUID, str]
     user_id: Optional[UUID] = None
     # Payment info
     amount: float

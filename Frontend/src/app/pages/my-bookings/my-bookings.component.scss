@@ -1995,3 +1995,87 @@ $purple-color: $purple;
     display: none !important;
   }
 }
+
+// Custom Itinerary Timelines and Transport Cards
+.custom-itinerary-detail {
+  .day-section {
+    border-left-color: #3b82f6;
+    margin-bottom: 24px;
+    
+    .day-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #1d4ed8;
+      
+      .day-badge {
+        background-color: #dbeafe;
+        color: #1e40af;
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+    }
+  }
+
+  .slot-item {
+    margin-bottom: 12px;
+    
+    .slot-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    
+    ul {
+      background-color: #f8fafc;
+      border-radius: 8px;
+      padding: 10px 14px 10px 24px;
+      border: 1px solid #f1f5f9;
+      
+      li {
+        margin-bottom: 4px;
+        color: #334155;
+        font-weight: 500;
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }
+}
+
+.transport-section {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+  
+  .transport-card {
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    
+    &.bg-sky-50 {
+      background-color: #f0f9ff;
+      border-color: #e0f2fe;
+    }
+    
+    &.bg-emerald-50 {
+      background-color: #f0fdf4;
+      border-color: #dcfce7;
+    }
+    
+    .font-bold {
+      font-weight: 700;
+    }
+  }
+}
