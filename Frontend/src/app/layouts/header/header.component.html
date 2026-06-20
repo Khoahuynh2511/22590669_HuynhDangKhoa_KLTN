@@ -99,13 +99,40 @@
         [class.service-nav-solid]="isScrolled || !isHomePage"
         class="service-nav" aria-label="Service navigation">
         @for (item of serviceMenu; track item.url) {
-        <a [routerLink]="item.url" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
-          class="service-item">
-          <span class="service-icon">
-            <img [src]="item.icon" [alt]="item.label" />
-          </span>
-          <span class="service-label">{{ item.label }}</span>
-        </a>
+          @if (item.url === '/activities' && isAuthenticated) {
+            <!-- Dropdown "Hoạt động": Bản đồ khám phá + Lập kế hoạch -->
+            <div class="service-dropdown" (clickOutside)="closeActivitiesMenu()">
+              <button type="button" class="service-item service-dropdown-toggle"
+                [class.active]="showActivitiesMenu || isActivitiesAreaActive"
+                (click)="toggleActivitiesMenu()">
+                <span class="service-icon">
+                  <img [src]="item.icon" [alt]="item.label" [title]="item.label" />
+                </span>
+                <span class="service-label">{{ item.label }}</span>
+                <svg class="service-caret" [class.open]="showActivitiesMenu" width="12" height="12"
+                  viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+              </button>
+              <div class="service-dropdown-menu" [class.open]="showActivitiesMenu">
+                @for (child of activitiesMenuItems; track child.url) {
+                  <a [routerLink]="child.url" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+                    class="service-dropdown-link" (click)="closeActivitiesMenu()">
+                    {{ child.label }}
+                  </a>
+                }
+              </div>
+            </div>
+          } @else {
+            <a [routerLink]="item.url" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+              class="service-item">
+              <span class="service-icon">
+                <img [src]="item.icon" [alt]="item.label" [title]="item.label" />
+              </span>
+              <span class="service-label">{{ item.label }}</span>
+            </a>
+          }
         }
       </nav>
     </div>

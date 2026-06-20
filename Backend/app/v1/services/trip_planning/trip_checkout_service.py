@@ -4,7 +4,7 @@ Mirrors the real tour booking + payment flow for authenticated users.
 """
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 
 import psycopg2
@@ -144,12 +144,31 @@ class TripCheckoutService:
                     )
                     now = datetime.now(timezone.utc)
 
+                    # Parse start_date and end_date for tour_packages NOT NULL constraint
+                    travel_date_str = state.get("travel_date")
+                    start_date = None
+                    end_date = None
+                    if travel_date_str:
+                        try:
+                            if isinstance(travel_date_str, str):
+                                start_date = datetime.strptime(travel_date_str, "%Y-%m-%d").date()
+                            else:
+                                start_date = travel_date_str
+                            end_date = start_date + timedelta(days=duration_days)
+                        except Exception as e:
+                            logger.error(f"Error parsing travel_date: {e}")
+                            start_date = datetime.now().date()
+                            end_date = start_date + timedelta(days=duration_days)
+                    else:
+                        start_date = datetime.now().date()
+                        end_date = start_date + timedelta(days=duration_days)
+
                     cur.execute(
                         """
                         INSERT INTO tour_packages
                             (package_name, destination, description, duration_days, price,
-                             available_slots, is_active, created_at, updated_at)
-                        VALUES (%s, %s, %s, %s, %s, %s, TRUE, %s, %s)
+                             available_slots, start_date, end_date, is_active, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, TRUE, %s, %s)
                         RETURNING package_id
                         """,
                         (
@@ -159,6 +178,8 @@ class TripCheckoutService:
                             duration_days,
                             price_per_person,
                             max(group_size, 1),
+                            start_date,
+                            end_date,
                             now,
                             now,
                         ),

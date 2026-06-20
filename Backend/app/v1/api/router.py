@@ -2,7 +2,7 @@
 Main API Router
 """
 from fastapi import APIRouter
-from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, flights, trains, buses, admin_buses, admin_flights, admin_trains, hotels, admin_hotels, hotel_bookings, flight_bookings, train_bookings, bus_bookings, trip_planning, activity_packages
+from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, visited_provinces, flights, trains, buses, admin_buses, admin_flights, admin_trains, hotels, admin_hotels, hotel_bookings, flight_bookings, train_bookings, bus_bookings, trip_planning, activity_packages, places, place_collections
 
 api_router = APIRouter()
 
@@ -27,6 +27,9 @@ api_router.include_router(admin_users.router, prefix="/admin/users", tags=["Admi
 api_router.include_router(admin_agent.router, prefix="/admin/agent", tags=["Admin - AI Agent"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 api_router.include_router(favorites.router, prefix="/favorites", tags=["Favorites"])
+api_router.include_router(visited_provinces.router, prefix="/visited-provinces", tags=["Visited Provinces"])
+api_router.include_router(places.router, prefix="/places", tags=["Place Suggestions"])
+api_router.include_router(place_collections.router, prefix="/place-collections", tags=["Place Collections"])
 
 
 api_router.include_router(flights.router, prefix="/flights", tags=["Flights"])

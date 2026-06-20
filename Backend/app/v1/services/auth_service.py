@@ -39,6 +39,8 @@ class AuthService:
         normalized["user_id"] = str(normalized.get("user_id"))
         normalized["phone_number"] = normalized.get("phone")
         normalized["is_activate"] = normalized.get("is_active", True)
+        # email_verified: default True (user cũ / không có cột → coi như đã verify)
+        normalized["email_verified"] = normalized.get("email_verified", True)
         return normalized
 
     def _hash_password(self, password: str) -> str:
@@ -104,7 +106,8 @@ class AuthService:
         phone_number: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Register a new user
+        Register a new user. Sau khi tạo tài khoản (email_verified=False),
+        sinh OTP và gửi email xác thực. User phải verify OTP mới login được.
 
         Args:
             full_name: User's full name
@@ -113,7 +116,7 @@ class AuthService:
             phone_number: Optional phone number
 
         Returns:
-            Dict containing registration result
+            Dict containing registration result (awaiting_verification=True)
         """
         try:
             with self._pg_conn() as conn:
@@ -126,26 +129,32 @@ class AuthService:
                         }
 
                     hashed_password = self._hash_password(password)
+                    # email_verified=False: user phải verify OTP qua email mới login được
                     cur.execute(
                         """
-                        INSERT INTO users (full_name, email, password_hash, phone, is_active, role)
-                        VALUES (%s, %s, %s, %s, true, 'user')
-                        RETURNING user_id, email, full_name, phone
+                        INSERT INTO users (full_name, email, password_hash, phone, is_active, email_verified, role)
+                        VALUES (%s, %s, %s, %s, true, false, 'user')
+                        RETURNING user_id, email, full_name, phone, email_verified
                         """,
                         (full_name, email, hashed_password, phone_number),
                     )
                     user = self._normalize_user(cur.fetchone())
                     conn.commit()
 
+            # Sinh OTP và gửi email xác thực (non-fatal: user vẫn tạo được dù email fail)
+            otp_sent = self._send_email_verification_otp(email)
+
             return {
                 "EC": 0,
-                "EM": "User registered successfully",
+                "EM": "User registered successfully. Vui lòng kiểm tra email để xác thực tài khoản.",
                 "user": {
                     "user_id": user["user_id"],
                     "email": user["email"],
                     "full_name": user["full_name"],
                     "phone_number": user.get("phone_number")
-                }
+                },
+                "awaiting_verification": True,
+                "otp_sent": otp_sent
             }
 
         except Exception as e:
@@ -153,6 +162,238 @@ class AuthService:
             return {
                 "EC": 3,
                 "EM": f"Registration error: {str(e)}"
+            }
+
+    def _send_email_verification_otp(self, email: str) -> bool:
+        """
+        Sinh OTP, lưu vào Redis (key otp:{email}) và gửi email xác thực.
+
+        Returns:
+            True nếu gửi email thành công, False nếu fail (non-fatal).
+        """
+        try:
+            from .otp_service import get_otp_service
+            otp_service = get_otp_service()
+            otp = otp_service.generate_otp()
+
+            # Lưu OTP vào Redis (tái dụng store_otp)
+            stored = otp_service.store_otp(email, otp)
+            if not stored:
+                logger.warning(
+                    f"Redis not available - cannot persist OTP for {email}. OTP: {otp}")
+
+            # Gửi email (tour_name=None -> template generic "Mã xác thực của bạn")
+            sent = otp_service.send_otp_email(email=email, otp=otp, tour_name=None)
+            if not sent:
+                logger.warning(f"Failed to send verification email to {email}. OTP: {otp}")
+            return sent
+        except Exception as e:
+            logger.error(f"Error sending email verification OTP to {email}: {str(e)}")
+            return False
+
+    async def verify_email(self, email: str, otp: str) -> Dict[str, Any]:
+        """
+        Verify email bằng OTP code. Nếu hợp lệ -> set email_verified=True.
+
+        Args:
+            email: User email address
+            otp: 6-digit OTP code
+
+        Returns:
+            Dict with EC, EM
+        """
+        try:
+            from .otp_service import get_otp_service
+            otp_service = get_otp_service()
+
+            is_valid = otp_service.verify_otp(email, otp)
+            if not is_valid:
+                return {
+                    "EC": 1,
+                    "EM": "Mã xác thực không đúng hoặc đã hết hạn"
+                }
+
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET email_verified = TRUE WHERE email = %s",
+                        (email,)
+                    )
+                    conn.commit()
+
+            return {
+                "EC": 0,
+                "EM": "Xác thực email thành công. Bạn có thể đăng nhập."
+            }
+
+        except Exception as e:
+            logger.error(f"Error verifying email for {email}: {str(e)}")
+            return {
+                "EC": 2,
+                "EM": f"Verification error: {str(e)}"
+            }
+
+    async def resend_verification_email(self, email: str) -> Dict[str, Any]:
+        """
+        Gửi lại OTP xác thực email (khi user chưa nhận được hoặc OTP hết hạn).
+
+        Args:
+            email: User email address
+
+        Returns:
+            Dict with EC, EM
+        """
+        try:
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT email_verified FROM users WHERE email = %s",
+                        (email,)
+                    )
+                    row = cur.fetchone()
+
+            if not row:
+                return {
+                    "EC": 1,
+                    "EM": "Không tìm thấy tài khoản với email này"
+                }
+
+            if dict(row).get('email_verified', True):
+                return {
+                    "EC": 2,
+                    "EM": "Email đã được xác thực"
+                }
+
+            otp_sent = self._send_email_verification_otp(email)
+            return {
+                "EC": 0,
+                "EM": "Đã gửi lại mã xác thực. Vui lòng kiểm tra email.",
+                "otp_sent": otp_sent
+            }
+
+        except Exception as e:
+            logger.error(f"Error resending verification to {email}: {str(e)}")
+            return {
+                "EC": 3,
+                "EM": f"Error: {str(e)}"
+            }
+
+    async def forgot_password(self, email: str) -> Dict[str, Any]:
+        """
+        Khởi tạo đặt lại mật khẩu: sinh OTP, lưu Redis (key reset_password:{email}),
+        gửi email. Luôn trả EC=0 để tránh leak email tồn tại hay không.
+
+        Args:
+            email: User email address
+
+        Returns:
+            Dict with EC, EM
+        """
+        try:
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT user_id FROM users WHERE email = %s", (email,))
+                    row = cur.fetchone()
+
+            if not row:
+                # Tránh leak: vẫn báo "đã gửi" dù email không tồn tại
+                return {
+                    "EC": 0,
+                    "EM": "Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi."
+                }
+
+            from .otp_service import get_otp_service
+            otp_service = get_otp_service()
+            otp = otp_service.generate_otp()
+
+            key = f"reset_password:{email.lower().strip()}"
+            if otp_service.redis_client:
+                expire_seconds = settings.OTP_EXPIRE_MINUTES * 60
+                otp_service.redis_client.setex(key, expire_seconds, otp)
+            else:
+                logger.warning(
+                    f"Redis not available - cannot persist reset OTP for {email}. OTP: {otp}")
+
+            sent = otp_service.send_otp_email(email=email, otp=otp, tour_name=None)
+
+            return {
+                "EC": 0,
+                "EM": "Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi.",
+                "otp_sent": sent
+            }
+
+        except Exception as e:
+            logger.error(f"Error in forgot_password for {email}: {str(e)}")
+            return {
+                "EC": 1,
+                "EM": f"Error: {str(e)}"
+            }
+
+    async def reset_password(
+        self,
+        email: str,
+        otp: str,
+        new_password: str
+    ) -> Dict[str, Any]:
+        """
+        Đặt lại mật khẩu: verify OTP từ Redis (key reset_password:{email}),
+        nếu OK thì cập nhật password_hash.
+
+        Args:
+            email: User email address
+            otp: 6-digit OTP code
+            new_password: Mật khẩu mới
+
+        Returns:
+            Dict with EC, EM
+        """
+        try:
+            from .otp_service import get_otp_service
+            otp_service = get_otp_service()
+
+            if not otp_service.redis_client:
+                return {
+                    "EC": 1,
+                    "EM": "Dịch vụ OTP không khả dụng, vui lòng thử lại sau."
+                }
+
+            key = f"reset_password:{email.lower().strip()}"
+            stored_otp = otp_service.redis_client.get(key)
+
+            if stored_otp is None:
+                return {
+                    "EC": 2,
+                    "EM": "Mã đặt lại không đúng hoặc đã hết hạn"
+                }
+
+            if stored_otp != otp:
+                return {
+                    "EC": 2,
+                    "EM": "Mã đặt lại không đúng"
+                }
+
+            # OTP đúng -> xóa key, cập nhật password
+            otp_service.redis_client.delete(key)
+            hashed_password = self._hash_password(new_password)
+
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE users SET password_hash = %s WHERE email = %s",
+                        (hashed_password, email)
+                    )
+                    conn.commit()
+
+            return {
+                "EC": 0,
+                "EM": "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới."
+            }
+
+        except Exception as e:
+            logger.error(f"Error resetting password for {email}: {str(e)}")
+            return {
+                "EC": 3,
+                "EM": f"Error: {str(e)}"
             }
 
     async def login_user(
@@ -213,6 +454,13 @@ class AuthService:
                 return {
                     "EC": 3,
                     "EM": "Account is not activated"
+                }
+
+            # Chặn login nếu email chưa xác thực
+            if not user.get('email_verified', True):
+                return {
+                    "EC": 5,
+                    "EM": "Tài khoản chưa xác thực email. Vui lòng kiểm tra email để nhập mã xác thực."
                 }
 
             role = user.get('role', 'user')
@@ -484,6 +732,13 @@ class AuthService:
                 return {
                     "EC": 3,
                     "EM": "Account is not activated"
+                }
+
+            # Chặn login nếu email chưa xác thực
+            if not user.get('email_verified', True):
+                return {
+                    "EC": 6,
+                    "EM": "Tài khoản chưa xác thực email. Vui lòng kiểm tra email để nhập mã xác thực."
                 }
 
             # Verify user is admin

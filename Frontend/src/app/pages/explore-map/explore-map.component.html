@@ -1,0 +1,218 @@
+<p-toast position="top-right" />
+
+<div class="explore-page">
+  <!-- Banner -->
+  <section class="explore-banner">
+    <span class="banner-blob blob-a"></span>
+    <span class="banner-blob blob-b"></span>
+    <span class="banner-eyebrow">{{ mode === 'vn' ? 'Hành trình của bạn' : 'Khám phá thế giới' }}</span>
+    <h1>{{ mode === 'vn' ? 'Bản đồ khám phá Việt Nam' : 'Khám phá điểm đến thế giới' }}</h1>
+    <p>
+      {{
+        mode === 'vn'
+          ? 'Nhấp vào từng tỉnh để check-in và xem bạn đã đặt chân đến đâu trên 63 tỉnh thành.'
+          : 'Tìm kiếm thành phố hoặc địa danh, xem các điểm tham quan nổi bật và lưu vào bộ sưu tập.'
+      }}
+    </p>
+  </section>
+
+  <!-- Controls -->
+  <section class="explore-controls">
+    <div class="mode-toggle" role="group" aria-label="Chế độ bản đồ">
+      <button type="button" class="mode-btn" [class.active]="mode === 'vn'" (click)="switchMode('vn')">Việt Nam</button>
+      <button type="button" class="mode-btn" [class.active]="mode === 'world'" (click)="switchMode('world')">Thế giới</button>
+    </div>
+
+    <div class="explore-actions">
+      <button type="button" class="btn-ghost" (click)="openCollection()">Bộ sưu tập</button>
+
+      @if (mode === 'vn') {
+        <button type="button" class="btn-primary" [disabled]="isSyncing || isLoading" (click)="syncFromBookings()">
+          {{ isSyncing ? 'Đang đồng bộ…' : 'Đồng bộ từ booking' }}
+        </button>
+      }
+    </div>
+  </section>
+
+  <!-- Error -->
+  <div *ngIf="errorMsg" class="explore-error">{{ errorMsg }}</div>
+
+  <div class="explore-grid">
+    <!-- Side panel (mode-dependent) -->
+    <aside class="explore-stats">
+      @if (mode === 'vn') {
+        <!-- Vietnam stats -->
+        <div class="card progress-card">
+          <p class="card-eyebrow">Tiến độ check-in</p>
+          <div class="progress-ring" [style.--p]="progress">
+            <div class="progress-inner">
+              <div class="progress-value">{{ progress }}<span>%</span></div>
+            </div>
+          </div>
+          <div class="progress-sub">{{ totalVisited }} / {{ totalProvinces }} tỉnh</div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill" [style.width.%]="progress"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="card-eyebrow">Theo miền</p>
+          <div class="region-row">
+            <span class="dot dot-north"></span>
+            <span class="region-name">Miền Bắc</span>
+            <span class="region-val">{{ north }} tỉnh</span>
+          </div>
+          <div class="region-row">
+            <span class="dot dot-central"></span>
+            <span class="region-name">Miền Trung</span>
+            <span class="region-val">{{ central }} tỉnh</span>
+          </div>
+          <div class="region-row">
+            <span class="dot dot-south"></span>
+            <span class="region-name">Miền Nam</span>
+            <span class="region-val">{{ south }} tỉnh</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="card-eyebrow">Chú thích</p>
+          <div class="legend-row"><span class="swatch swatch-on"></span> Đã check-in</div>
+          <div class="legend-row"><span class="swatch swatch-off"></span> Chưa đến</div>
+          <p class="legend-hint">Nhấp vào tỉnh trên bản đồ để bật hoặc tắt check-in.</p>
+        </div>
+      } @else {
+        <!-- World search + results -->
+        <div class="card">
+          <p class="card-eyebrow">Tìm địa điểm</p>
+          <form class="search-row" (ngSubmit)="searchWorld()">
+            <input
+              type="text"
+              placeholder="VD: Paris, Tokyo, Đà Lạt..."
+              [(ngModel)]="worldQuery"
+              name="worldQuery"
+              (keyup.enter)="searchWorld()"
+            />
+            <button type="submit" class="btn-primary" [disabled]="worldLoading">
+              {{ worldLoading ? 'Đang tìm…' : 'Tìm' }}
+            </button>
+          </form>
+          <p class="search-hint">Dữ liệu từ OpenStreetMap và Wikipedia (miễn phí).</p>
+        </div>
+
+        <div *ngIf="worldError" class="explore-error">{{ worldError }}</div>
+
+        <div *ngIf="worldLoading" class="card results-loading">
+          <p-progressSpinner strokeWidth="4" />
+          <span>Đang tìm điểm tham quan…</span>
+        </div>
+
+        @if (!worldLoading && worldResults.length) {
+          <div class="card">
+            <div class="results-head">
+              <span>
+                {{ worldResults.length }}<span *ngIf="worldTotal > worldResults.length"> / {{ worldTotal }}</span> địa điểm
+              </span>
+              <small *ngIf="worldLocationName" class="muted">{{ worldLocationName }}</small>
+            </div>
+            <div class="results-list">
+              @for (p of worldResults; track p.osm_id) {
+                <div class="result-item">
+                  <img *ngIf="p.image_url" [src]="p.image_url" [alt]="p.name" [title]="p.name" (error)="$any($event.target).style.display='none'" />
+                  <div class="result-body">
+                    <div class="result-title">{{ p.name }}</div>
+                    <div class="result-cat">{{ categoryLabel(p.category) }} · {{ p.distance_km }} km</div>
+                  </div>
+                  <div class="result-actions">
+                    <button type="button" class="act-btn" (click)="flyTo(p.lat, p.lng, 13)" title="Xem trên bản đồ">Xem</button>
+                    <button
+                      type="button"
+                      class="act-btn"
+                      [class.saved]="p.saved_by_user"
+                      (click)="toggleSave(p)"
+                      [title]="p.saved_by_user ? 'Bỏ lưu' : 'Lưu vào bộ sưu tập'"
+                    >
+                      {{ p.saved_by_user ? 'Đã lưu' : 'Lưu' }}
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+
+            @if (hasMorePlaces) {
+              <button type="button" class="more-btn" [disabled]="worldLoadingMore" (click)="loadMorePlaces()">
+                {{ worldLoadingMore ? 'Đang tải…' : 'Xem thêm (còn ' + (worldTotal - worldResults.length) + ')' }}
+              </button>
+            }
+          </div>
+        }
+      }
+    </aside>
+
+    <!-- Map (shared) -->
+    <section class="explore-map-wrap">
+      <div *ngIf="isLoading" class="map-loading">
+        <p-progressSpinner strokeWidth="4" />
+        <span>Đang tải bản đồ…</span>
+      </div>
+      <div id="vn-map"></div>
+    </section>
+  </div>
+</div>
+
+<!-- ====================== Bộ sưu tập (slide-over) ====================== -->
+<div class="collection-overlay" *ngIf="showCollection" (click)="showCollection = false"></div>
+<aside class="collection-panel" [class.open]="showCollection">
+  <div class="collection-head">
+    <h3>Bộ sưu tập của tôi</h3>
+    <button type="button" class="close-x" (click)="showCollection = false" aria-label="Đóng">×</button>
+  </div>
+
+  <div class="collection-body">
+    <div *ngIf="collectionLoading" class="results-loading">
+      <p-progressSpinner strokeWidth="4" />
+      <span>Đang tải…</span>
+    </div>
+
+    @if (!collectionLoading && collectionData) {
+      <!-- Wishlist -->
+      <div class="col-group">
+        <div class="col-group-head">
+          Điểm muốn đến <span class="badge">{{ collectionData.total_wishlist }}</span>
+        </div>
+        @if (collectionData.wishlist.length) {
+          @for (w of collectionData.wishlist; track w.save_id) {
+            <div class="col-item">
+              <img *ngIf="w.image_url" [src]="w.image_url" [alt]="w.place_name" [title]="w.place_name" (error)="$any($event.target).style.display='none'" />
+              <div class="col-body">
+                <div class="col-title">{{ w.place_name }}</div>
+                <small class="muted">{{ categoryLabel(w.category) }}</small>
+              </div>
+              <div class="col-actions">
+                <button type="button" class="act-btn" (click)="flyTo(w.latitude, w.longitude, 12)" title="Xem trên bản đồ">Xem</button>
+                <button type="button" class="act-btn danger" (click)="removeFromCollection(w)" title="Bỏ lưu">Xóa</button>
+              </div>
+            </div>
+          }
+        } @else {
+          <p class="col-empty">Chưa có địa điểm nào. Hãy chuyển sang chế độ «Thế giới» và lưu lại những nơi bạn muốn đến.</p>
+        }
+      </div>
+
+      <!-- Visited -->
+      <div class="col-group">
+        <div class="col-group-head">
+          Nơi đã đến <span class="badge">{{ collectionData.total_visited }}</span>
+        </div>
+        @if (collectionData.visited_provinces.length) {
+          <div class="visited-chips">
+            @for (v of collectionData.visited_provinces; track v.visit_id) {
+              <span class="chip" (click)="switchMode('vn')">{{ v.province_name }}</span>
+            }
+          </div>
+        } @else {
+          <p class="col-empty">Chưa check-in tỉnh nào. Hãy nhấp vào các tỉnh ở chế độ «Việt Nam».</p>
+        }
+      </div>
+    }
+  </div>
+</aside>

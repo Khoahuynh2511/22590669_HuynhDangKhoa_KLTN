@@ -11,6 +11,7 @@ import redis
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content
 from app.v1.core.config import settings
+from app.v1.services.email_service import get_email_service
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class OTPService:
     """Service for managing OTP operations"""
 
     def __init__(self):
-        """Initialize OTP Service with Redis and SendGrid clients"""
+        """Initialize OTP Service with Redis, Email (SMTP) and SendGrid (fallback) clients"""
         try:
             self.redis_client = redis.Redis(
                 host=settings.REDIS_HOST,
@@ -46,12 +47,24 @@ class OTPService:
             logger.error(f"Failed to connect to Redis: {str(e)}")
             self.redis_client = None
 
+        # Email service (SMTP) - provider chính
+        try:
+            self.email_service = get_email_service()
+            if self.email_service.is_configured():
+                logger.info("Email service (SMTP) initialized")
+            else:
+                logger.warning("SMTP credentials not configured (SMTP_USERNAME/SMTP_PASSWORD)")
+        except Exception as e:
+            logger.error(f"Failed to initialize email service: {str(e)}")
+            self.email_service = None
+
+        # SendGrid client - fallback khi SMTP fail
         try:
             if settings.SENDGRID_API_KEY:
                 self.sendgrid_client = SendGridAPIClient(api_key=settings.SENDGRID_API_KEY)
-                logger.info("SendGrid client initialized")
+                logger.info("SendGrid client initialized (fallback)")
             else:
-                logger.warning("SENDGRID_API_KEY not configured")
+                logger.warning("SENDGRID_API_KEY not configured (no SendGrid fallback)")
                 self.sendgrid_client = None
         except Exception as e:
             logger.error(f"Failed to initialize SendGrid client: {str(e)}")
@@ -129,36 +142,33 @@ class OTPService:
             logger.error(f"Failed to verify OTP: {str(e)}")
             return False
 
-    def send_otp_email(self, email: str, otp: str, tour_name: str) -> bool:
+    def _build_otp_content(self, otp: str, tour_name: Optional[str]) -> Tuple[str, str, str]:
         """
-        Send OTP via SendGrid email
+        Build subject + HTML + plain content cho email OTP theo context.
 
         Args:
-            email: Recipient email address
-            otp: OTP code to send
-            tour_name: Name of the tour for context
+            otp: Mã OTP
+            tour_name: Tên tour (nếu là booking OTP), None cho register/forgot
 
         Returns:
-            True if email sent successfully, False otherwise
+            Tuple (subject, html_content, plain_content)
         """
-        if not self.sendgrid_client:
-            logger.error("SendGrid client not available")
-            print(f"\n🔑 [FALLBACK] SendGrid not configured. OTP for {email}: {otp}\n")
-            return False
-
-        try:
-            from_email = Email(settings.SENDGRID_FROM_EMAIL)
-            to_email = To(email)
+        if tour_name:
             subject = "Mã xác thực đặt tour"
+            intro = f"Bạn đang thực hiện đặt tour: <strong>{tour_name}</strong>"
+            plain_intro = f"Bạn đang thực hiện đặt tour: {tour_name}"
+        else:
+            subject = "Mã xác thực của bạn"
+            intro = "Bạn (hoặc ai đó) vừa yêu cầu mã xác thực cho tài khoản của bạn."
+            plain_intro = "Bạn (hoặc ai đó) vừa yêu cầu mã xác thực cho tài khoản của bạn."
 
-            # Email content in Vietnamese
-            html_content = f"""
+        html_content = f"""
             <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                    <h2 style="color: #2c3e50;">Mã xác thực đặt tour</h2>
+                    <h2 style="color: #2c3e50;">{subject}</h2>
                     <p>Xin chào,</p>
-                    <p>Bạn đang thực hiện đặt tour: <strong>{tour_name}</strong></p>
+                    <p>{intro}</p>
                     <p>Mã xác thực của bạn là:</p>
                     <div style="background-color: #f4f4f4; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
                         <h1 style="color: #27ae60; font-size: 32px; margin: 0; letter-spacing: 5px;">{otp}</h1>
@@ -172,11 +182,11 @@ class OTPService:
             </html>
             """
 
-            _plain_content = f"""  # noqa: F841
-Mã xác thực đặt tour
+        plain_content = f"""
+{subject}
 
 Xin chào,
-Bạn đang thực hiện đặt tour: {tour_name}
+{plain_intro}
 
 Mã xác thực của bạn là: {otp}
 
@@ -185,78 +195,76 @@ Mã này có hiệu lực trong {settings.OTP_EXPIRE_MINUTES} phút.
 Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email này.
             """
 
+        return subject, html_content, plain_content
+
+    def _send_via_sendgrid(self, email: str, subject: str, html_content: str) -> bool:
+        """Gửi email OTP qua SendGrid (fallback). Trả về True nếu thành công."""
+        if not self.sendgrid_client:
+            return False
+
+        try:
+            from_email = Email(settings.SENDGRID_FROM_EMAIL)
+            to_email = To(email)
             content = Content("text/html", html_content)
             mail = Mail(from_email, to_email, subject, content)
 
-            logger.info(f"Attempting to send OTP email to {email} from {settings.SENDGRID_FROM_EMAIL}")
+            logger.info(f"Attempting to send OTP email via SendGrid to {email}")
             response = self.sendgrid_client.send(mail)
-
-            # Log response details
             logger.info(f"SendGrid response status code: {response.status_code}")
-            if hasattr(response, 'headers'):
-                logger.info(f"SendGrid response headers: {dict(response.headers)}")
-            if hasattr(response, 'body'):
-                logger.info(f"SendGrid response body: {response.body}")
 
             if response.status_code in [200, 202]:
-                logger.info(f"OTP email sent successfully to {email}")
+                logger.info(f"OTP email sent to {email} via SendGrid (fallback)")
                 return True
-            else:
-                # Log detailed error for debugging
-                error_body = ""
-                if hasattr(response, 'body'):
-                    error_body = str(response.body)
-                logger.error(f"Failed to send OTP email. Status: {response.status_code}, Body: {error_body}")
-                logger.error(
-                    f"SendGrid API Key configured: {
-                        bool(
-                            settings.SENDGRID_API_KEY)}, From Email: {
-                        settings.SENDGRID_FROM_EMAIL}")
-                # Also print to console for test visibility
-                print("\n❌ SendGrid Error:")
-                print(f"   Status Code: {response.status_code}")
-                print(f"   Response Body: {error_body}")
-                print(f"\n🔑 [FALLBACK] SendGrid error occurred. OTP for {email}: {otp}\n")
-                return False
+
+            error_body = str(getattr(response, 'body', ''))
+            logger.error(f"SendGrid send failed. Status: {response.status_code}, Body: {error_body}")
+            print(f"\n❌ SendGrid Error (fallback): Status {response.status_code}")
+            return False
 
         except Exception as e:
-            logger.error(f"Error sending OTP email: {str(e)}")
-            logger.error(f"Exception type: {type(e).__name__}")
-            # Check if it's an HTTP error and log details
-            if hasattr(e, 'status_code'):
-                logger.error(f"HTTP Status: {e.status_code}")
-                # Print to console for test visibility
-                print("\n❌ SendGrid HTTP Error:")
-                print(f"   Status Code: {e.status_code}")
-
-                if e.status_code == 403:
-                    print("\n⚠️  IMPORTANT: SendGrid 403 Forbidden Error")
-                    print("   This usually means the FROM email address is not verified.")
-                    print(f"   FROM Email: {settings.SENDGRID_FROM_EMAIL}")
-                    print("\n   To fix this:")
-                    print("   1. Go to SendGrid Dashboard: https://app.sendgrid.com/")
-                    print("   2. Navigate to: Settings > Sender Authentication")
-                    print(f"   3. Verify Single Sender or Domain for: {settings.SENDGRID_FROM_EMAIL}")
-                    print("   4. Complete the verification process (check email inbox)")
-                    print("   5. Wait a few minutes for verification to complete")
-
-            if hasattr(e, 'body'):
-                error_body = e.body
-                logger.error(f"Error Body: {error_body}")
-                # Try to parse JSON error message
-                try:
-                    import json
-                    if isinstance(error_body, bytes):
-                        error_body = error_body.decode('utf-8')
-                    error_json = json.loads(error_body)
-                    if 'errors' in error_json:
-                        for err in error_json['errors']:
-                            print(f"\n   Error Message: {err.get('message', 'Unknown error')}")
-                            print(f"   Field: {err.get('field', 'Unknown')}")
-                except BaseException:
-                    print(f"   Error Body: {error_body}")
-            print(f"\n🔑 [FALLBACK] SendGrid exception occurred. OTP for {email}: {otp}\n")
+            logger.error(f"SendGrid exception: {type(e).__name__}: {str(e)}")
+            if hasattr(e, 'status_code') and e.status_code == 403:
+                print("\n⚠️  SendGrid 403 Forbidden: FROM email chưa được verify.")
             return False
+
+    def send_otp_email(self, email: str, otp: str, tour_name: Optional[str] = None) -> bool:
+        """
+        Send OTP via email. Thử SMTP (provider chính) trước, nếu fail thì fallback
+        SendGrid, cả hai fail thì in OTP ra console.
+
+        Args:
+            email: Recipient email address
+            otp: OTP code to send
+            tour_name: Name of the tour for context (booking). None cho register/forgot.
+
+        Returns:
+            True if email sent successfully, False otherwise.
+        """
+        subject, html_content, plain_content = self._build_otp_content(otp, tour_name)
+
+        # 1. Primary: SMTP
+        if self.email_service and self.email_service.is_configured():
+            sent = self.email_service.send_email(
+                to_email=email,
+                subject=subject,
+                html_content=html_content,
+                plain_content=plain_content
+            )
+            if sent:
+                return True
+            logger.warning(f"SMTP send failed for {email}, trying SendGrid fallback...")
+        else:
+            logger.warning("SMTP email service not configured/available, trying SendGrid fallback...")
+
+        # 2. Fallback: SendGrid
+        if self.sendgrid_client:
+            if self._send_via_sendgrid(email, subject, html_content):
+                return True
+
+        # 3. All providers failed -> console fallback
+        logger.error(f"All email providers failed for {email}. OTP: {otp}")
+        print(f"\n🔑 [FALLBACK] All email providers failed. OTP for {email}: {otp}\n")
+        return False
 
     def store_pending_booking(self, email: str, booking_data: Dict[str, Any]) -> bool:
         """

@@ -6,6 +6,7 @@ import { BookingPagesComponent } from './pages/booking-pages/booking-pages.compo
 import { PaymentComponent } from './pages/payment/payment.component';
 import { LoginComponent } from './pages/auth/login/login.component';
 import { RegisterComponent } from './pages/auth/register/register.component';
+import { ForgotPasswordComponent } from './pages/auth/forgot-password/forgot-password.component';
 import { GoogleCallbackComponent } from './pages/auth/google-callback/google-callback.component';
 import { ToursComponent } from './pages/tours/tours.component';
 import { ProfileComponent } from './pages/profile/profile.component';
@@ -14,6 +15,7 @@ import { MyPaymentsComponent } from './pages/my-payments/my-payments.component';
 import { VnpayCallbackComponent } from './pages/payment/vnpay-callback.component';
 import { PromotionsComponent } from './pages/promotions/promotions.component';
 import { MyFavoritesComponent } from './pages/my-favorites/my-favorites.component';
+import { ExploreMapComponent } from './pages/explore-map/explore-map.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { FlightsComponent } from './pages/flights/flights.component';
@@ -99,6 +101,9 @@ export const routes: Routes = [
     path: 'register', component: RegisterComponent, canActivate: [guestGuard]
   },
   {
+    path: 'forgot-password', component: ForgotPasswordComponent, canActivate: [guestGuard]
+  },
+  {
     path: 'auth/google/callback', component: GoogleCallbackComponent
   },
   {
@@ -112,6 +117,9 @@ export const routes: Routes = [
   },
   {
     path: 'my-favorites', component: MyFavoritesComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'explore-map', component: ExploreMapComponent, canActivate: [authGuard]
   },
   {
     path: 'chat-room',

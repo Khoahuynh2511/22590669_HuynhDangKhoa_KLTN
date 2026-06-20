@@ -119,8 +119,17 @@ class Settings(BaseSettings):
 
     # OTP & Email Configuration
     OTP_EXPIRE_MINUTES: int = 5  # OTP hết hạn sau 5 phút
-    SENDGRID_API_KEY: str = ""  # SendGrid API key
-    SENDGRID_FROM_EMAIL: str = "noreply@yourdomain.com"  # Email gửi đi
+    SENDGRID_API_KEY: str = ""  # SendGrid API key (fallback khi SMTP fail)
+    SENDGRID_FROM_EMAIL: str = "noreply@yourdomain.com"  # Email gửi đi (fallback)
+
+    # Gmail SMTP Configuration (provider chính)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 465  # 465 = SSL, 587 = STARTTLS
+    SMTP_USE_SSL: bool = True  # True cho port 465, False cho 587
+    SMTP_USERNAME: str = ""  # Địa chỉ Gmail gửi (ví dụ: uittraveling@gmail.com)
+    SMTP_PASSWORD: str = ""  # Gmail App Password (16 ký tự, KHÔNG phải password thường)
+    SMTP_FROM_EMAIL: str = "noreply@yourdomain.com"  # Email hiển thị người gửi
+    SMTP_FROM_NAME: str = "UIT Traveling"  # Tên người gửi
 
     # Travel News Configuration
     TRAVEL_NEWS_SEARCH_QUERIES: List[str] = [
@@ -135,6 +144,20 @@ class Settings(BaseSettings):
     # Admin Recommendation Configuration
     # Enable Admin Mode for tour recommendations (override AI with featured tours)
     ADMIN_RECOMMENDATION_ENABLED: bool = False
+
+    # Place Suggestion API Configuration (open-source, key-free)
+    # Geocoding chain: Photon (OSM) -> Open-Meteo -> Nominatim (fallback).
+    # Overpass (tourism POI) + Wikimedia REST (description/image).
+    NOMINATIM_BASE_URL: str = "https://nominatim.openstreetmap.org"
+    PHOTON_BASE_URL: str = "https://photon.komoot.io/api/"
+    OPEN_METEO_GEOCODE_URL: str = "https://geocoding-api.open-meteo.com/v1/search"
+    OVERPASS_API_URL: str = "https://overpass-api.de/api/interpreter"
+    WIKIPEDIA_REST_URL: str = "https://en.wikipedia.org/api/rest_v1"
+    # Contact email cho User-Agent (yêu cầu của OSM usage policy)
+    OSM_CONTACT_EMAIL: str = "uittraveling@example.com"
+    PLACE_CACHE_TTL_SECONDS: int = 86400  # 24h - respect OSM usage policy
+    PLACE_REQUEST_TIMEOUT: float = 10.0  # geocoders/Wikimedia timeout
+    OVERPASS_TIMEOUT: float = 30.0  # Overpass có thể chậm
 
     @field_validator('OPENAI_API_KEY', mode='before')
     @classmethod

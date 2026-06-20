@@ -175,3 +175,16 @@
     </form>
   </div>
 </div>
+
+<app-otp-popup
+  [visible]="showRegisterOTP"
+  [email]="registeredEmail"
+  [title]="'Xác thực đăng ký'"
+  [isVerifying]="isVerifyingRegisterOTP"
+  [isResending]="isResendingRegisterOTP"
+  [errorMessage]="registerOtpError"
+  [successMessage]="registerOtpSuccess"
+  [countdown]="registerCountdown"
+  (verify)="onVerifyRegisterOTP($event)"
+  (resend)="onResendRegisterOTP()">
+</app-otp-popup>

@@ -119,6 +119,30 @@ class RecommendationEngine:
                         enhanced_query = f"{user_message}. Dựa trên lịch sử: {', '.join(memory_contexts)}"
                         logger.info(f"✅ Enhanced query with {len(memory_contexts)} memory contexts")
 
+            # Visited-provinces context (quảng bá du lịch): ưu tiên tỉnh CHƯA đi
+            if user_id:
+                try:
+                    from app.v1.services.visited_province_service import VisitedProvinceService
+                    visited_res = await VisitedProvinceService().get_user_visited(user_id=user_id)
+                    if visited_res.get("EC") == 0:
+                        visited_names = [
+                            p.get("province_name")
+                            for p in visited_res.get("provinces", [])
+                            if p.get("province_name")
+                        ]
+                        if visited_names:
+                            enhanced_query = (
+                                f"{enhanced_query}. Người dùng đã đặt chân đến các tỉnh: "
+                                f"{', '.join(visited_names[:15])}. "
+                                f"Ưu tiên gợi ý điểm đến ở TỈNH CHƯA ĐI để mở rộng khám phá, "
+                                f"trừ khi người dùng yêu cầu rõ một tỉnh đã đi."
+                            )
+                            logger.info(
+                                f"✅ Enriched query with {len(visited_names)} visited provinces")
+                except Exception as e:
+                    logger.warning(
+                        f"⚠️ Could not load visited provinces for recommendations: {e}")
+
             # Perform semantic search via MCP tool (for automatic logging via callback handler)
             # Call async handler directly to avoid StructuredTool async handling issues
             from app.v1.services.agent_services.tools.mcp_tools import get_tool_factory

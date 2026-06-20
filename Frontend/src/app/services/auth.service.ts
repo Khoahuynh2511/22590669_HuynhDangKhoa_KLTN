@@ -51,6 +51,14 @@ interface RegisterResponse {
     full_name: string;
     user_id: string;
   };
+  awaiting_verification?: boolean;
+  otp_sent?: boolean;
+}
+
+interface SimpleMessageResponse {
+  EC: number;
+  EM: string;
+  otp_sent?: boolean;
 }
 
 interface GoogleLoginRequest {
@@ -137,6 +145,38 @@ export class AuthService {
     };
 
     return this.http.post<RegisterResponse>(`${this.apiBaseUrl}/auth/register`, requestData);
+  }
+
+  /** Xác thực email bằng OTP (sau khi đăng ký) */
+  verifyEmail(email: string, otp: string): Observable<SimpleMessageResponse> {
+    return this.http.post<SimpleMessageResponse>(
+      `${this.apiBaseUrl}/auth/verify-email`,
+      { email, otp }
+    );
+  }
+
+  /** Gửi lại OTP xác thực email */
+  resendVerification(email: string): Observable<SimpleMessageResponse> {
+    return this.http.post<SimpleMessageResponse>(
+      `${this.apiBaseUrl}/auth/resend-verification`,
+      { email }
+    );
+  }
+
+  /** Quên mật khẩu - gửi OTP đặt lại về email */
+  forgotPassword(email: string): Observable<SimpleMessageResponse> {
+    return this.http.post<SimpleMessageResponse>(
+      `${this.apiBaseUrl}/auth/forgot-password`,
+      { email }
+    );
+  }
+
+  /** Đặt lại mật khẩu - verify OTP + cập nhật mật khẩu mới */
+  resetPassword(email: string, otp: string, newPassword: string): Observable<SimpleMessageResponse> {
+    return this.http.post<SimpleMessageResponse>(
+      `${this.apiBaseUrl}/auth/reset-password`,
+      { email, otp, new_password: newPassword }
+    );
   }
 
   registerWithPhone(phone: string, otp: string, data: any): Observable<any> {

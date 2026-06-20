@@ -119,6 +119,8 @@ class RegisterResponse(BaseModel):
     EC: int = Field(..., description="Error code (0 = success)")
     EM: str = Field(..., description="Error message")
     user: Optional[dict] = None
+    awaiting_verification: Optional[bool] = None
+    otp_sent: Optional[bool] = None
 
 
 class VerifyTokenResponse(BaseModel):
@@ -231,3 +233,60 @@ class AdminLoginRequest(BaseModel):
         if not self.email and not self.phone_number:
             raise ValueError('Either email or phone_number must be provided')
         return self
+
+
+class VerifyEmailRequest(BaseModel):
+    """Verify email request schema (email + OTP)"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "a.nguyen@example.com",
+                "otp": "123456"
+            }
+        }
+    )
+
+    email: EmailStr = Field(..., description="Email address to verify")
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+
+
+class SimpleMessageResponse(BaseModel):
+    """Generic response chỉ có EC + EM (+ optional otp_sent)."""
+    EC: int = Field(..., description="Error code (0 = success)")
+    EM: str = Field(..., description="Error message")
+    otp_sent: Optional[bool] = None
+
+
+class ResendVerificationRequest(BaseModel):
+    """Resend verification OTP request schema"""
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"email": "a.nguyen@example.com"}}
+    )
+
+    email: EmailStr = Field(..., description="Email address")
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot password request schema"""
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"email": "a.nguyen@example.com"}}
+    )
+
+    email: EmailStr = Field(..., description="Email address")
+
+
+class ResetPasswordRequest(BaseModel):
+    """Reset password request schema (email + OTP + new password)"""
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "a.nguyen@example.com",
+                "otp": "123456",
+                "new_password": "newpassword123"
+            }
+        }
+    )
+
+    email: EmailStr = Field(..., description="Email address")
+    otp: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+    new_password: str = Field(..., min_length=6, description="New password (minimum 6 characters)")

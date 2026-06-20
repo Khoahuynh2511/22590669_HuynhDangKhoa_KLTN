@@ -25,6 +25,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isAuthenticated = false;
   currentUser: any = null;
   showDropdown = false;
+  showActivitiesMenu = false;
   pendingPaymentCount = 0;
   private chatbotSubscription?: Subscription;
   private pendingCountSubscription?: Subscription;
@@ -55,6 +56,17 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return this.topMenuPublic;
   }
 
+  /** Mục con của dropdown "Hoạt động" (service-nav). */
+  activitiesMenuItems: Menu[] = [
+    { label: '🗺️ Bản đồ khám phá', url: '/explore-map' },
+    { label: '📋 Lập kế hoạch chuyến đi', url: '/activities' }
+  ];
+
+  get isActivitiesAreaActive(): boolean {
+    const url = this.router.url?.split('?')[0] || '';
+    return url === '/activities' || url.startsWith('/explore-map');
+  }
+
   constructor(
     private router: Router,
     private authStateService: AuthStateService,
@@ -73,6 +85,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.router.events.subscribe((ev) => {
       if (ev instanceof NavigationEnd) {
         this.checkIfHomePage();
+        this.closeActivitiesMenu();
+        this.closeDropdown();
         if (this.isAuthenticated) {
           this.loadPendingPaymentCount();
         }
@@ -208,6 +222,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   closeDropdown(): void {
     this.showDropdown = false;
+  }
+
+  toggleActivitiesMenu(): void {
+    this.showActivitiesMenu = !this.showActivitiesMenu;
+  }
+
+  closeActivitiesMenu(): void {
+    this.showActivitiesMenu = false;
   }
 }
 

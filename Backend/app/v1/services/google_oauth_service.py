@@ -326,6 +326,7 @@ class GoogleOAuthService:
                     "google_id": google_user.get('google_id'),
                     "profile_picture": google_user.get('picture'),
                     "is_activate": True,
+                    "email_verified": True,  # Google đã xác thực email
                     "login_type": "GOOGLE",
                     "security_2fa_enabled": False,
                     "role": "user",  # Default role for new users

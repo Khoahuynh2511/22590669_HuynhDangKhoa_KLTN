@@ -15,7 +15,12 @@ from ...schema.auth_schema import (
     GoogleLoginRequest,
     GoogleAuthURLResponse,
     AdminRegisterRequest,
-    AdminLoginRequest
+    AdminLoginRequest,
+    VerifyEmailRequest,
+    SimpleMessageResponse,
+    ResendVerificationRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest
 )
 from ...services.auth_service import AuthService
 from ...services.google_oauth_service import GoogleOAuthService
@@ -68,6 +73,94 @@ async def register(
 
     except Exception as e:
         logger.error(f"Error in register endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/verify-email", response_model=SimpleMessageResponse)
+async def verify_email(
+    request: VerifyEmailRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Verify email bằng OTP code (sau khi đăng ký).
+
+    Returns:
+        SimpleMessageResponse (EC, EM)
+    """
+    try:
+        result = await auth_service.verify_email(
+            email=request.email,
+            otp=request.otp
+        )
+        return SimpleMessageResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in verify-email endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/resend-verification", response_model=SimpleMessageResponse)
+async def resend_verification(
+    request: ResendVerificationRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Gửi lại OTP xác thực email.
+
+    Returns:
+        SimpleMessageResponse (EC, EM, otp_sent)
+    """
+    try:
+        result = await auth_service.resend_verification_email(
+            email=request.email
+        )
+        return SimpleMessageResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in resend-verification endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/forgot-password", response_model=SimpleMessageResponse)
+async def forgot_password(
+    request: ForgotPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Khởi tạo đặt lại mật khẩu: gửi OTP qua email.
+    Luôn trả EC=0 để tránh leak email tồn tại hay không.
+
+    Returns:
+        SimpleMessageResponse (EC, EM, otp_sent)
+    """
+    try:
+        result = await auth_service.forgot_password(
+            email=request.email
+        )
+        return SimpleMessageResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in forgot-password endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/reset-password", response_model=SimpleMessageResponse)
+async def reset_password(
+    request: ResetPasswordRequest,
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """
+    Đặt lại mật khẩu: verify OTP + cập nhật password.
+
+    Returns:
+        SimpleMessageResponse (EC, EM)
+    """
+    try:
+        result = await auth_service.reset_password(
+            email=request.email,
+            otp=request.otp,
+            new_password=request.new_password
+        )
+        return SimpleMessageResponse(**result)
+    except Exception as e:
+        logger.error(f"Error in reset-password endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -219,7 +312,11 @@ async def auth_info():
         "version": "1.0",
         "endpoints": {
             "register": "POST /api/v1/auth/register",
+            "verify-email": "POST /api/v1/auth/verify-email",
+            "resend-verification": "POST /api/v1/auth/resend-verification",
             "login": "POST /api/v1/auth/login",
+            "forgot-password": "POST /api/v1/auth/forgot-password",
+            "reset-password": "POST /api/v1/auth/reset-password",
             "verify-token": "POST /api/v1/auth/verify-token",
             "admin-register": "POST /api/v1/auth/admin/register",
             "admin-login": "POST /api/v1/auth/admin/login",
