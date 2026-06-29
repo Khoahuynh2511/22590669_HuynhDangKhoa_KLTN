@@ -92,6 +92,37 @@ uv add pip-system-certs --native-tls
 
 ---
 
+### 2.4. Redis (bắt buộc cho OTP / xác thực email)
+
+> **Quan trọng:** OTP khi đăng ký / quên mật khẩu / đặt tour được **lưu trong Redis** để đối chiếu.
+> Nếu Redis không chạy → mail OTP **vẫn gửi được** (qua SMTP), nhưng khi nhập mã sẽ **luôn báo "Mã xác thực không đúng hoặc đã hết hạn"**.
+
+Dự án đã kèm sẵn Redis Windows (tporadowski 5.0.14) tại `tools/redis/`.
+
+```bash
+# Cách 1 (khuyên dùng): chạy cùng Backend + Frontend qua script ở thư mục gốc
+# PowerShell (VSCode default): dùng dev.ps1 | Git Bash: dùng dev.sh
+.\dev.ps1             # PowerShell: start Redis + Backend + Frontend
+./dev.sh              # Git Bash: start Redis + Backend + Frontend
+.\dev.ps1 redis       # chỉ Redis
+.\dev.ps1 stop        # dừng tất cả
+
+# Cách 2: khởi động Redis thủ công
+tools/redis/redis-server.exe --port 6379
+
+# Kiểm tra Redis đang chạy
+tools/redis/redis-cli.exe -p 6379 ping     # -> PONG
+```
+
+Cấu hình kết nối (mặc định đã đúng cho Redis local):
+```bash
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_DB=0
+```
+
+---
+
 ## 3. Chạy Backend
 
 ### Cách 1: Dùng script (khuyên dùng)
@@ -228,6 +259,33 @@ ConnectionRefusedError: cannot connect to PostgreSQL
 CORS_ORIGINS=http://localhost:4200,http://127.0.0.1:4200
 ```
 
+### OTP báo "Mã xác thực không đúng hoặc đã hết hạn" dù nhập đúng
+
+Nguyên nhân: **Redis chưa chạy** → backend không lưu/đối chiếu được OTP (mail vẫn gửi OK).
+**Fix:**
+```bash
+./dev.sh redis                          # start Redis
+tools/redis/redis-cli.exe -p 6379 ping  # phải trả PONG
+```
+Sau đó **restart Backend** để `OTPService` kết nối lại Redis.
+
+### Mail OTP không tới (nhưng báo gửi thành công)
+
+- Restart Backend để load `.env` mới (OTPService là singleton, cache config lúc startup).
+- Kiểm tra cả hộp thư **Spam/Thư rác**.
+- Nếu chưa cấu hình SMTP: xem [Backend/.env](../Backend/.env) mục `SMTP_*` (lấy App Password tại Google Account > Security > App passwords).
+
+### Bật/tắt hiển thị OTP demo trên UI (đặt phòng/vé/tour)
+
+Mặc định `OTP_SHOW_IN_RESPONSE=true`: backend trả `otp_code` trong response → UI hiện sẵn mã (tiện test/bảo vệ). Muốn ép user **chỉ đọc mã trong email** (luồng SMTP real):
+
+```bash
+# Backend/.env
+OTP_SHOW_IN_RESPONSE=false
+```
+
+Restart Backend sau khi đổi. OTP vẫn gửi SMTP bất kể giá trị này.
+
 ### uv not found
 ```bash
 # Windows (PowerShell)
@@ -267,4 +325,48 @@ cd ~/doan
 git pull origin main
 docker compose down
 docker compose up -d --build
+```
+
+---
+
+## 10. Luồng chạy nhanh (Quick Start)
+
+> Tóm tắt các bước chạy hàng ngày. Chi tiết xem các mục trên.
+
+### Lần đầu (chỉ làm 1 lần)
+
+1. **Backend `.env`** — điền đủ key (bắt buộc: `DATABASE_URL`, `OPENAI_API_KEY`, `JWT_SECRET`, `SMTP_*`). Trong thư mục `Backend/`, tạo từ mẫu rồi sửa: `cp .env.example .env`.
+2. **Database** — chạy migrations trong `Backend/migrations/` (bắt đầu `init_schema.sql`) lên Render PostgreSQL.
+3. **Frontend env** — giữ `apiUrl: 'http://localhost:8000/api/v1'` ở `Frontend/src/environments/environment.ts`.
+4. **Redis** — đã kèm sẵn ở `tools/redis/` (không cần cài thêm).
+
+### Chạy hàng ngày
+
+```bash
+# Từ thư mục gốc dự án (Git Bash):
+./dev.sh            # start Redis + Backend + Frontend (mỗi service 1 cửa sổ)
+```
+
+Kết quả:
+
+- **Frontend:** `http://localhost:4200`
+- **Backend:** `http://localhost:8000` (docs tại `/docs`)
+- **Redis:** `127.0.0.1:6379`
+
+### Dừng / khởi động lại
+
+```bash
+./dev.sh stop       # dừng tất cả
+./dev.sh redis      # chỉ Redis
+./dev.sh be         # chỉ Backend
+./dev.sh fe         # chỉ Frontend
+```
+
+> Khi đổi `.env` (SMTP, DB, key...) → **restart Backend**: `./dev.sh stop` rồi `./dev.sh` lại, vì các service là singleton cache config lúc startup.
+
+### Kiểm tra nhanh
+
+```bash
+curl http://localhost:8000/health           # -> {"status":"healthy"}
+tools/redis/redis-cli.exe -p 6379 ping      # -> PONG
 ```

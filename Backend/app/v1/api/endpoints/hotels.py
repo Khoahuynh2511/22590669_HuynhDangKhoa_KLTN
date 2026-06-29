@@ -15,6 +15,7 @@ async def get_hotels(
     search: Optional[str] = Query(None, description="Tìm theo tên/địa điểm"),
     min_price: Optional[float] = Query(None, ge=0, description="Giá tối thiểu"),
     max_price: Optional[float] = Query(None, ge=0, description="Giá tối đa"),
+    province_id: Optional[str] = Query(None, description="Lọc theo UUID tỉnh (bảng provinces)"),
     limit: Optional[int] = Query(None, ge=1, le=100),
     offset: Optional[int] = Query(None, ge=0),
     service: HotelService = Depends(get_hotel_service)
@@ -23,6 +24,7 @@ async def get_hotels(
     return service.get_all_hotels(
         location=location, search=search,
         min_price=min_price, max_price=max_price,
+        province_id=province_id,
         limit=limit, offset=offset
     )
 

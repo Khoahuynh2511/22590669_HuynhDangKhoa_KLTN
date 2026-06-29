@@ -11,9 +11,11 @@ from src.tools.weather_tools import register_weather_tools
 from src.tools.flight_tools import register_flight_tools
 from src.tools.train_tools import register_train_tools
 from src.tools.bus_tools import register_bus_tools
+from src.tools.hotel_tools import register_hotel_tools
 from src.tools.booking_tools import register_booking_tools
 from src.tools.search_personalization import register_search_personalization_tools
 from src.tools.tour_search_tools import register_tour_search_tools
+from src.tools.festival_tools import register_festival_tools
 from src.resources import register_all_resources
 from src.prompts import register_all_prompts
 from src.utils import setup_logging
@@ -33,17 +35,21 @@ weather_server = FastMCP(name="Weather")
 flight_server = FastMCP(name="Flight")
 train_server = FastMCP(name="Train")
 bus_server = FastMCP(name="Bus")
+hotel_server = FastMCP(name="Hotel")
 booking_server = FastMCP(name="Booking")
 search_server = FastMCP(name="Search")
+festival_server = FastMCP(name="Festival")
 
 # Register tools to sub-servers
 register_weather_tools(weather_server)
 register_flight_tools(flight_server)
 register_train_tools(train_server)
 register_bus_tools(bus_server)
+register_hotel_tools(hotel_server)
 register_booking_tools(booking_server)
 register_search_personalization_tools(search_server)
 register_tour_search_tools(search_server)
+register_festival_tools(festival_server)
 
 # Import sub-servers into main (static composition, no prefixes to keep original tool names)
 
@@ -53,8 +59,10 @@ async def compose_servers():
     await mcp.import_server(flight_server)
     await mcp.import_server(train_server)
     await mcp.import_server(bus_server)
+    await mcp.import_server(hotel_server)
     await mcp.import_server(booking_server)
     await mcp.import_server(search_server)
+    await mcp.import_server(festival_server)
 
 # Lazy initialization flag with thread lock
 _servers_composed = False

@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.v1.core.config import settings
+from app.v1.services.flight_search_service import FlightSearchService
 
 try:
     from ..mock_data.generator import get_generator
@@ -70,10 +71,10 @@ def get_or_create_user_id(passenger_phone: str, passenger_email: str, user_id: O
 
 
 class FlightService:
-    """Flight Service sử dụng Mock Data Generator"""
+    """Flight Service - query DB thật qua FlightSearchService"""
 
     def __init__(self):
-        self.generator = get_generator()
+        self.search_service = FlightSearchService()
         self.vietnam_tz = timezone(timedelta(hours=7))
 
     def _format_flight_info(self, flight: Dict[str, Any], index: int, total: int) -> str:
@@ -142,14 +143,17 @@ class FlightService:
         if departure_iata == arrival_iata:
             return "❌ Sân bay đi và đến không được trùng nhau."
 
-        # Generate flights
-        flights = self.generator.generate_flights(
-            departure_iata=departure_iata,
-            arrival_iata=arrival_iata,
+        # Query DB thật qua FlightSearchService (search & book dùng chung nguồn DB)
+        result = self.search_service.search_flights(
+            departure=departure_iata,
+            arrival=arrival_iata,
             date=date,
-            days_ahead=1,
             limit=limit
         )
+        if result["EC"] != 0:
+            return f"❌ {result['EM']}\n\n" + self._get_airport_list()
+
+        flights = result["data"].get("flights", []) if result.get("data") else []
 
         if not flights:
             return f"❌ Không tìm thấy chuyến bay từ {departure_iata} đến {arrival_iata} ngày {date}."
@@ -202,29 +206,31 @@ class FlightService:
         if departure_iata == arrival_iata:
             return {"success": False, "error": "Same departure and arrival", "flights": []}
 
-        flights = self.generator.generate_flights(
-            departure_iata=departure_iata,
-            arrival_iata=arrival_iata,
+        result = self.search_service.search_flights(
+            departure=departure_iata,
+            arrival=arrival_iata,
             date=date,
-            days_ahead=1,
             limit=limit
         )
+        if result["EC"] != 0 or not result.get("data"):
+            return {"success": False, "error": result.get("EM", "Search failed"), "flights": []}
 
+        data = result["data"]
         return {
             "success": True,
-            "departure": {
+            "departure": data.get("departure", {
                 "iata": departure_iata,
                 "city": VIETNAM_AIRPORTS[departure_iata]["city"],
                 "airport": VIETNAM_AIRPORTS[departure_iata]["name"]
-            },
-            "arrival": {
+            }),
+            "arrival": data.get("arrival", {
                 "iata": arrival_iata,
                 "city": VIETNAM_AIRPORTS[arrival_iata]["city"],
                 "airport": VIETNAM_AIRPORTS[arrival_iata]["name"]
-            },
-            "date": date,
-            "total": len(flights),
-            "flights": flights
+            }),
+            "date": data.get("date", date),
+            "total": data.get("total", len(data.get("flights", []))),
+            "flights": data.get("flights", [])
         }
 
     async def book_flight(
@@ -275,7 +281,8 @@ class FlightService:
                 "seat_class": seat_class,
                 "num_passengers": num_passengers,
                 "total_price": data["total_price"],
-                "otp_code": data["otp_code"],
+                # otp_code chỉ có khi OTP_SHOW_IN_RESPONSE=true; dùng .get() để không crash khi false
+                "otp_code": data.get("otp_code"),
                 "awaiting_otp": True
             }
         except Exception as e:
@@ -387,7 +394,7 @@ def register_flight_tools(mcp: FastMCP):
 💰 Tổng tiền: {result['total_price']:,} VND
 
 ⏰ Trạng thái: Chờ xác thực OTP
-🔑 Mã OTP: {result.get('otp_code')} (Đã gửi qua email {result['passenger']['email']})
+{f"🔑 Mã OTP: {result['otp_code']}" if result.get('otp_code') else "🔑 Mã OTP đã được gửi qua email — vui lòng kiểm tra hộp thư (kể cả mục Spam) để lấy mã."}
 🔔 Tiếp theo: Nhập mã OTP để xác nhận đặt vé bằng verify_otp_and_confirm_booking(booking_id="{result['booking_id']}", otp_code="...").
 {'=' * 40}
 """

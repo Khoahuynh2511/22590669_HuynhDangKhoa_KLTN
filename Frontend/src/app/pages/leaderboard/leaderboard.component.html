@@ -1,0 +1,81 @@
+<div class="lb-page">
+  <div class="lb-container">
+    <!-- Banner -->
+    <div class="lb-banner">
+      <h1>🏆 Bảng xếp hạng người khám phá</h1>
+      <p>Cạnh tranh cùng cộng đồng lữ khách UITravel — ai sẽ chinh phục đủ 63 tỉnh thành trước?</p>
+    </div>
+
+    <!-- Card "Hạng của bạn" -->
+    <div class="lb-me" *ngIf="!loading && !errorMsg">
+      <div class="lb-me-rank">
+        <span class="lb-me-label">Hạng của bạn</span>
+        <span class="lb-me-value" *ngIf="myRank; else unranked">#{{ myRank }}</span>
+        <ng-template #unranked><span class="lb-me-value muted">—</span></ng-template>
+      </div>
+      <div class="lb-me-prog">
+        <span class="lb-me-label">Tỉnh đã khám phá</span>
+        <span class="lb-me-value">{{ myProvincesVisited }} / 63</span>
+      </div>
+      <div class="lb-me-total">
+        <span class="lb-me-label">Tổng người chơi</span>
+        <span class="lb-me-value">{{ total }}</span>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="lb-state" *ngIf="loading">
+      <span class="spinner"></span> Đang tải bảng xếp hạng…
+    </div>
+
+    <!-- Error -->
+    <div class="lb-state lb-error" *ngIf="errorMsg && !loading">
+      {{ errorMsg }}
+    </div>
+
+    <!-- Empty -->
+    <div class="lb-state" *ngIf="!loading && !errorMsg && items.length === 0">
+      Chưa có nhà khám phá nào. Hãy là người đầu tiên check-in một tỉnh thành nhé!
+    </div>
+
+    <!-- Podium top 3 -->
+    <div class="lb-podium" *ngIf="!loading && !errorMsg && podium.length > 0">
+      <div class="podium-item" *ngFor="let u of podium; let i = index"
+           [class.podium-1]="i === 0" [class.podium-2]="i === 1" [class.podium-3]="i === 2"
+           [class.is-me]="isMe(u)">
+        <div class="podium-medal">{{ i + 1 }}</div>
+        <div class="podium-avatar" [style.background-image]="u.avatar_url ? 'url(' + u.avatar_url + ')' : ''">
+          <span *ngIf="!u.avatar_url">{{ (u.full_name || '?').charAt(0).toUpperCase() }}</span>
+        </div>
+        <div class="podium-name">{{ u.full_name || 'Nhà khám phá ẩn danh' }}</div>
+        <div class="podium-count">{{ u.provinces_visited }} tỉnh</div>
+      </div>
+    </div>
+
+    <!-- Bảng từ hạng 4 -->
+    <div class="lb-table" *ngIf="!loading && !errorMsg && rest.length > 0">
+      <div class="lb-row lb-row-head">
+        <span class="col-rank">#</span>
+        <span class="col-name">Nhà khám phá</span>
+        <span class="col-count">Tỉnh</span>
+        <span class="col-region">Phân bổ</span>
+      </div>
+      <div class="lb-row" *ngFor="let u of rest; let i = index" [class.is-me]="isMe(u)">
+        <span class="col-rank">{{ i + 4 }}</span>
+        <span class="col-name">
+          <span class="lb-avatar" [style.background-image]="u.avatar_url ? 'url(' + u.avatar_url + ')' : ''">
+            <span *ngIf="!u.avatar_url">{{ (u.full_name || '?').charAt(0).toUpperCase() }}</span>
+          </span>
+          {{ u.full_name || 'Nhà khám phá ẩn danh' }}
+          <span class="me-tag" *ngIf="isMe(u)">Bạn</span>
+        </span>
+        <span class="col-count">{{ u.provinces_visited }}</span>
+        <span class="col-region">{{ regionBreakdown(u) }}</span>
+      </div>
+    </div>
+
+    <p class="lb-foot" *ngIf="!loading && !errorMsg && items.length > 0">
+      Xếp hạng dựa trên số tỉnh thành đã check-in (cả thủ công lẫn tự động từ booking đã xác nhận).
+    </p>
+  </div>
+</div>

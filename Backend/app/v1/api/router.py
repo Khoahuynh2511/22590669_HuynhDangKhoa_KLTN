@@ -2,7 +2,7 @@
 Main API Router
 """
 from fastapi import APIRouter
-from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, visited_provinces, flights, trains, buses, admin_buses, admin_flights, admin_trains, hotels, admin_hotels, hotel_bookings, flight_bookings, train_bookings, bus_bookings, trip_planning, activity_packages, places, place_collections
+from .endpoints import chat, chat_rooms, agent, health, auth, tour_packages, bookings, booking_management, promotions, payments, reports, travel_news, admin_recommendations, news_agent, admin_users, users, reviews, admin_agent, notifications, favorites, visited_provinces, flights, trains, buses, admin_buses, admin_flights, admin_trains, hotels, admin_hotels, hotel_bookings, flight_bookings, train_bookings, bus_bookings, trip_planning, activity_packages, places, place_collections, shared_itineraries
 
 api_router = APIRouter()
 
@@ -30,6 +30,7 @@ api_router.include_router(favorites.router, prefix="/favorites", tags=["Favorite
 api_router.include_router(visited_provinces.router, prefix="/visited-provinces", tags=["Visited Provinces"])
 api_router.include_router(places.router, prefix="/places", tags=["Place Suggestions"])
 api_router.include_router(place_collections.router, prefix="/place-collections", tags=["Place Collections"])
+api_router.include_router(shared_itineraries.router, prefix="/itineraries", tags=["Shared Itineraries"])
 
 
 api_router.include_router(flights.router, prefix="/flights", tags=["Flights"])

@@ -8,7 +8,7 @@ import { ToastModule } from 'primeng/toast';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { VisitedProvinceService, Province } from '../../services/visited-province.service';
 import { AuthStateService } from '../../services/auth-state.service';
-import { PlaceService, PlaceSuggestion } from '../../services/place.service';
+import { PlaceService, PlaceSuggestion, GalleryImage, BestSeasonResult, SeasonMonth, Festival } from '../../services/place.service';
 import { PlaceCollectionService, CombinedCollection, SavedPlace } from '../../services/place-collection.service';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -19,6 +19,26 @@ const CATEGORY_LABELS: Record<string, string> = {
     park: 'Công viên / Vườn',
     theme_park: 'Công viên giải trí'
 };
+
+// Các tỉnh có đảo nổi bật (dùng cho huy hiệu "Đảo Việt"). Province-level.
+const ISLAND_PROVINCES: string[] = [
+    'Kiên Giang',      // Phú Quốc
+    'Bà Rịa - Vũng Tàu', // Côn Đảo
+    'Hải Phòng',       // Cát Bà
+    'Quảng Ngãi',      // Lý Sơn
+    'Quảng Nam',       // Cù Lao Chàm
+    'Khánh Hòa'        // Các đảo Nha Trang
+];
+
+interface ExploreBadge {
+    key: string;
+    name: string;
+    description: string;
+    icon: string;       // Font Awesome class (without fa-solid prefix)
+    earned: boolean;
+    current: number;
+    target: number;
+}
 
 @Component({
     selector: 'app-explore-map',
@@ -65,6 +85,18 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
     collectionLoading = false;
     collectionData: CombinedCollection | null = null;
 
+    // ---- Huy hiệu khám phá (Feature C) — tính client-side từ dữ liệu visited ----
+    badges: ExploreBadge[] = [];
+
+    // ---- Destination detail overlay: thư viện ảnh (B) + mùa lý tưởng (D) ----
+    detailPlace: PlaceSuggestion | null = null;
+    detailLoading = false;
+    detailGallery: GalleryImage[] = [];
+    detailSeason: BestSeasonResult | null = null;
+    detailFestivals: Festival[] = [];
+    detailTab: 'photos' | 'season' | 'festival' = 'photos';
+    lightboxImg: string | null = null;
+
     private map?: L.Map;
     private geoLayer?: L.GeoJSON;
 
@@ -85,6 +117,10 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
         }
     }
 
+    goToLeaderboard(): void {
+        this.router.navigate(['/leaderboard']);
+    }
+
     async ngAfterViewInit(): Promise<void> {
         try {
             await this.loadData();
@@ -102,13 +138,37 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     private async loadData(): Promise<void> {
-        const [visited, all] = await Promise.all([
+        // Provinces (dữ liệu tĩnh, public) và visited (cá nhân) chạy độc lập —
+        // một cái hỏng (vd token hết hạn) không kéo theo cái kia, bản đồ vẫn render.
+        const [visitedRes, allRes] = await Promise.allSettled([
             this.visitedService.getMyVisited(),
             this.visitedService.getAllProvinces()
         ]);
-        this.allProvinces = all.provinces || [];
+
+        if (allRes.status !== 'fulfilled') {
+            // Không có danh sách tỉnh -> không render được layer bản đồ, ném lỗi như cũ.
+            throw new Error(allRes.reason?.message || 'Không tải được danh sách tỉnh');
+        }
+
+        this.allProvinces = allRes.value.provinces || [];
         this.byName = new Map(this.allProvinces.map(p => [p.province_name, p]));
-        this.applyStats(visited);
+
+        if (visitedRes.status === 'fulfilled') {
+            this.applyStats(visitedRes.value);
+        } else {
+            // Token hết hạn / chưa login -> vẫn vẽ map nhưng 0 check-in, không crash trang.
+            this.applyStats({
+                EC: 0, EM: '', total: 0,
+                total_provinces: this.allProvinces.length || 63,
+                north_count: 0, central_count: 0, south_count: 0,
+                progress_percentage: 0, provinces: []
+            } as any);
+            this.messageService.add({
+                severity: 'warn',
+                summary: 'Chưa tải được tiến trình',
+                detail: 'Phiên đăng nhập có thể đã hết hạn — đăng nhập lại để xem các tỉnh đã check-in.'
+            });
+        }
     }
 
     private applyStats(v: any): void {
@@ -118,6 +178,8 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.central = v.central_count || 0;
         this.south = v.south_count || 0;
         this.progress = this.roundProgress();
+        // Tính huy hiệu từ dữ liệu vừa load (dùng province names của server).
+        this.refreshBadges((v.provinces || []).map((p: any) => p.province_name));
     }
 
     private roundProgress(): number {
@@ -454,6 +516,7 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
                         this.bump(prov.region, -1);
                     }
                     this.progress = this.roundProgress();
+                    this.refreshBadges();
                     this.messageService.add({
                         severity: now ? 'success' : 'info',
                         summary: prov.province_name,
@@ -522,5 +585,109 @@ export class ExploreMapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     regionCount(region: 'north' | 'central' | 'south'): number {
         return region === 'north' ? this.north : region === 'central' ? this.central : this.south;
+    }
+
+    // ============================ Huy hiệu khám phá (Feature C) ==============
+    get earnedBadges(): number {
+        return this.badges.filter(b => b.earned).length;
+    }
+
+    /** Tên tỉnh đã check-in (theo snapshot của VisitedProvinceService). */
+    private visitedProvinceNames(): string[] {
+        const snap = this.visitedService.snapshot();
+        return this.allProvinces.filter(p => snap.get(p.province_id)).map(p => p.province_name);
+    }
+
+    /**
+     * Tính lại danh sách huy hiệu. `visitedNames` (từ server) ưu tiên khi load;
+     * nếu bỏ trống sẽ lấy từ snapshot cục bộ (sau khi toggle check-in).
+     */
+    private refreshBadges(visitedNames?: string[]): void {
+        const names = new Set<string>(visitedNames ?? this.visitedProvinceNames());
+        const total = this.totalVisited;
+        const north = this.north;
+        const central = this.central;
+        const south = this.south;
+        const regionsVisited = [north > 0, central > 0, south > 0].filter(Boolean).length;
+        const islandCount = [...names].filter(n => ISLAND_PROVINCES.includes(n)).length;
+        const cap = (cur: number) => Math.min(cur, 999);
+
+        this.badges = [
+            { key: 'first_step', name: 'Bước đầu khởi hành', description: 'Check-in tỉnh đầu tiên', icon: 'fa-flag', target: 1, current: cap(Math.min(total, 1)), earned: total >= 1 },
+            { key: 'three_regions', name: 'Khắp ba miền', description: 'Đã đến cả Bắc, Trung, Nam', icon: 'fa-globe', target: 3, current: cap(regionsVisited), earned: regionsVisited >= 3 },
+            { key: 'north_explorer', name: 'Bình minh phương Bắc', description: 'Khám phá 8 tỉnh miền Bắc', icon: 'fa-mountain-sun', target: 8, current: cap(north), earned: north >= 8 },
+            { key: 'central_explorer', name: 'Cát nóng miền Trung', description: 'Khám phá 6 tỉnh miền Trung', icon: 'fa-water', target: 6, current: cap(central), earned: central >= 6 },
+            { key: 'south_explorer', name: 'Phương Nam rực rỡ', description: 'Khám phá 6 tỉnh miền Nam', icon: 'fa-sun', target: 6, current: cap(south), earned: south >= 6 },
+            { key: 'island_hopper', name: 'Đảo Việt', description: 'Đến 2 tỉnh có đảo nổi bật', icon: 'fa-umbrella-beach', target: 2, current: cap(islandCount), earned: islandCount >= 2 },
+            { key: 'explorer_10', name: 'Nhà khám phá', description: 'Đã đến 10 tỉnh', icon: 'fa-compass', target: 10, current: cap(total), earned: total >= 10 },
+            { key: 'explorer_30', name: 'Kẻ lữ hành', description: 'Đã đến 30 tỉnh', icon: 'fa-route', target: 30, current: cap(total), earned: total >= 30 },
+            { key: 'explorer_50', name: 'Bậc thầy xê dịch', description: 'Đã đến 50 tỉnh', icon: 'fa-crown', target: 50, current: cap(total), earned: total >= 50 },
+            { key: 'half_map', name: 'Nửa bản đồ Việt Nam', description: 'Đã đến 32/63 tỉnh', icon: 'fa-map', target: 32, current: cap(total), earned: total >= 32 },
+        ];
+    }
+
+    // ============================ Destination detail (B + D) ================
+    get detailHasContent(): boolean {
+        return this.detailGallery.length > 0
+            || !!(this.detailSeason && this.detailSeason.monthly.length)
+            || this.detailFestivals.length > 0;
+    }
+
+    async openDetail(p: PlaceSuggestion): Promise<void> {
+        this.detailPlace = p;
+        this.detailLoading = true;
+        this.detailGallery = [];
+        this.detailSeason = null;
+        this.detailFestivals = [];
+        this.detailTab = 'photos';
+        try {
+            const [gallery, season, festivals] = await Promise.allSettled([
+                this.placeService.gallery(p.name, 12),
+                this.placeService.bestSeason(p.lat, p.lng, p.name),
+                this.placeService.festivals(p.name, null)
+            ]);
+            if (gallery.status === 'fulfilled') {
+                this.detailGallery = gallery.value.images || [];
+            }
+            if (season.status === 'fulfilled' && season.value) {
+                this.detailSeason = season.value;
+            }
+            if (festivals.status === 'fulfilled') {
+                this.detailFestivals = festivals.value.festivals || [];
+            }
+        } catch {
+            // Bỏ qua — overlay vẫn hiện thông tin địa điểm.
+        } finally {
+            this.detailLoading = false;
+        }
+    }
+
+    closeDetail(): void {
+        this.detailPlace = null;
+        this.detailGallery = [];
+        this.detailSeason = null;
+        this.detailFestivals = [];
+    }
+
+    setDetailTab(tab: 'photos' | 'season' | 'festival'): void {
+        this.detailTab = tab;
+    }
+
+    openLightbox(url: string): void {
+        this.lightboxImg = url;
+    }
+
+    closeLightbox(): void {
+        this.lightboxImg = null;
+    }
+
+    isBestMonth(month: number): boolean {
+        return !!(this.detailSeason && this.detailSeason.best_months.some(m => m.month === month));
+    }
+
+    /** Chiều cao cột biểu đồ theo nhiệt độ (0–40°C → 8–100%). */
+    seasonBarHeight(m: SeasonMonth): number {
+        if (m.temp === null || m.temp === undefined) return 0;
+        return Math.max(8, Math.min(100, (m.temp / 40) * 100));
     }
 }

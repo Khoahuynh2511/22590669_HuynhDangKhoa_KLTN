@@ -71,3 +71,34 @@ class AutoCheckinResponse(BaseModel):
     EM: str = Field("Success", description="Error message")
     auto_checkins: int = Field(0, description="Số tỉnh mới được check-in tự động")
     matched: List[str] = Field(default_factory=list, description="Tên các tỉnh đã match (minh bạch)")
+
+
+class LeaderboardUserItem(BaseModel):
+    """Một dòng trong bảng xếp hạng người khám phá."""
+    user_id: UUID
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    provinces_visited: int = Field(0, description="Số tỉnh đã check-in")
+    north_count: int = Field(0, description="Số tỉnh miền Bắc")
+    central_count: int = Field(0, description="Số tỉnh miền Trung")
+    south_count: int = Field(0, description="Số tỉnh miền Nam")
+    last_visit_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class LeaderboardData(BaseModel):
+    """Payload data cho leaderboard."""
+    items: List[LeaderboardUserItem] = Field(default_factory=list)
+    total: int = Field(0, description="Tổng số explorer (đã check-in ít nhất 1 tỉnh)")
+    limit: int = 20
+    offset: int = 0
+    my_rank: Optional[int] = Field(None, description="Hạng của user hiện tại (None nếu chưa check-in)")
+    my_provinces_visited: int = Field(0, description="Số tỉnh của user hiện tại")
+
+
+class LeaderboardResponse(BaseModel):
+    """Response cho GET /leaderboard — bảng xếp hạng người khám phá."""
+    EC: int = Field(0, description="Error code")
+    EM: str = Field("Success", description="Error message")
+    data: LeaderboardData = Field(default_factory=LeaderboardData)

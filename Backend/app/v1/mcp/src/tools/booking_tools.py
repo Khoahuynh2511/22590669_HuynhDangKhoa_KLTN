@@ -4,9 +4,10 @@ Interactive booking collection và management
 """
 from fastmcp import FastMCP
 from typing import Optional, Dict, Any
-from datetime import datetime
 import logging
-from app.v1.core.supabase import get_supabase_client
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from app.v1.core.config import settings
 from app.v1.services.payment_service import PaymentService
 from app.v1.services.booking_service import BookingService
 from app.v1.services.agent_services.utils.ui_generator import generate_payment_button_html
@@ -25,6 +26,16 @@ from app.v1.services.promotion_service import PromotionService
 
 # Logger
 logger = logging.getLogger(__name__)
+
+
+def _get_conn():
+    """Open a psycopg2 connection to the primary PostgreSQL DB (Neon via DATABASE_URL).
+
+    Mirrors the idiom used by BookingService / PaymentService so the booking MCP tools
+    no longer depend on the (removed) Supabase REST client.
+    """
+    url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    return psycopg2.connect(url, cursor_factory=RealDictCursor)
 
 
 async def _create_booking_impl(
@@ -47,63 +58,83 @@ async def _create_booking_impl(
     user_phone = phone_digits  # Use cleaned phone number
 
     try:
-        supabase = get_supabase_client()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                # 1. Validate Package & Check Slots
+                cur.execute(
+                    """SELECT package_id, package_name, destination, start_date, price,
+                              available_slots, is_active
+                       FROM tour_packages
+                       WHERE package_id = %s AND is_active = TRUE""",
+                    (str(package_id),)
+                )
+                package_row = cur.fetchone()
+                if not package_row:
+                    return {"success": False, "error": f"Tour package '{package_id}' not found or inactive."}
 
-        # 1. Validate Package & Check Slots
-        package_res = supabase.table("tour_packages").select(
-            "*").eq("package_id", package_id).eq("is_active", True).execute()
-        if not package_res.data:
-            return {"success": False, "error": f"Tour package '{package_id}' not found or inactive."}
+                package = dict(package_row)
+                if package['available_slots'] < number_of_people:
+                    return {
+                        "success": False,
+                        "error": f"Insufficient slots. Available: {package['available_slots']}, Requested: {number_of_people}"
+                    }
 
-        package = package_res.data[0]
-        if package['available_slots'] < number_of_people:
-            return {
-                "success": False,
-                "error": f"Insufficient slots. Available: {package['available_slots']}, Requested: {number_of_people}"
-            }
+                # 2. Get or Create User
+                user = None
 
-        # 2. Get or Create User
-        user = None
-
-        # Priority 1: Check by user_id if provided
-        if user_id:
-            logger.info(f"Checking user by ID: {user_id}")
-            user_res = supabase.table("users").select(
-                "user_id, full_name, phone_number").eq("user_id", user_id).execute()
-            if user_res.data:
-                user = user_res.data[0]
-                logger.info(f"Found user by ID: {user}")
-
-        # Priority 2: Check by phone_number if user not found yet
-        if not user:
-            logger.info(f"Checking user by phone: {user_phone}")
-            user_res = supabase.table("users").select(
-                "user_id, full_name, phone_number").eq("phone_number", user_phone).execute()
-            if user_res.data:
-                user = user_res.data[0]
-                logger.info(f"Found user by phone: {user}")
-                # WARNING: If user_id was provided but we found a DIFFERENT user by phone, we have a conflict.
-                # We use the existing user, effectively ignoring the provided user_id.
-                if user_id and user['user_id'] != user_id:
-                    logger.warning(f"User ID mismatch! Requested: {user_id}, Found existing: {user['user_id']}")
-            else:
-                # Create new user
-                logger.info("Creating new user...")
-                new_user = {
-                    "phone_number": user_phone,
-                    "full_name": f"Khách hàng {user_phone[-4:]}",
-                    "email": user_email  # store real email
-                }
-                # If user_id was provided but not found, use it for the new user
+                # Priority 1: Check by user_id if provided
                 if user_id:
-                    new_user["user_id"] = user_id
-                    logger.info(f"Using provided user_id for new user: {user_id}")
+                    logger.info(f"Checking user by ID: {user_id}")
+                    cur.execute(
+                        "SELECT user_id, full_name, phone_number FROM users WHERE user_id = %s",
+                        (str(user_id),)
+                    )
+                    user_row = cur.fetchone()
+                    if user_row:
+                        user = dict(user_row)
+                        logger.info(f"Found user by ID: {user}")
 
-                create_res = supabase.table("users").insert(new_user).execute()
-                if not create_res.data:
-                    return {"success": False, "error": "Failed to create user profile."}
-                user = create_res.data[0]
-                logger.info(f"Created user: {user}")
+                # Priority 2: Check by phone_number if user not found yet
+                if not user:
+                    logger.info(f"Checking user by phone: {user_phone}")
+                    cur.execute(
+                        "SELECT user_id, full_name, phone_number FROM users WHERE phone_number = %s",
+                        (user_phone,)
+                    )
+                    user_row = cur.fetchone()
+                    if user_row:
+                        user = dict(user_row)
+                        logger.info(f"Found user by phone: {user}")
+                        # WARNING: If user_id was provided but we found a DIFFERENT user by phone, we have a conflict.
+                        # We use the existing user, effectively ignoring the provided user_id.
+                        if user_id and str(user['user_id']) != str(user_id):
+                            logger.warning(f"User ID mismatch! Requested: {user_id}, Found existing: {user['user_id']}")
+                    else:
+                        # Create new user
+                        logger.info("Creating new user...")
+                        full_name = f"Khách hàng {user_phone[-4:]}"
+                        # If user_id was provided but not found, use it for the new user
+                        if user_id:
+                            logger.info(f"Using provided user_id for new user: {user_id}")
+                            cur.execute(
+                                """INSERT INTO users (user_id, phone_number, full_name, email)
+                                   VALUES (%s, %s, %s, %s)
+                                   RETURNING user_id, full_name, phone_number""",
+                                (str(user_id), user_phone, full_name, user_email)
+                            )
+                        else:
+                            cur.execute(
+                                """INSERT INTO users (phone_number, full_name, email)
+                                   VALUES (%s, %s, %s)
+                                   RETURNING user_id, full_name, phone_number""",
+                                (user_phone, full_name, user_email)
+                            )
+                        created_row = cur.fetchone()
+                        if not created_row:
+                            return {"success": False, "error": "Failed to create user profile."}
+                        user = dict(created_row)
+                        logger.info(f"Created user: {user}")
+                        conn.commit()
 
         # 3. Create booking via unified OTP API (same as transport/tour booking pages)
         booking_service = BookingService()
@@ -157,33 +188,33 @@ async def _get_user_bookings_impl(user_id: Optional[str]) -> Dict[str, Any]:
         return {"success": False, "error": "User ID is missing. Cannot retrieve bookings."}
 
     try:
-        supabase = get_supabase_client()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                # 1. Get Bookings with Package Info (LEFT JOIN keeps bookings whose package was removed)
+                cur.execute(
+                    """SELECT b.booking_id, b.number_of_people, b.total_amount,
+                              b.status, b.created_at,
+                              t.package_name, t.destination, t.start_date, t.price
+                       FROM bookings b
+                       LEFT JOIN tour_packages t ON b.package_id = t.package_id
+                       WHERE b.user_id = %s
+                       ORDER BY b.created_at DESC""",
+                    (str(user_id),)
+                )
+                rows = cur.fetchall()
 
-        # 1. Get Bookings with Package Info
-        bookings_res = supabase.table("bookings")\
-            .select("*, tour_packages(package_name, destination, start_date, price)")\
-            .eq("user_id", user_id)\
-            .order("created_at", desc=True)\
-            .execute()
-
-        if not bookings_res.data:
+        if not rows:
             return {"success": True, "bookings": [], "message": "No bookings found for this user."}
 
         # 2. Format Result
         bookings = []
-        for b in bookings_res.data:
-            pkg = b.get('tour_packages', {})
-            # Handle case where pkg might be None or list (though single relation usually dict)
-            if isinstance(pkg, list) and pkg:
-                pkg = pkg[0]
-            elif not isinstance(pkg, dict):
-                pkg = {}
-
+        for row in rows:
+            b = dict(row)
             bookings.append({
                 "booking_id": b['booking_id'],
-                "tour_name": pkg.get('package_name', 'Unknown Tour'),
-                "destination": pkg.get('destination', 'Unknown'),
-                "start_date": pkg.get('start_date'),
+                "tour_name": b.get('package_name') or 'Unknown Tour',
+                "destination": b.get('destination') or 'Unknown',
+                "start_date": b.get('start_date'),
                 "number_of_people": b['number_of_people'],
                 "total_amount": b['total_amount'],
                 "status": b['status'],
@@ -204,57 +235,71 @@ async def _update_booking_impl(
 ) -> Dict[str, Any]:
     """Implementation of update_booking tool"""
     try:
-        supabase = get_supabase_client()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                # 1. Get Booking
+                cur.execute("SELECT * FROM bookings WHERE booking_id = %s", (str(booking_id),))
+                booking_row = cur.fetchone()
+                if not booking_row:
+                    return {"success": False, "error": f"Booking {booking_id} not found."}
+                booking = dict(booking_row)
 
-        # 1. Get Booking
-        booking_res = supabase.table("bookings").select("*").eq("booking_id", booking_id).execute()
-        if not booking_res.data:
-            return {"success": False, "error": f"Booking {booking_id} not found."}
-        booking = booking_res.data[0]
+                updates = {}
 
-        updates = {}
+                # 2. Handle Number of People Change
+                if number_of_people is not None and number_of_people != booking['number_of_people']:
+                    package_id = booking['package_id']
+                    cur.execute(
+                        "SELECT available_slots, price FROM tour_packages WHERE package_id = %s",
+                        (str(package_id),)
+                    )
+                    package_row = cur.fetchone()
+                    if not package_row:
+                        return {"success": False, "error": "Associated tour package not found."}
+                    package = dict(package_row)
 
-        # 2. Handle Number of People Change
-        if number_of_people is not None and number_of_people != booking['number_of_people']:
-            package_id = booking['package_id']
-            package_res = supabase.table("tour_packages").select("*").eq("package_id", package_id).execute()
-            if not package_res.data:
-                return {"success": False, "error": "Associated tour package not found."}
-            package = package_res.data[0]
+                    diff = number_of_people - booking['number_of_people']
 
-            diff = number_of_people - booking['number_of_people']
+                    # Check slots if increasing
+                    if diff > 0 and package['available_slots'] < diff:
+                        return {
+                            "success": False,
+                            "error": f"Insufficient slots for increase. Available: {package['available_slots']}, Needed: {diff}"
+                        }
 
-            # Check slots if increasing
-            if diff > 0 and package['available_slots'] < diff:
-                return {
-                    "success": False,
-                    "error": f"Insufficient slots for increase. Available: {package['available_slots']}, Needed: {diff}"
-                }
+                    # Update slots
+                    new_slots = package['available_slots'] - diff
+                    cur.execute(
+                        "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                        (new_slots, str(package_id))
+                    )
 
-            # Update slots
-            new_slots = package['available_slots'] - diff
-            supabase.table("tour_packages").update(
-                {"available_slots": new_slots}).eq("package_id", package_id).execute()
+                    # Update booking amount
+                    updates['number_of_people'] = number_of_people
+                    updates['total_amount'] = float(package['price']) * number_of_people
 
-            # Update booking amount
-            updates['number_of_people'] = number_of_people
-            updates['total_amount'] = float(package['price']) * number_of_people
+                # 3. Handle Special Requests
+                if special_requests is not None:
+                    updates['special_requests'] = special_requests
 
-        # 3. Handle Special Requests
-        if special_requests is not None:
-            updates['special_requests'] = special_requests
+                if not updates:
+                    return {"success": True, "message": "No changes requested."}
 
-        if not updates:
-            return {"success": True, "message": "No changes requested."}
+                # 4. Update Booking
+                set_clauses = [f"{col} = %s" for col in updates.keys()]
+                set_clauses.append("updated_at = NOW()")
+                values = list(updates.values()) + [str(booking_id)]
+                cur.execute(
+                    f"UPDATE bookings SET {', '.join(set_clauses)} WHERE booking_id = %s RETURNING *",
+                    values
+                )
+                updated_row = cur.fetchone()
+                conn.commit()
 
-        updates['updated_at'] = datetime.now().isoformat()
-
-        # 4. Update Booking
-        res = supabase.table("bookings").update(updates).eq("booking_id", booking_id).execute()
-        if not res.data:
+        if not updated_row:
             return {"success": False, "error": "Failed to update booking in database."}
 
-        return {"success": True, "message": "Booking updated successfully", "booking": res.data[0]}
+        return {"success": True, "message": "Booking updated successfully", "booking": dict(updated_row)}
 
     except Exception as e:
         logger.error(f"Update booking error: {str(e)}")
@@ -264,56 +309,69 @@ async def _update_booking_impl(
 async def _delete_booking_impl(booking_id: str, reason: Optional[str] = None) -> Dict[str, Any]:
     """Implementation of delete_booking tool - SOFT DELETE (cancel)"""
     try:
-        supabase = get_supabase_client()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                # 1. Get Booking
+                cur.execute("SELECT * FROM bookings WHERE booking_id = %s", (str(booking_id),))
+                booking_row = cur.fetchone()
+                if not booking_row:
+                    return {"success": False, "error": f"Booking {booking_id} not found."}
+                booking = dict(booking_row)
 
-        # 1. Get Booking
-        booking_res = supabase.table("bookings").select("*").eq("booking_id", booking_id).execute()
-        if not booking_res.data:
-            return {"success": False, "error": f"Booking {booking_id} not found."}
-        booking = booking_res.data[0]
+                if booking['status'] == 'cancelled':
+                    return {"success": False, "error": "Booking is already cancelled."}
 
-        if booking['status'] == 'cancelled':
-            return {"success": False, "error": "Booking is already cancelled."}
+                if booking['status'] not in ['pending', 'confirmed']:
+                    return {"success": False, "error": f"Cannot cancel booking with status '{booking['status']}'"}
 
-        if booking['status'] not in ['pending', 'confirmed']:
-            return {"success": False, "error": f"Cannot cancel booking with status '{booking['status']}'"}
+                # 2. Insert to booking_cancellations table (full booking snapshot)
+                cur.execute(
+                    """INSERT INTO booking_cancellations
+                       (booking_id, user_id, package_id, number_of_people, total_amount,
+                        contact_name, contact_phone, contact_email, special_requests,
+                        previous_status, promotion_id, booking_created_at, reason, cancelled_by)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (
+                        str(booking_id),
+                        booking['user_id'],
+                        booking['package_id'],
+                        booking['number_of_people'],
+                        booking.get('total_amount'),
+                        booking.get('contact_name'),
+                        booking.get('contact_phone'),
+                        booking.get('contact_email'),
+                        booking.get('special_requests'),
+                        booking['status'],  # previous_status
+                        booking.get('promotion_id'),
+                        booking.get('created_at'),
+                        reason,
+                        "user",
+                    )
+                )
 
-        # 2. Insert to booking_cancellations table (full booking snapshot)
-        cancellation_data = {
-            "booking_id": booking_id,
-            "user_id": booking['user_id'],
-            "package_id": booking['package_id'],
-            # Booking snapshot
-            "number_of_people": booking['number_of_people'],
-            "total_amount": booking.get('total_amount'),
-            "contact_name": booking.get('contact_name'),
-            "contact_phone": booking.get('contact_phone'),
-            "contact_email": booking.get('contact_email'),
-            "special_requests": booking.get('special_requests'),
-            "previous_status": booking['status'],  # Status before cancel
-            "promotion_id": booking.get('promotion_id'),
-            "booking_created_at": booking.get('created_at'),
-            # Cancellation info
-            "reason": reason,
-            "cancelled_by": "user"
-        }
-        supabase.table("booking_cancellations").insert(cancellation_data).execute()
+                # 3. Update booking status to cancelled (soft delete)
+                cur.execute(
+                    "UPDATE bookings SET status = 'cancelled', updated_at = NOW() WHERE booking_id = %s",
+                    (str(booking_id),)
+                )
 
-        # 3. Update booking status to cancelled (soft delete)
-        supabase.table("bookings").update({
-            "status": "cancelled",
-            "updated_at": "now()"
-        }).eq("booking_id", booking_id).execute()
+                # 4. Restore Slots
+                package_id = booking['package_id']
+                cur.execute(
+                    "SELECT available_slots FROM tour_packages WHERE package_id = %s",
+                    (str(package_id),)
+                )
+                package_row = cur.fetchone()
+                if package_row:
+                    current_slots = package_row['available_slots']
+                    new_slots = current_slots + booking['number_of_people']
+                    cur.execute(
+                        "UPDATE tour_packages SET available_slots = %s WHERE package_id = %s",
+                        (new_slots, str(package_id))
+                    )
+                    logger.info(f"Restored {booking['number_of_people']} slots to package {package_id}")
 
-        # 4. Restore Slots
-        package_id = booking['package_id']
-        package_res = supabase.table("tour_packages").select("available_slots").eq("package_id", package_id).execute()
-        if package_res.data:
-            current_slots = package_res.data[0]['available_slots']
-            new_slots = current_slots + booking['number_of_people']
-            supabase.table("tour_packages").update(
-                {"available_slots": new_slots}).eq("package_id", package_id).execute()
-            logger.info(f"Restored {booking['number_of_people']} slots to package {package_id}")
+                conn.commit()
 
         logger.info(f"Cancelled booking {booking_id}")
         return {"success": True, "message": f"Booking {booking_id} cancelled successfully."}
@@ -691,8 +749,7 @@ async def _create_payment_impl(
 ) -> Dict[str, Any]:
     """Create payment và generate VNPay URL"""
     try:
-        supabase = get_supabase_client()
-        payment_service = PaymentService(supabase)
+        payment_service = PaymentService(None)
 
         # Get client IP (default to 127.0.0.1 if not available in context)
         # In MCP context, we don't have direct access to request, so use default
@@ -723,18 +780,19 @@ async def _create_payment_impl(
             }
 
         # Get booking details for response
-        booking_res = supabase.table("bookings")\
-            .select("*, tour_packages(package_name, destination, start_date, price)")\
-            .eq("booking_id", booking_id)\
-            .execute()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT b.total_amount, b.number_of_people,
+                              t.package_name, t.destination, t.start_date, t.price
+                       FROM bookings b
+                       LEFT JOIN tour_packages t ON b.package_id = t.package_id
+                       WHERE b.booking_id = %s""",
+                    (str(booking_id),)
+                )
+                row = cur.fetchone()
 
-        booking = booking_res.data[0] if booking_res.data else {}
-        pkg = booking.get('tour_packages', {})
-        if isinstance(pkg, list) and pkg:
-            pkg = pkg[0]
-        elif not isinstance(pkg, dict):
-            pkg = {}
-
+        booking = dict(row) if row else {}
         return {
             "success": True,
             "message": "Payment URL đã được tạo thành công. Bạn có thể thanh toán ngay.",
@@ -745,8 +803,8 @@ async def _create_payment_impl(
             "amount": payment_data.get("amount"),
             "booking_info": {
                 "booking_id": booking_id,
-                "tour_name": pkg.get('package_name', 'Unknown Tour'),
-                "destination": pkg.get('destination', 'Unknown'),
+                "tour_name": booking.get('package_name') or 'Unknown Tour',
+                "destination": booking.get('destination') or 'Unknown',
                 "total_amount": booking.get('total_amount'),
                 "number_of_people": booking.get('number_of_people')
             }
@@ -765,22 +823,27 @@ async def _apply_promotion_code_impl(
     Validates promotion and updates booking total_amount with discount.
     """
     try:
-        supabase = get_supabase_client()
-        promotion_service = PromotionService(supabase)
+        promotion_service = PromotionService()
 
         # 1. Get booking and validate status
-        booking_res = supabase.table("bookings")\
-            .select("*, tour_packages(package_name, destination, start_date, price)")\
-            .eq("booking_id", booking_id)\
-            .execute()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """SELECT b.*, t.package_name, t.destination, t.start_date, t.price
+                       FROM bookings b
+                       LEFT JOIN tour_packages t ON b.package_id = t.package_id
+                       WHERE b.booking_id = %s""",
+                    (str(booking_id),)
+                )
+                booking_row = cur.fetchone()
 
-        if not booking_res.data:
+        if not booking_row:
             return {
                 "success": False,
                 "error": f"Booking {booking_id} not found"
             }
 
-        booking = booking_res.data[0]
+        booking = dict(booking_row)
 
         # Check booking status - only allow for pending bookings
         if booking['status'] != 'pending':
@@ -819,10 +882,13 @@ async def _apply_promotion_code_impl(
                     old_used_count = old_promo.get('used_count', 0)
                     if old_used_count > 0:
                         # Decrement used_count for old promotion
-                        supabase.table('promotions')\
-                            .update({'used_count': old_used_count - 1})\
-                            .eq('promotion_id', existing_promo_id)\
-                            .execute()
+                        with _get_conn() as conn:
+                            with conn.cursor() as cur:
+                                cur.execute(
+                                    "UPDATE promotions SET used_count = %s WHERE promotion_id = %s",
+                                    (old_used_count - 1, str(existing_promo_id))
+                                )
+                                conn.commit()
                         logger.info(f"Rolled back used_count for old promotion {existing_promo_id}")
             except Exception as e:
                 logger.warning(f"Failed to rollback old promotion used_count: {str(e)}")
@@ -832,15 +898,8 @@ async def _apply_promotion_code_impl(
         # Use current total_amount (may already have discount from previous promotion)
         current_amount = float(booking.get('total_amount', 0))
 
-        # Get package info for response (not for calculation)
-        pkg = booking.get('tour_packages', {})
-        if isinstance(pkg, list) and pkg:
-            pkg = pkg[0]
-        elif not isinstance(pkg, dict):
-            pkg = {}
-
         # Calculate original price (package price * number_of_people) for reference
-        package_price = float(pkg.get('price', 0))
+        package_price = float(booking.get('price') or 0)
         number_of_people = booking.get('number_of_people', 1)
         original_package_amount = package_price * number_of_people
 
@@ -864,16 +923,18 @@ async def _apply_promotion_code_impl(
         discount_amount = promo_apply_result['discount_amount']
 
         # 5. Update booking with new total_amount and promotion_id
-        update_result = supabase.table("bookings")\
-            .update({
-                "total_amount": final_amount,
-                "promotion_id": promotion_id,
-                "updated_at": datetime.now().isoformat()
-            })\
-            .eq("booking_id", booking_id)\
-            .execute()
+        with _get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """UPDATE bookings
+                       SET total_amount = %s, promotion_id = %s, updated_at = NOW()
+                       WHERE booking_id = %s RETURNING *""",
+                    (final_amount, str(promotion_id), str(booking_id))
+                )
+                updated_row = cur.fetchone()
+                conn.commit()
 
-        if not update_result.data:
+        if not updated_row:
             return {
                 "success": False,
                 "error": "Failed to update booking with promotion"
@@ -895,8 +956,8 @@ async def _apply_promotion_code_impl(
             "discount_percentage": round((discount_amount / base_amount * 100), 2) if base_amount > 0 else 0,
             "booking_info": {
                 "booking_id": booking_id,
-                "tour_name": pkg.get('package_name', 'Unknown Tour'),
-                "destination": pkg.get('destination', 'Unknown'),
+                "tour_name": booking.get('package_name') or 'Unknown Tour',
+                "destination": booking.get('destination') or 'Unknown',
                 "number_of_people": number_of_people,
                 "original_package_amount": original_package_amount,
                 "base_amount": base_amount,

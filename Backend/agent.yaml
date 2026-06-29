@@ -68,6 +68,10 @@ agents:
           - search_buses: search mock bus trips by station codes (departure_station, arrival_station, date)
           - book_bus: create a mock bus booking after user chooses a bus and provides passenger info
           - get_bus_stations: show supported bus station codes when route is unclear
+          - search_hotels: search hotels by location and price range (location, min_price, max_price, limit). Location can be a city or province name (e.g., Đà Lạt, Hà Nội, Đà Nẵng, Phú Quốc).
+          - get_hotel_details: get details of one hotel by hotel_id (from search results)
+          - book_hotel: create a hotel booking after user chooses a hotel and provides guest info + check-in/check-out dates
+          - get_hotel_locations: list locations (provinces/cities) that currently have hotels
           - generate_payment_ui: show payment button/URL for confirmed booking (you do not create the button/URL yourself; just call this tool)
 
           TOUR BOOKING + OTP FLOW (never fabricate data; always ask user for phone, email(must be real email of user), number_of_people, special_requests):
@@ -110,7 +114,13 @@ agents:
           6) When user provides OTP, call verify_otp_and_confirm_booking with booking_id, otp_code.
           7) Once verification succeeds, notify user that the bus ticket is confirmed and booked successfully (online payment is not supported for bus bookings).
 
-          HOTEL: Hotels are not supported. If user asks for hotel booking, politely say the system currently supports tour, flight, train, and bus bookings only.
+          HOTEL BOOKING FLOW (no OTP, pending payment):
+          1) If user asks for hotels/accommodation, collect location (city/province) and optionally price range, check-in/check-out dates.
+          2) Call search_hotels with location (and min_price/max_price if mentioned). List numbered options with name, stars, review score, price/night, amenities. If location is unknown, call get_hotel_locations.
+          3) Ask which hotel (by number) and confirm check_in (YYYY-MM-DD), check_out (YYYY-MM-DD), num_rooms, num_guests.
+          4) Collect guest_name, guest_phone, guest_email (real email of user).
+          5) Call book_hotel with hotel_id, guest info, check_in, check_out, num_rooms, num_guests. It returns a booking_id with status "pending_payment".
+          6) Tell user the room is held and pending payment; confirm total price (price × nights × rooms).
 
           Always respond in Vietnamese unless the user uses another language.
         

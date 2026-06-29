@@ -8,8 +8,9 @@ import json
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
-from ...schema.trip_planning_schema import TripPlanRequest, TripPlanStartRequest
+from ...schema.trip_planning_schema import TripPlanRequest, TripPlanStartRequest, OptimizeItineraryRequest
 from ...services.trip_planning import trip_planning_graph
+from ...services.trip_planning.itinerary_optimizer import ItineraryOptimizer
 from ...services.trip_planning.nodes import get_step_suggestions
 from ...services.chat_room_service import ChatRoomService
 from ...core.dependencies import get_current_user
@@ -338,3 +339,30 @@ async def get_trip_plan_state(
             "message": "Session not found or expired",
         }
     }
+
+
+@router.post("/optimize")
+async def optimize_itinerary(
+    request: OptimizeItineraryRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Tối ưu lịch trình đã build bằng AI: gap-fill slot trống + chấm điểm theo thời tiết
+    (Open-Meteo) + cân bằng category + khớp preference. Giữ nguyên activity user đã đặt.
+
+    Body: itinerary (theo cấu trúc day_N → {morning/afternoon/evening}), destination,
+    duration_days, preferences[].
+    """
+    optimizer = ItineraryOptimizer()
+    try:
+        result = await optimizer.optimize(
+            itinerary=request.itinerary,
+            destination=request.destination,
+            duration_days=request.duration_days,
+            travel_date=request.travel_date,
+            preferences=request.preferences,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error optimizing itinerary: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi tối ưu lịch trình: {e}")

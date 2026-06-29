@@ -5,13 +5,15 @@ Pattern theo favorites.py.
 """
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
 from uuid import UUID
 
-from ...core.dependencies import get_current_user
+from ...core.dependencies import get_current_user, get_optional_current_user
 from ...schema.visited_province_schema import (
     AddVisitedRequest,
     AutoCheckinResponse,
+    LeaderboardResponse,
     ProvinceListResponse,
     VisitedListResponse,
     VisitedResponse,
@@ -30,11 +32,13 @@ def get_visited_service():
 
 @router.get("/provinces", response_model=ProvinceListResponse)
 async def get_all_provinces(
-    current_user: dict = Depends(get_current_user),
+    current_user: Optional[dict] = Depends(get_optional_current_user),
     service: VisitedProvinceService = Depends(get_visited_service),
 ):
     """
     Lấy 63 tỉnh/thành để render bản đồ.
+    Dữ liệu tĩnh (reference) — không yêu cầu auth, để bản đồ vẫn render được
+    ngay cả khi token hết hạn. (Pattern như /places/*)
 
     Example:
         GET /api/v1/visited-provinces/provinces
@@ -72,6 +76,33 @@ async def get_my_visited(
         raise
     except Exception as e:
         logger.error("Error in get_my_visited endpoint: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/leaderboard", response_model=LeaderboardResponse)
+async def get_leaderboard(
+    limit: int = Query(20, ge=1, le=100, description="Số user mỗi trang"),
+    offset: int = Query(0, ge=0, description="Vị trí bắt đầu của trang"),
+    current_user: dict = Depends(get_current_user),
+    service: VisitedProvinceService = Depends(get_visited_service),
+):
+    """
+    Bảng xếp hạng người khám phá (top explorers theo số tỉnh đã check-in).
+    Kèm hạng của user hiện tại (my_rank).
+
+    Example:
+        GET /api/v1/visited-provinces/leaderboard?limit=20&offset=0
+    """
+    try:
+        user_id = current_user["user_id"]
+        result = await service.get_leaderboard(limit=limit, offset=offset, viewer_user_id=user_id)
+        if result["EC"] != 0:
+            raise HTTPException(status_code=500, detail=result["EM"])
+        return LeaderboardResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in get_leaderboard endpoint: %s", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

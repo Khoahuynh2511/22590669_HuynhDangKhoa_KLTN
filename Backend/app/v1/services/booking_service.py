@@ -803,7 +803,7 @@ class BookingService:
                             "status": "otp_sent",
                             "contact_email": contact_email,
                             "total_amount": total_amount,
-                            "otp_code": otp_code
+                            **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})
                         }
                     }
 
@@ -1242,7 +1242,7 @@ class BookingService:
                             "booking_id": booking_id,
                             "contact_email": contact_email,
                             "message": "OTP resent successfully",
-                            "otp_code": otp_code
+                            **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})
                         }
                     }
 

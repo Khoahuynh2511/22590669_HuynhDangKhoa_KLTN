@@ -1,0 +1,46 @@
+<div class="fe-page">
+  <div class="fe-container">
+    <div class="fe-banner">
+      <h1>🎟️ Lễ hội &amp; Sự kiện</h1>
+      <p>Đi đúng dịp lễ hội — trải nghiệm văn hóa đậm đà nhất. Khám phá lễ hội trên cả <strong>thế giới</strong>, dữ liệu từ bộ sưu tập mở UITravel, Nager.Date và Wikipedia.</p>
+    </div>
+
+    <!-- Bộ lọc -->
+    <div class="fe-filter">
+      <div class="fe-filter-group">
+        <label class="fe-filter-label" for="fe-country">Quốc gia</label>
+        <select id="fe-country" class="fe-select" aria-label="Quốc gia"
+                (change)="setCountry($any($event.target).value)">
+          <option *ngFor="let c of countries" [value]="c.value" [selected]="c.value === selectedCountry">{{ c.label }}</option>
+        </select>
+      </div>
+      <div class="fe-filter-group" *ngIf="selectedCountry === ''">
+        <span class="fe-filter-label">Miền</span>
+        <button type="button" class="fe-chip" *ngFor="let r of regions"
+          [class.active]="selectedRegion === r.key" (click)="setRegion(r.key)">{{ r.label }}</button>
+      </div>
+      <div class="fe-filter-group">
+        <span class="fe-filter-label">Tháng</span>
+        <button type="button" class="fe-chip fe-chip-sm" *ngFor="let m of months"
+          [class.active]="selectedMonth === m.key" (click)="toggleMonth(m.key)">{{ m.label }}</button>
+      </div>
+    </div>
+
+    <div class="fe-state" *ngIf="loading"><span class="fe-spinner"></span> Đang tải lễ hội…</div>
+    <div class="fe-state fe-error" *ngIf="errorMsg && !loading">{{ errorMsg }}</div>
+    <div class="fe-state" *ngIf="!loading && !errorMsg && festivals.length === 0">
+      Không có lễ hội phù hợp bộ lọc. Thử bỏ lọc tháng/miền nhé.
+    </div>
+
+    <!-- Lưới lễ hội -->
+    <div class="fe-grid" *ngIf="!loading && !errorMsg">
+      @for (f of festivals; track f.name) {
+        <app-festival-card [festival]="f"></app-festival-card>
+      }
+    </div>
+
+    <p class="fe-foot" *ngIf="!loading && !errorMsg && festivals.length > 0">
+      Tổng {{ festivals.length }} lễ hội · dữ liệu mở (bộ sưu tập UITravel, Nager.Date, Wikipedia).
+    </p>
+  </div>
+</div>

@@ -1,0 +1,193 @@
+.fd-page {
+  background: #f8fafc;
+  min-height: 100vh;
+  // padding-top bù chiều cao header cố định (thanh Khách sạn/Vé máy bay) —
+  // cùng pattern với festivals/explore-map/leaderboard.
+  padding: calc(var(--app-header-offset, 140px) + 24px) 16px 48px;
+}
+
+.fd-container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.fd-state,
+.fd-notfound {
+  text-align: center;
+  padding: 48px 16px;
+  color: #6b7280;
+}
+
+.fd-spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: fd-spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes fd-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fd-back {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #f59e0b;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.fd-hero {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  background: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .08);
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fd-hero-img {
+  min-height: 280px;
+  background: linear-gradient(135deg, #f59e0b, #ef4444);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.fd-hero-ph {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+
+  i {
+    font-size: 3rem;
+    opacity: .85;
+  }
+
+  span {
+    font-size: 3.4rem;
+    font-weight: 700;
+  }
+}
+
+.fd-hero-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+
+.fd-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fd-tag {
+  font-size: .78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+
+  &.fd-tag-region {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  &.fd-tag-country {
+    background: #e0e7ff;
+    color: #3730a3;
+  }
+}
+
+.fd-title {
+  margin: 0;
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+}
+
+.fd-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .fd-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #4b5563;
+    font-size: .95rem;
+
+    i {
+      color: #f59e0b;
+      width: 16px;
+      text-align: center;
+    }
+  }
+}
+
+.fd-section {
+  margin-top: 24px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .05);
+}
+
+.fd-section-title {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.fd-section-text {
+  margin: 0;
+  color: #374151;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.fd-wiki {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

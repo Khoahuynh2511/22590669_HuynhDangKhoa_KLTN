@@ -6,6 +6,7 @@ from typing import Optional, Dict, Any, List
 import csv
 import io
 import logging
+import re
 
 from ...services.admin_hotel_service import get_admin_hotel_service, AdminHotelService
 from ...core.dependencies import get_current_admin
@@ -45,6 +46,7 @@ async def create_hotel(
     amenities: Optional[str] = Form(None, description="Tiện ích (ngăn cách bằng dấu phẩy)"),
     available_rooms: int = Form(..., description="Số phòng còn trống", ge=0),
     is_active: bool = Form(True, description="Trạng thái kích hoạt"),
+    province_id: Optional[str] = Form(None, description="UUID tỉnh liên kết (bảng provinces)"),
     images: List[UploadFile] = File([], description="Ảnh khách sạn (max 10 ảnh, định dạng: JPEG/JPG/PNG/WebP)"),
     current_admin: Dict[str, Any] = Depends(get_current_admin),
     service: AdminHotelService = Depends(get_admin_hotel_service)
@@ -99,6 +101,13 @@ async def create_hotel(
         if not image_urls:
             raise HTTPException(status_code=500, detail="Failed to upload images")
 
+        # Parse amenities: chuỗi ("A|B" hoặc "A,B") -> Python list.
+        # psycopg2 tự adapt list sang TEXT[], tránh lỗi "malformed array literal"
+        # khi truyền chuỗi thẳng vào cột TEXT[].
+        amenities_list = None
+        if amenities:
+            amenities_list = [a.strip() for a in re.split(r"[|,]", amenities) if a.strip()] or None
+
         # Prepare hotel data
         hotel_data = {
             "hotel_name": hotel_name,
@@ -111,9 +120,10 @@ async def create_hotel(
             "price": price,
             "original_price": original_price,
             "discount": discount,
-            "amenities": amenities,
+            "amenities": amenities_list,
             "available_rooms": available_rooms,
             "is_active": is_active,
+            "province_id": province_id,
             "image_urls": "|".join(image_urls)  # Pipe-separated URLs
         }
 

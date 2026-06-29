@@ -150,7 +150,7 @@ class BusBookingService:
                     "total_price": total_price,
                     "bus_number": bus['bus_number'],
                     "seat_type_name": seat_type_name,
-                    "otp_code": otp_code
+                    **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})
                 }
             }
 
@@ -280,7 +280,7 @@ class BusBookingService:
             return {
                 "EC": 0,
                 "EM": "Mã OTP mới đã được tạo.",
-                "data": {"booking_id": booking_id, "contact_email": passenger_email, "otp_code": otp_code}
+                "data": {"booking_id": booking_id, "contact_email": passenger_email, **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})}
             }
 
         except Exception as e:

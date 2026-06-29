@@ -22,12 +22,18 @@ from app.v1.schema.shema_tool_mcp import (
     BookTrainInput,
     SearchBusesInput,
     BookBusInput,
+    SearchHotelsInput,
+    GetHotelDetailsInput,
+    BookHotelInput,
     CreateTransportPaymentInput,
     EmptyInput,
     RequestFlightSearchInput,
     RequestTrainSearchInput,
+    RequestBusSearchInput,
+    RequestHotelSearchInput,
     GetCurrentTemperatureInput,
     GetWeatherForecastInput,
+    GetLocalFestivalsInput,
     SearchEpisodesInput
 )
 from app.v1.mcp.src.schema import (
@@ -678,6 +684,124 @@ class BusToolHandler:
             return f"Error: {str(e)}"
         return result if result else "Error: No response"
 
+    @staticmethod
+    def request_bus_search(
+        user_query: str,
+        departure_city: Optional[str] = None,
+        arrival_city: Optional[str] = None,
+        date: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Trigger Bus Agent to handle bus search/booking"""
+        return {
+            "status": "requested",
+            "message": "Bus Agent will handle this request",
+            "user_query": user_query,
+            "departure_city": departure_city,
+            "arrival_city": arrival_city,
+            "date": date
+        }
+
+
+class HotelToolHandler:
+    """Handler for hotel-related MCP tools"""
+
+    def __init__(self, mcp_client: MCPClient):
+        self.mcp_client = mcp_client
+
+    async def search_hotels(
+        self,
+        location: str = "",
+        min_price: float = 0,
+        max_price: float = 0,
+        limit: int = 5
+    ) -> str:
+        """Search for hotels by location and price range"""
+        try:
+            params: Dict[str, Any] = {
+                "location": location or "",
+                "min_price": min_price,
+                "max_price": max_price,
+                "limit": limit,
+            }
+            result = await self.mcp_client.call_tool("search_hotels", params)
+        except asyncio.TimeoutError:
+            logger.error("search_hotels timeout")
+            return "Error: Request timeout"
+        except Exception as e:
+            logger.error(f"Error in search_hotels: {e}")
+            return f"Error: Failed to search hotels: {str(e)}"
+        return result if result else "Error: No response from MCP server"
+
+    async def get_hotel_details(self, hotel_id: str) -> str:
+        """Get details of a single hotel by ID"""
+        try:
+            result = await self.mcp_client.call_tool("get_hotel_details", {"hotel_id": hotel_id})
+        except Exception as e:
+            logger.error(f"Error in get_hotel_details: {e}")
+            return f"Error: {str(e)}"
+        return result if result else "Error: No response from MCP server"
+
+    async def book_hotel(
+        self,
+        hotel_id: str,
+        guest_name: str,
+        guest_phone: str,
+        guest_email: str,
+        check_in: str,
+        check_out: str,
+        num_rooms: int = 1,
+        num_guests: int = 1,
+        user_id: Optional[str] = None
+    ) -> str:
+        """Book a hotel room"""
+        try:
+            params: Dict[str, Any] = {
+                "hotel_id": hotel_id,
+                "guest_name": guest_name,
+                "guest_phone": guest_phone,
+                "guest_email": guest_email,
+                "check_in": check_in,
+                "check_out": check_out,
+                "num_rooms": num_rooms,
+                "num_guests": num_guests,
+            }
+            if user_id:
+                params["user_id"] = user_id
+            result = await self.mcp_client.call_tool("book_hotel", params)
+        except asyncio.TimeoutError:
+            logger.error("book_hotel timeout")
+            return "Error: Request timeout"
+        except Exception as e:
+            logger.error(f"Error in book_hotel: {e}")
+            return f"Error: Failed to book hotel: {str(e)}"
+        return result if result else "Error: No response from MCP server"
+
+    async def get_hotel_locations(self) -> str:
+        """Get list of locations that have hotels"""
+        try:
+            result = await self.mcp_client.call_tool("get_hotel_locations", {})
+        except Exception as e:
+            logger.error(f"Error in get_hotel_locations: {e}")
+            return f"Error: {str(e)}"
+        return result if result else "Error: No response from MCP server"
+
+    @staticmethod
+    def request_hotel_search(
+        user_query: str,
+        location: Optional[str] = None,
+        check_in: Optional[str] = None,
+        check_out: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Trigger Hotel Agent to handle hotel search/booking"""
+        return {
+            "status": "requested",
+            "message": "Hotel Agent will handle this request",
+            "user_query": user_query,
+            "location": location,
+            "check_in": check_in,
+            "check_out": check_out
+        }
+
 
 class WeatherToolHandler:
     """Handler for weather-related MCP tools"""
@@ -710,6 +834,27 @@ class WeatherToolHandler:
         except Exception as e:
             logger.error(f"Error in get_weather_forecast: {e}")
             return f"Error: Failed to get forecast: {str(e)}"
+
+        return result if result else "Error: No response from MCP server"
+
+
+class FestivalToolHandler:
+    """Handler for festival-related MCP tools (Wikidata SPARQL)"""
+
+    def __init__(self, mcp_client: MCPClient):
+        self.mcp_client = mcp_client
+
+    async def get_local_festivals(self, province: str = "", month: Optional[int] = None) -> str:
+        """Get local festivals / events in Vietnam by province and/or month"""
+        try:
+            params = {"province": province or "", "month": month}
+            result = await self.mcp_client.call_tool("get_local_festivals_by_province", params)
+        except asyncio.TimeoutError:
+            logger.error("get_local_festivals timeout")
+            return "Error: Request timeout"
+        except Exception as e:
+            logger.error(f"Error in get_local_festivals: {e}")
+            return f"Error: Failed to get festivals: {str(e)}"
 
         return result if result else "Error: No response from MCP server"
 
@@ -869,8 +1014,10 @@ class MCPToolFactory:
         self.flight_handler = FlightToolHandler(self.mcp_client)
         self.train_handler = TrainToolHandler(self.mcp_client)
         self.bus_handler = BusToolHandler(self.mcp_client)
+        self.hotel_handler = HotelToolHandler(self.mcp_client)
         self.weather_handler = WeatherToolHandler(self.mcp_client)
         self.ui_handler = UIToolHandler(self.mcp_client)
+        self.festival_handler = FestivalToolHandler(self.mcp_client)
         self.recommendation_handler = RecommendationToolHandler()
         self.perplexity_handler = PerplexityToolHandler()
 
@@ -1120,6 +1267,62 @@ class MCPToolFactory:
             args_schema=EmptyInput
         )
 
+    def request_bus_search_tool(self) -> StructuredTool:
+        """Create StructuredTool for request_bus_search - triggers Bus Agent"""
+        return StructuredTool.from_function(
+            func=self.bus_handler.request_bus_search,
+            name="request_bus_search",
+            description="Gọi Bus Agent để tìm kiếm và xử lý yêu cầu vé xe khách. Sử dụng khi user muốn tìm chuyến xe, hỏi về vé xe, hoặc đặt vé xe.",
+            args_schema=RequestBusSearchInput)
+
+    # Hotel Tools
+    def search_hotels_tool(self) -> StructuredTool:
+        """Create StructuredTool for search_hotels"""
+        return StructuredTool.from_function(
+            func=search_hotels_sync,
+            coroutine=self.hotel_handler.search_hotels,
+            name="search_hotels",
+            description="Tìm kiếm khách sạn tại Việt Nam theo địa điểm và khoảng giá. Dùng tên tỉnh/thành (vd: 'Đà Lạt', 'Hà Nội', 'Đà Nẵng', 'Phú Quốc'). Trả về tên, sao, điểm đánh giá, giá/phòng/đêm, tiện ích, số phòng trống và hotel_id.",
+            args_schema=SearchHotelsInput)
+
+    def get_hotel_details_tool(self) -> StructuredTool:
+        """Create StructuredTool for get_hotel_details"""
+        return StructuredTool.from_function(
+            func=get_hotel_details_sync,
+            coroutine=self.hotel_handler.get_hotel_details,
+            name="get_hotel_details",
+            description="Lấy thông tin chi tiết của 1 khách sạn theo hotel_id (từ kết quả search_hotels).",
+            args_schema=GetHotelDetailsInput)
+
+    def book_hotel_tool(self) -> StructuredTool:
+        """Create StructuredTool for book_hotel"""
+        return StructuredTool.from_function(
+            func=book_hotel_sync,
+            coroutine=self.hotel_handler.book_hotel,
+            name="book_hotel",
+            description="Đặt phòng khách sạn. Cần hotel_id (từ search), tên khách, SĐT, email, ngày nhận/trả phòng (YYYY-MM-DD), số phòng và số khách. YÊU CẦU THU THẬP ĐẦY ĐỦ THÔNG TIN TRƯỚC KHI GỌI.",
+            args_schema=BookHotelInput)
+
+    def get_hotel_locations_tool(self) -> StructuredTool:
+        """Create StructuredTool for get_hotel_locations"""
+        def get_hotel_locations_sync():
+            return _run_async_safe(self.hotel_handler.get_hotel_locations())
+
+        return StructuredTool.from_function(
+            func=get_hotel_locations_sync,
+            coroutine=self.hotel_handler.get_hotel_locations,
+            name="get_hotel_locations",
+            description="Lấy danh sách các địa điểm (tỉnh/thành) hiện có khách sạn.",
+            args_schema=EmptyInput)
+
+    def request_hotel_search_tool(self) -> StructuredTool:
+        """Create StructuredTool for request_hotel_search - triggers Hotel Agent"""
+        return StructuredTool.from_function(
+            func=self.hotel_handler.request_hotel_search,
+            name="request_hotel_search",
+            description="Gọi Hotel Agent để tìm kiếm và xử lý yêu cầu đặt phòng khách sạn. Sử dụng khi user muốn tìm khách sạn, hỏi về phòng, hoặc đặt phòng.",
+            args_schema=RequestHotelSearchInput)
+
     # Weather Tools
     def get_current_temperature_tool(self) -> StructuredTool:
         """Create StructuredTool for get_current_temperature"""
@@ -1138,6 +1341,20 @@ class MCPToolFactory:
             name="get_weather_forecast",
             description="Get weather forecast for a city for the next few days (1-5 days). Use this when user asks about weather forecast or future weather.",
             args_schema=GetWeatherForecastInput)
+
+    # Festival Tools
+    def get_local_festivals_tool(self) -> StructuredTool:
+        """Create StructuredTool for get_local_festivals (lễ hội/sự kiện từ Wikidata SPARQL)"""
+        return StructuredTool.from_function(
+            func=get_local_festivals_sync,
+            coroutine=self.festival_handler.get_local_festivals,
+            name="get_local_festivals",
+            description=(
+                "Tìm lễ hội / sự kiện địa phương tại Việt Nam theo tỉnh và/hoặc tháng (nguồn Wikidata, open-source). "
+                "Dùng khi user hỏi về lễ hội, sự kiện, dịp đi chơi (vd: 'Huế có lễ hội gì tháng 3?', "
+                "'đi Đà Lạt mùa nào có festival'). Giúp gợi ý đi đúng dịp lễ hội."
+            ),
+            args_schema=GetLocalFestivalsInput)
 
     # UI Tools
     def generate_tour_ui_tool(self) -> StructuredTool:
@@ -1279,12 +1496,32 @@ def book_bus_sync(*args, **kwargs):
     return _run_async_safe(_tool_factory.bus_handler.book_bus(*args, **kwargs))
 
 
+def search_hotels_sync(*args, **kwargs):
+    return _run_async_safe(_tool_factory.hotel_handler.search_hotels(*args, **kwargs))
+
+
+def get_hotel_details_sync(*args, **kwargs):
+    return _run_async_safe(_tool_factory.hotel_handler.get_hotel_details(*args, **kwargs))
+
+
+def book_hotel_sync(*args, **kwargs):
+    return _run_async_safe(_tool_factory.hotel_handler.book_hotel(*args, **kwargs))
+
+
+def get_hotel_locations_sync():
+    return _run_async_safe(_tool_factory.hotel_handler.get_hotel_locations())
+
+
 def get_current_temperature_sync(*args, **kwargs):
     return _run_async_safe(_tool_factory.weather_handler.get_current_temperature(*args, **kwargs))
 
 
 def get_weather_forecast_sync(*args, **kwargs):
     return _run_async_safe(_tool_factory.weather_handler.get_weather_forecast(*args, **kwargs))
+
+
+def get_local_festivals_sync(*args, **kwargs):
+    return _run_async_safe(_tool_factory.festival_handler.get_local_festivals(*args, **kwargs))
 
 
 def generate_tour_ui_sync(*args, **kwargs):
@@ -1393,12 +1630,40 @@ def get_bus_stations_tool() -> StructuredTool:
     return _tool_factory.get_bus_stations_tool()
 
 
+def request_bus_search_tool() -> StructuredTool:
+    return _tool_factory.request_bus_search_tool()
+
+
+def search_hotels_tool() -> StructuredTool:
+    return _tool_factory.search_hotels_tool()
+
+
+def get_hotel_details_tool() -> StructuredTool:
+    return _tool_factory.get_hotel_details_tool()
+
+
+def book_hotel_tool() -> StructuredTool:
+    return _tool_factory.book_hotel_tool()
+
+
+def get_hotel_locations_tool() -> StructuredTool:
+    return _tool_factory.get_hotel_locations_tool()
+
+
+def request_hotel_search_tool() -> StructuredTool:
+    return _tool_factory.request_hotel_search_tool()
+
+
 def get_current_temperature_tool() -> StructuredTool:
     return _tool_factory.get_current_temperature_tool()
 
 
 def get_weather_forecast_tool() -> StructuredTool:
     return _tool_factory.get_weather_forecast_tool()
+
+
+def get_local_festivals_tool() -> StructuredTool:
+    return _tool_factory.get_local_festivals_tool()
 
 
 def generate_tour_ui_tool() -> StructuredTool:

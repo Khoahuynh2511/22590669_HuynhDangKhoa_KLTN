@@ -146,7 +146,7 @@ class FlightBookingService:
                     "contact_email": passenger_email,
                     "total_price": total_price,
                     "flight_number": flight['flight_number'],
-                    "otp_code": otp_code
+                    **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})
                 }
             }
 
@@ -276,7 +276,7 @@ class FlightBookingService:
             return {
                 "EC": 0,
                 "EM": "Mã OTP mới đã được tạo.",
-                "data": {"booking_id": booking_id, "contact_email": passenger_email, "otp_code": otp_code}
+                "data": {"booking_id": booking_id, "contact_email": passenger_email, **({"otp_code": otp_code} if settings.OTP_SHOW_IN_RESPONSE else {})}
             }
 
         except Exception as e:

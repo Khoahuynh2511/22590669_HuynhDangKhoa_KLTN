@@ -37,6 +37,17 @@ class TripPlanStartRequest(BaseModel):
         }
 
 
+class OptimizeItineraryRequest(BaseModel):
+    """Request to AI-optimize an existing itinerary (gap-fill + weather + preferences)."""
+    itinerary: Dict[str, Any] = Field(
+        ..., description="Lịch trình hiện tại: {day_1: {morning:[...], afternoon:[...], evening:[...]}}"
+    )
+    destination: str = Field(..., description="Điểm đến (khớp destination trong activity_packages)")
+    duration_days: int = Field(1, ge=1, le=7)
+    travel_date: Optional[str] = Field(None, description="Ngày đi (YYYY-MM-DD) — để tham khảo")
+    preferences: List[str] = Field(default_factory=list, description="Category ưu tiên: nature/food/culture/adventure/relax/shopping/spiritual")
+
+
 class ActivityPackageSchema(BaseModel):
     """Activity package data for API responses."""
     activity_id: str

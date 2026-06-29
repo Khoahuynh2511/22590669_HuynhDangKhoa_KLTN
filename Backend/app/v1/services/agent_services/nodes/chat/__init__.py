@@ -155,6 +155,10 @@ class ChatAgentNodes:
             flight_params = {}
             train_requested = False
             train_params = {}
+            bus_requested = False
+            bus_params = {}
+            hotel_requested = False
+            hotel_params = {}
             for tool_call in last_message.tool_calls:
                 if tool_call.get("name") == "request_recommendation":
                     recommendation_requested = True
@@ -165,6 +169,12 @@ class ChatAgentNodes:
                 elif tool_call.get("name") == "request_train_search":
                     train_requested = True
                     train_params = tool_call.get("args", {})
+                elif tool_call.get("name") == "request_bus_search":
+                    bus_requested = True
+                    bus_params = tool_call.get("args", {})
+                elif tool_call.get("name") == "request_hotel_search":
+                    hotel_requested = True
+                    hotel_params = tool_call.get("args", {})
 
             # Extract user_id and user_phone from state (will be used for auto-injection)
             user_id = state.get("user_id", "")
@@ -454,6 +464,16 @@ class ChatAgentNodes:
             if train_requested:
                 state["needs_train"] = True
                 state["train_params"] = train_params
+
+            # If Chat Agent requested bus search, set flag for routing
+            if bus_requested:
+                state["needs_bus"] = True
+                state["bus_params"] = bus_params
+
+            # If Chat Agent requested hotel search, set flag for routing
+            if hotel_requested:
+                state["needs_hotel"] = True
+                state["hotel_params"] = hotel_params
 
             return state
 

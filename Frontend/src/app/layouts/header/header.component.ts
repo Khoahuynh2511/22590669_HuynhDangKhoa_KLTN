@@ -59,12 +59,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
   /** Mục con của dropdown "Hoạt động" (service-nav). */
   activitiesMenuItems: Menu[] = [
     { label: '🗺️ Bản đồ khám phá', url: '/explore-map' },
+    { label: '🏆 Bảng xếp hạng', url: '/leaderboard' },
+    { label: '🎟️ Lễ hội & sự kiện', url: '/festivals' },
     { label: '📋 Lập kế hoạch chuyến đi', url: '/activities' }
   ];
 
   get isActivitiesAreaActive(): boolean {
     const url = this.router.url?.split('?')[0] || '';
-    return url === '/activities' || url.startsWith('/explore-map');
+    return url === '/activities' || url.startsWith('/explore-map')
+      || url.startsWith('/leaderboard') || url.startsWith('/festivals');
   }
 
   constructor(

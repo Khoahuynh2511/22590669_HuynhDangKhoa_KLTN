@@ -40,7 +40,7 @@ class HotelBookingCreate(BaseModel):
 
 class HotelBookingResponse(BaseModel):
     """Schema for hotel booking response"""
-    booking_id: UUID
+    booking_id: str
     hotel_id: UUID
     user_id: UUID
     check_in: date
@@ -69,13 +69,13 @@ class HotelBookingOTPResponse(BaseModel):
 
 class HotelVerifyOTPRequest(BaseModel):
     """Schema for verifying hotel booking OTP"""
-    booking_id: UUID = Field(..., description="ID của booking")
+    booking_id: str = Field(..., description="ID của booking")
     otp_code: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$", description="Mã OTP 6 số")
 
 
 class HotelResendOTPRequest(BaseModel):
     """Schema for resending hotel booking OTP"""
-    booking_id: UUID = Field(..., description="ID của booking cần gửi lại OTP")
+    booking_id: str = Field(..., description="ID của booking cần gửi lại OTP")
 
 
 class HotelBookingCancelRequest(BaseModel):
@@ -95,7 +95,7 @@ class HotelInfoInBooking(BaseModel):
 
 class MyHotelBookingItem(BaseModel):
     """Schema for booking item in user's hotel booking list"""
-    booking_id: UUID
+    booking_id: str
     hotel_name: str = Field(..., description="Tên khách sạn")
     location: str = Field(..., description="Địa điểm")
     check_in: date
@@ -118,7 +118,7 @@ class MyHotelBookingListResponse(BaseModel):
 
 class MyHotelBookingDetail(BaseModel):
     """Schema for detailed hotel booking"""
-    booking_id: UUID
+    booking_id: str
     status: str
     check_in: date
     check_out: date

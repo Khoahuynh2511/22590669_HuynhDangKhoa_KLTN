@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from app.v1.core.config import settings
+from app.v1.services.train_search_service import TrainSearchService
 
 try:
     from ..mock_data.generator import get_generator
@@ -70,10 +71,10 @@ def get_or_create_user_id(passenger_phone: str, passenger_email: str, user_id: O
 
 
 class TrainService:
-    """Train Service sử dụng Mock Data Generator"""
+    """Train Service - query DB thật qua TrainSearchService"""
 
     def __init__(self):
-        self.generator = get_generator()
+        self.search_service = TrainSearchService()
         self.vietnam_tz = timezone(timedelta(hours=7))
 
     def _format_train_info(self, train: Dict[str, Any], index: int, total: int) -> str:
@@ -153,14 +154,17 @@ class TrainService:
         if departure_station == arrival_station:
             return "❌ Ga đi và ga đến không được trùng nhau."
 
-        # Generate trains
-        trains = self.generator.generate_trains(
-            departure_station=departure_station,
-            arrival_station=arrival_station,
+        # Query DB thật qua TrainSearchService (search & book dùng chung nguồn DB)
+        result = self.search_service.search_trains(
+            departure=departure_station,
+            arrival=arrival_station,
             date=date,
-            days_ahead=1,
             limit=limit
         )
+        if result["EC"] != 0:
+            return f"❌ {result['EM']}\n\n" + self._get_station_list()
+
+        trains = result["data"].get("trains", []) if result.get("data") else []
 
         if not trains:
             return f"❌ Không tìm thấy chuyến tàu từ {departure_station} đến {arrival_station} ngày {date}.\n\n" + \
@@ -216,30 +220,32 @@ class TrainService:
         if departure_station == arrival_station:
             return {"success": False, "error": "Same departure and arrival", "trains": []}
 
-        trains = self.generator.generate_trains(
-            departure_station=departure_station,
-            arrival_station=arrival_station,
+        result = self.search_service.search_trains(
+            departure=departure_station,
+            arrival=arrival_station,
             date=date,
-            days_ahead=1,
             limit=limit
         )
+        if result["EC"] != 0 or not result.get("data"):
+            return {"success": False, "error": result.get("EM", "Search failed"), "trains": []}
 
+        data = result["data"]
         return {
             "success": True,
-            "departure": {
+            "departure": data.get("departure", {
                 "code": departure_station,
                 "city": TRAIN_STATIONS[departure_station]["city"],
                 "station": TRAIN_STATIONS[departure_station]["name"]
-            },
-            "arrival": {
+            }),
+            "arrival": data.get("arrival", {
                 "code": arrival_station,
                 "city": TRAIN_STATIONS[arrival_station]["city"],
                 "station": TRAIN_STATIONS[arrival_station]["name"]
-            },
-            "date": date,
-            "total": len(trains),
-            "trains": trains,
-            "seat_types": SEAT_TYPES
+            }),
+            "date": data.get("date", date),
+            "total": data.get("total", len(data.get("trains", []))),
+            "trains": data.get("trains", []),
+            "seat_types": data.get("seat_types", SEAT_TYPES)
         }
 
     async def book_train(
@@ -295,7 +301,8 @@ class TrainService:
                 },
                 "num_passengers": num_passengers,
                 "total_price": data["total_price"],
-                "otp_code": data["otp_code"],
+                # otp_code chỉ có khi OTP_SHOW_IN_RESPONSE=true; dùng .get() để không crash khi false
+                "otp_code": data.get("otp_code"),
                 "awaiting_otp": True
             }
         except Exception as e:
@@ -407,7 +414,7 @@ def register_train_tools(mcp: FastMCP):
 💰 Tổng tiền: {result['total_price']:,} VND
 
 ⏰ Trạng thái: Chờ xác thực OTP
-🔑 Mã OTP: {result.get('otp_code')} (Đã gửi qua email {result['passenger']['email']})
+{f"🔑 Mã OTP: {result['otp_code']}" if result.get('otp_code') else "🔑 Mã OTP đã được gửi qua email — vui lòng kiểm tra hộp thư (kể cả mục Spam) để lấy mã."}
 🔔 Tiếp theo: Nhập mã OTP để xác nhận đặt vé bằng verify_otp_and_confirm_booking(booking_id="{result['booking_id']}", otp_code="...").
 {'=' * 40}
 """

@@ -149,6 +149,30 @@
               <span class="theme-sub">{{ t.sub }}</span>
             </button>
           </div>
+
+          <!-- AI optimizer: gap-fill + weather + preference (giữ activity user đã đặt) -->
+          <div class="optimize-block">
+            <button type="button" class="btn-optimize" (click)="optimizeWithAI()" [disabled]="isOptimizing">
+              <i class="fa-solid" [class.fa-spinner]="isOptimizing" [class.fa-wand-magic-sparkles]="!isOptimizing" [class.spin]="isOptimizing"></i>
+              {{ isOptimizing ? 'Đang tối ưu…' : 'Tối ưu bằng AI' }}
+            </button>
+            <p class="optimize-hint">Điền ô trống + điều chỉnh theo thời tiết &amp; sở thích (giữ nguyên hoạt động bạn đã chọn).</p>
+          </div>
+
+          <div *ngIf="showOptimizePanel" class="optimize-panel animate-fade">
+            <div class="optimize-panel-head">
+              <strong>✨ Gợi ý tối ưu</strong>
+              <button type="button" class="optimize-close" (click)="closeOptimizePanel()" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <ul>
+              <li *ngFor="let line of optimizeExplanation">{{ line }}</li>
+            </ul>
+            <div *ngIf="optimizeWeather?.length" class="optimize-weather">
+              <span *ngFor="let w of optimizeWeather" class="weather-chip" [class.rain]="w.rain">
+                {{ w.day }}: {{ w.rain ? '🌧 có mưa' : '☀ khô' }}
+              </span>
+            </div>
+          </div>
         </div>
 
         <!-- Surprise -->
@@ -407,6 +431,17 @@
               <span *ngIf="!isCheckingOut">Tiến hành đặt gói tour</span>
               <span *ngIf="isCheckingOut"><span class="spinner"></span> Đang tạo đơn...</span>
             </button>
+
+            <button type="button" class="btn-ghost btn-block share-btn" (click)="shareItinerary()"
+              [disabled]="isSharing || selectedActivitiesCount === 0">
+              <span *ngIf="!isSharing"><i class="fa-solid fa-share-nodes"></i> Chia sẻ lịch trình</span>
+              <span *ngIf="isSharing"><span class="spinner"></span> Đang tạo ảnh…</span>
+            </button>
+
+            <button type="button" class="btn-ghost btn-block share-btn" (click)="openShareLink()"
+              [disabled]="selectedActivitiesCount === 0">
+              <i class="fa-solid fa-qrcode"></i> QR &amp; Link chia sẻ
+            </button>
             <p *ngIf="isBudgetExceeded()" class="checkout-blocked">
               <i class="fa-solid fa-lock"></i> Vượt ngân sách — điều chỉnh hoạt động hoặc tăng ngân sách để tiếp tục.
             </p>
@@ -418,4 +453,64 @@
       </div>
     </section>
   </div>
+
+  <!-- Poster off-screen: html2canvas chụp thành ảnh khi bấm "Chia sẻ lịch trình".
+       Text-only (không ảnh remote) để tránh CORS taint canvas. -->
+  <div class="share-poster" aria-hidden="true">
+    <div class="sp-hero">
+      <div class="sp-brand"><i class="fa-solid fa-plane-departure"></i> UITravel</div>
+      <div class="sp-dest">{{ selectedDestination || 'Chuyến đi của tôi' }}</div>
+      <div class="sp-meta">
+        Khởi hành {{ travelDate | date:'dd/MM/yyyy' }} · {{ durationDays }} ngày · {{ groupSize }} khách
+      </div>
+    </div>
+    <div class="sp-days">
+      <div class="sp-day" *ngFor="let d of getItineraryDays()">
+        <div class="sp-day-head">Ngày {{ d.num }}</div>
+        <div class="sp-slot" *ngFor="let slot of slots">
+          <span class="sp-slot-label">{{ slot.short }}</span>
+          <span class="sp-acts">
+            <ng-container *ngIf="getSlotItems(d.day, slot).length; else emptySlot">
+              <span class="sp-act" *ngFor="let p of getSlotItems(d.day, slot)">{{ p.activity.name }}</span>
+            </ng-container>
+            <ng-template #emptySlot><span class="sp-empty">—</span></ng-template>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="sp-foot">
+      <div class="sp-total">Tổng chi phí: {{ formatPrice(totalPrice) }}</div>
+      <div class="sp-cta">Lập lịch trình mang dấu ấn riêng tại UITravel</div>
+    </div>
+  </div>
+
+  <!-- Dialog chia sẻ QR + link công khai -->
+  <p-dialog [(visible)]="shareLinkVisible" header="Chia sẻ lịch trình" [modal]="true" [style]="{ width: '380px' }"
+    [dismissableMask]="true" [draggable]="false" styleClass="share-link-dialog">
+    <div class="sl-body">
+      <div *ngIf="isShareLinkLoading" class="sl-loading">
+        <span class="spinner"></span> Đang tạo link chia sẻ…
+      </div>
+
+      <div *ngIf="shareLinkError && !isShareLinkLoading" class="sl-error">{{ shareLinkError }}</div>
+
+      <ng-container *ngIf="!isShareLinkLoading && shareUrl">
+        <p class="sl-hint">Quét mã QR hoặc mở link để xem lịch trình này. Link có hiệu lực 30 ngày.</p>
+        <div class="sl-qr" *ngIf="shareQr">
+          <img [src]="shareQr" alt="QR code lịch trình" />
+        </div>
+        <div class="sl-link-row">
+          <input class="sl-link-input" [value]="shareUrl" readonly title="Link chia sẻ lịch trình"
+            aria-label="Link chia sẻ lịch trình" placeholder="Link chia sẻ" (click)="$any($event.target).select()" />
+          <button type="button" class="sl-copy" (click)="copyShareLink()">
+            <span *ngIf="!shareLinkCopied"><i class="fa-solid fa-copy"></i> Copy</span>
+            <span *ngIf="shareLinkCopied"><i class="fa-solid fa-check"></i> Đã copy</span>
+          </button>
+        </div>
+        <button type="button" class="btn-primary btn-block sl-share-img" (click)="shareItinerary()">
+          <i class="fa-solid fa-image"></i> Tải ảnh lịch trình (đăng MXH)
+        </button>
+      </ng-container>
+    </div>
+  </p-dialog>
 </div>

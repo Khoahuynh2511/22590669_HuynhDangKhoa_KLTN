@@ -24,7 +24,10 @@ except ImportError:
         logger.warning("⚠️ MemorySaver not available - conversation history won't be persisted")
 
 from app.v1.services.agent_services.state import AgentState
-from app.v1.services.agent_services.nodes import ChatAgentNodes, RecommendationAgentNodes, FlightAgentNodes, TrainAgentNodes
+from app.v1.services.agent_services.nodes import (
+    ChatAgentNodes, CustomerQueryAgentNodes, RecommendationAgentNodes,
+    FlightAgentNodes, TrainAgentNodes, BusAgentNodes, HotelAgentNodes,
+)
 from app.v1.services.agent_services.config import agent_config
 from app.v1.services.agent_services.llm_providers import create_llm_provider
 from app.v1.core.logging_config import agent_callback
@@ -92,11 +95,24 @@ class SupervisorGraph:
         provider = create_llm_provider()
         self.llm = provider.get_llm(**llm_kwargs)
 
+        # Non-streaming LLM cho Customer Query Agent (NLU structured output) —
+        # tránh leak token JSON ra frontend stream (chat.py chỉ stream node chat_llm).
+        nlu_kwargs = {k: v for k, v in llm_kwargs.items() if k not in ("streaming", "callbacks", "verbose")}
+        nlu_kwargs["streaming"] = False
+        try:
+            self.nlu_llm = provider.get_llm(**nlu_kwargs)
+        except Exception as e:
+            logger.warning(f"⚠️ NLU llm init failed, will fallback to chat_llm: {e}")
+            self.nlu_llm = None
+
         # Initialize nodes with LLM
         self.chat_nodes = ChatAgentNodes(self.llm)
+        self.customer_query_nodes = CustomerQueryAgentNodes(self.nlu_llm)
         self.recommendation_nodes = RecommendationAgentNodes()
         self.flight_nodes = FlightAgentNodes()
         self.train_nodes = TrainAgentNodes()
+        self.bus_nodes = BusAgentNodes()
+        self.hotel_nodes = HotelAgentNodes()
         self.graph = self._build_graph()
 
         # Initialize ChatRoomService for loading history from Supabase
@@ -189,14 +205,31 @@ class SupervisorGraph:
         workflow = StateGraph(AgentState, context_schema=GraphConfig)
 
         # Add nodes
+        workflow.add_node("customer_query_agent", self.customer_query_nodes.customer_query_node)
         workflow.add_node("chat_llm", self.chat_nodes.chat_llm_node)
         workflow.add_node("chat_tools", self.chat_nodes.chat_tools_node)
         workflow.add_node("recommendation_agent", self.recommendation_nodes.recommendation_node)
         workflow.add_node("flight_agent", self.flight_nodes.flight_node)
         workflow.add_node("train_agent", self.train_nodes.train_node)
+        workflow.add_node("bus_agent", self.bus_nodes.bus_node)
+        workflow.add_node("hotel_agent", self.hotel_nodes.hotel_node)
 
-        # Build workflow
-        workflow.add_edge(START, "chat_llm")
+        # Build workflow — entry qua NLU front-door; nếu không match specialist -> chat_llm
+        workflow.add_edge(START, "customer_query_agent")
+
+        # NLU route tới specialist (nếu set flag) hoặc chat_llm (fallback)
+        workflow.add_conditional_edges(
+            "customer_query_agent",
+            self._should_route_after_tools,
+            {
+                "recommendation_agent": "recommendation_agent",
+                "flight_agent": "flight_agent",
+                "train_agent": "train_agent",
+                "bus_agent": "bus_agent",
+                "hotel_agent": "hotel_agent",
+                "chat_llm": "chat_llm"
+            }
+        )
 
         # Conditional routing for tool calling loop
         workflow.add_conditional_edges(
@@ -216,6 +249,8 @@ class SupervisorGraph:
                 "recommendation_agent": "recommendation_agent",
                 "flight_agent": "flight_agent",
                 "train_agent": "train_agent",
+                "bus_agent": "bus_agent",
+                "hotel_agent": "hotel_agent",
                 "chat_llm": "chat_llm"
             }
         )
@@ -224,6 +259,8 @@ class SupervisorGraph:
         workflow.add_edge("recommendation_agent", "chat_llm")
         workflow.add_edge("flight_agent", "chat_llm")
         workflow.add_edge("train_agent", "chat_llm")
+        workflow.add_edge("bus_agent", "chat_llm")
+        workflow.add_edge("hotel_agent", "chat_llm")
 
         # Compile with memory checkpointer for conversation history persistence
         if HAS_MEMORY_SAVER:
@@ -250,6 +287,14 @@ class SupervisorGraph:
         if state.get("needs_train", False):
             logger.info("🔀 [Supervisor] Routing to Train Agent")
             return "train_agent"
+
+        if state.get("needs_bus", False):
+            logger.info("🔀 [Supervisor] Routing to Bus Agent")
+            return "bus_agent"
+
+        if state.get("needs_hotel", False):
+            logger.info("🔀 [Supervisor] Routing to Hotel Agent")
+            return "hotel_agent"
 
         logger.info("✅ [Supervisor] Routing back to chat_llm")
         return "chat_llm"
@@ -279,6 +324,9 @@ class SupervisorGraph:
             conversation_id=conversation_id,
             user_id=user_id,
             chat_response="",
+            intent="",
+            nlu_slots={},
+            nlu_missing_slots=[],
             needs_recommendation=False,
             recommendation_params={},
             recommended_package_ids=[],
@@ -286,6 +334,12 @@ class SupervisorGraph:
             flight_params={},
             needs_train=False,
             train_params={},
+            needs_bus=False,
+            bus_params={},
+            needs_hotel=False,
+            hotel_params={},
+            mcp_ui_resource=None,  # reset ephemeral UI each turn (avoid stale cards/payment UI)
+            mcp_ui_html=None,
             final_response=""
         )
 
@@ -375,6 +429,9 @@ class SupervisorGraph:
             conversation_id=conversation_id,
             user_id=user_id,
             chat_response="",
+            intent="",
+            nlu_slots={},
+            nlu_missing_slots=[],
             needs_recommendation=False,
             recommendation_params={},
             recommended_package_ids=[],
@@ -382,6 +439,12 @@ class SupervisorGraph:
             flight_params={},
             needs_train=False,
             train_params={},
+            needs_bus=False,
+            bus_params={},
+            needs_hotel=False,
+            hotel_params={},
+            mcp_ui_resource=None,  # reset ephemeral UI each turn (avoid stale cards/payment UI)
+            mcp_ui_html=None,
             final_response=""
         )
 

@@ -1,0 +1,38 @@
+<article class="festival-card" *ngIf="festival">
+  <div class="fc-image">
+    <img *ngIf="festival.image_url" [src]="festival.image_url" [alt]="festival.name"
+         (error)="onImageError($event)" loading="lazy">
+    <div class="fc-image-ph" *ngIf="!festival.image_url">
+      <i class="fa-solid fa-masks-theater"></i>
+      <span>{{ (festival.name || '?').charAt(0) }}</span>
+    </div>
+    <div class="fc-tags">
+      <span class="fc-tag" *ngIf="festival.month">{{ monthLabel(festival.month) }}</span>
+      <span class="fc-tag fc-tag-region" *ngIf="regionLabel(festival.region)">{{ regionLabel(festival.region) }}</span>
+    </div>
+  </div>
+
+  <div class="fc-body">
+    <h3 class="fc-name">{{ festival.name }}</h3>
+
+    <div class="fc-info">
+      <div class="fc-info-item" *ngIf="festival.location">
+        <i class="fa-solid fa-location-dot"></i><span>{{ festival.location }}</span>
+      </div>
+      <div class="fc-info-item" *ngIf="festival.lunar">
+        <i class="fa-regular fa-calendar"></i><span>{{ festival.lunar }}</span>
+      </div>
+      <div class="fc-info-item" *ngIf="festival.country && festival.country !== 'Việt Nam'">
+        <i class="fa-solid fa-globe"></i><span>{{ festival.country }}</span>
+      </div>
+    </div>
+
+    <p class="fc-desc" *ngIf="showDetails && festival.description">{{ shortDescription() }}</p>
+
+    <div class="fc-footer">
+      <a [routerLink]="['/festival-details', festival.name]" class="fc-btn">
+        Xem chi tiết <i class="fa-solid fa-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+</article>

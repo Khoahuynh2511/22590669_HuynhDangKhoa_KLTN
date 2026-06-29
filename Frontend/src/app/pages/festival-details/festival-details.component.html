@@ -1,0 +1,56 @@
+<div class="fd-page">
+  <div class="fd-container">
+    <div class="fd-state" *ngIf="loading"><span class="fd-spinner"></span> Đang tải lễ hội…</div>
+
+    <div class="fd-notfound" *ngIf="!loading && notFound">
+      <p>😕 Không tìm thấy lễ hội này.</p>
+      <a routerLink="/festivals" class="fd-back">← Quay lại danh sách lễ hội</a>
+    </div>
+
+    <ng-container *ngIf="!loading && festival as f">
+      <a routerLink="/festivals" class="fd-back">← Tất cả lễ hội</a>
+
+      <div class="fd-hero">
+        <div class="fd-hero-img">
+          <img *ngIf="f.image_url" [src]="f.image_url" [alt]="f.name" (error)="onImageError($event)">
+          <div class="fd-hero-ph" *ngIf="!f.image_url">
+            <i class="fa-solid fa-masks-theater"></i>
+            <span>{{ (f.name || '?').charAt(0) }}</span>
+          </div>
+        </div>
+
+        <div class="fd-hero-body">
+          <div class="fd-tags">
+            <span class="fd-tag" *ngIf="f.month">{{ monthLabel(f.month) }}</span>
+            <span class="fd-tag fd-tag-region" *ngIf="regionLabel(f.region)">{{ regionLabel(f.region) }}</span>
+            <span class="fd-tag fd-tag-country" *ngIf="f.country">{{ f.country }}</span>
+          </div>
+          <h1 class="fd-title">{{ f.name }}</h1>
+
+          <div class="fd-meta">
+            <div class="fd-meta-item" *ngIf="f.location">
+              <i class="fa-solid fa-location-dot"></i><span>{{ f.location }}</span>
+            </div>
+            <div class="fd-meta-item" *ngIf="dateRange()">
+              <i class="fa-regular fa-calendar"></i><span>{{ dateRange() }}</span>
+            </div>
+            <div class="fd-meta-item" *ngIf="f.lunar">
+              <i class="fa-regular fa-moon"></i><span>{{ f.lunar }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section class="fd-section" *ngIf="f.description">
+        <h2 class="fd-section-title">✨ Điểm đặc sắc</h2>
+        <p class="fd-section-text">{{ f.description }}</p>
+      </section>
+
+      <section class="fd-section" *ngIf="f.wikipedia_url">
+        <a class="fd-wiki" [href]="f.wikipedia_url" target="_blank" rel="noopener">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i> Tìm hiểu thêm trên Wikipedia
+        </a>
+      </section>
+    </ng-container>
+  </div>
+</div>

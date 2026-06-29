@@ -101,4 +101,47 @@ export class TripPlannerService {
       }
     }
   }
+
+  /**
+   * AI-optimize một itinerary đã build (gap-fill slot trống + thời tiết + preference).
+   * Trả về itinerary tối ưu (cùng cấu trúc) + explanation + weather.
+   */
+  async optimizeItinerary(
+    itinerary: Record<string, any>,
+    destination: string,
+    durationDays: number,
+    preferences: string[] = [],
+    travelDate?: string | null,
+  ): Promise<OptimizeItineraryResult> {
+    const token = localStorage.getItem('access_token');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${this.baseUrl}/optimize`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        itinerary,
+        destination,
+        duration_days: durationDays,
+        travel_date: travelDate ?? undefined,
+        preferences,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data?.detail || 'Không tối ưu được lịch trình');
+    }
+    return data as OptimizeItineraryResult;
+  }
+}
+
+export interface OptimizeItineraryResult {
+  EC: number;
+  EM: string;
+  data: {
+    itinerary: Record<string, { morning: any[]; afternoon: any[]; evening: any[] }>;
+    explanation: string[];
+    weather: { day: string; rain: boolean }[];
+  };
 }

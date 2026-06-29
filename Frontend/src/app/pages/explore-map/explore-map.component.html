@@ -74,6 +74,32 @@
           </div>
         </div>
 
+        <div class="card badges-card">
+          <p class="card-eyebrow">
+            Huy hiệu khám phá <span class="be-count">{{ earnedBadges }}/{{ badges.length }}</span>
+          </p>
+          @if (badges.length) {
+            <div class="badges-grid">
+              @for (b of badges; track b.key) {
+                <div class="badge-chip" [class.earned]="b.earned" [title]="b.description + (b.earned ? '' : ' (' + b.current + '/' + b.target + ')')">
+                  <span class="badge-ico"><i class="fa-solid {{ b.icon }}"></i></span>
+                  <span class="badge-name">{{ b.name }}</span>
+                  @if (b.earned) {
+                    <span class="badge-prog done"><i class="fa-solid fa-check"></i></span>
+                  } @else {
+                    <span class="badge-prog">{{ b.current }}/{{ b.target }}</span>
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <p class="legend-hint">Check-in tỉnh đầu tiên để mở huy hiệu.</p>
+          }
+          <a class="lb-link" (click)="goToLeaderboard()">
+            🏆 Xem bảng xếp hạng người khám phá <i class="fa-solid fa-chevron-right"></i>
+          </a>
+        </div>
+
         <div class="card">
           <p class="card-eyebrow">Chú thích</p>
           <div class="legend-row"><span class="swatch swatch-on"></span> Đã check-in</div>
@@ -133,6 +159,7 @@
                     >
                       {{ p.saved_by_user ? 'Đã lưu' : 'Lưu' }}
                     </button>
+                    <button type="button" class="act-btn" (click)="openDetail(p)" title="Ảnh & mùa lý tưởng">Chi tiết</button>
                   </div>
                 </div>
               }
@@ -216,3 +243,120 @@
     }
   </div>
 </aside>
+
+<!-- ====================== Destination detail (Feature B + D) ====================== -->
+<div class="detail-overlay" *ngIf="detailPlace" (click)="closeDetail()"></div>
+<aside class="detail-panel" [class.open]="!!detailPlace">
+  @if (detailPlace) {
+    <div class="detail-head">
+      <div class="detail-head-text">
+        <h3>{{ detailPlace.name }}</h3>
+        <span class="detail-cat">{{ categoryLabel(detailPlace.category) }} · {{ detailPlace.distance_km }} km</span>
+      </div>
+      <button type="button" class="close-x" (click)="closeDetail()" aria-label="Đóng">×</button>
+    </div>
+
+    @if (detailPlace.description) {
+      <p class="detail-desc">{{ detailPlace.description }}</p>
+    }
+
+    @if (detailHasContent || detailLoading) {
+      <div class="detail-tabs">
+        <button type="button" class="detail-tab" [class.active]="detailTab === 'photos'" (click)="setDetailTab('photos')">
+          <i class="fa-solid fa-images"></i> Thư viện ảnh
+        </button>
+        <button type="button" class="detail-tab" [class.active]="detailTab === 'season'" (click)="setDetailTab('season')">
+          <i class="fa-solid fa-temperature-half"></i> Mùa lý tưởng
+        </button>
+        <button type="button" class="detail-tab" [class.active]="detailTab === 'festival'" (click)="setDetailTab('festival')">
+          <i class="fa-solid fa-calendar-days"></i> Lễ hội
+        </button>
+      </div>
+    }
+
+    <div class="detail-body">
+      <div *ngIf="detailLoading" class="results-loading">
+        <p-progressSpinner strokeWidth="4" />
+        <span>Đang tải…</span>
+      </div>
+
+      @if (!detailLoading && detailTab === 'photos') {
+        @if (detailGallery.length) {
+          <div class="gallery-grid">
+            @for (img of detailGallery; track img.full_url) {
+              <button type="button" class="gallery-cell" (click)="openLightbox(img.full_url)" [title]="img.title">
+                <img [src]="img.thumb_url" [alt]="img.title" [title]="img.title" loading="lazy" (error)="$any($event.target).parentElement.style.display='none'" />
+              </button>
+            }
+          </div>
+          <p class="gallery-credit">Ảnh từ Wikimedia Commons · giấy phép mở (CC).</p>
+        } @else {
+          <p class="col-empty">Chưa có ảnh cho địa điểm này.</p>
+        }
+      }
+
+      @if (!detailLoading && detailTab === 'season') {
+        @if (detailSeason && detailSeason.monthly.length) {
+          <div class="season-summary">{{ detailSeason.summary }}</div>
+          @if (detailSeason.best_months.length) {
+            <div class="best-months">
+              @for (m of detailSeason.best_months; track m.month) {
+                <span class="best-chip"><i class="fa-solid fa-star"></i> {{ m.name }}</span>
+              }
+            </div>
+          }
+          <div class="season-chart">
+            @for (m of detailSeason.monthly; track m.month) {
+              <div class="sc-bar" [class.best]="isBestMonth(m.month)" [title]="m.name + ': ' + (m.temp !== null ? m.temp + '°C' : '?') + ' · ' + (m.rain !== null ? m.rain + 'mm' : '?')">
+                <span class="sc-temp">{{ m.temp !== null ? (m.temp | number: '1.0-0') + '°' : '—' }}</span>
+                <span class="sc-fill" [style.height.%]="seasonBarHeight(m)"></span>
+                <span class="sc-month">T{{ m.month }}</span>
+              </div>
+            }
+          </div>
+          <p class="gallery-credit">Nhiệt độ/mưa trung bình theo lịch sử (Open-Meteo).</p>
+        } @else {
+          <p class="col-empty">Chưa có dữ liệu khí hậu cho địa điểm này.</p>
+        }
+      }
+
+      @if (!detailLoading && detailTab === 'festival') {
+        @if (detailFestivals.length) {
+          <div class="festival-list">
+            @for (f of detailFestivals; track f.name) {
+              <div class="festival-item">
+                @if (f.image_url) {
+                  <div class="festival-img" [style.background-image]="'url(' + f.image_url + ')'"></div>
+                }
+                <div class="festival-body">
+                  <div class="festival-name">{{ f.name }}</div>
+                  @if (f.start_date) {
+                    <div class="festival-date">
+                      <i class="fa-regular fa-calendar"></i>
+                      {{ f.start_date }}{{ f.end_date ? ' → ' + f.end_date : '' }}
+                    </div>
+                  }
+                  @if (f.location) {
+                    <div class="festival-loc"><i class="fa-solid fa-location-dot"></i> {{ f.location }}</div>
+                  }
+                  @if (f.description) {
+                    <p class="festival-desc">{{ f.description }}</p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          <p class="gallery-credit">Nguồn: Wikidata (SPARQL) · dữ liệu mở.</p>
+        } @else {
+          <p class="col-empty">Chưa có lễ hội được ghi nhận cho khu vực này trên Wikidata.</p>
+        }
+      }
+    </div>
+  }
+</aside>
+
+<!-- Lightbox (ảnh gốc) -->
+<div class="lightbox" *ngIf="lightboxImg" (click)="closeLightbox()">
+  <img [src]="lightboxImg" alt="Ảnh địa điểm" [title]="'Ảnh địa điểm'" />
+  <button type="button" class="close-x lb-close" (click)="closeLightbox()" aria-label="Đóng">×</button>
+</div>

@@ -22,14 +22,15 @@ class QueryDatabaseInput(BaseModel):
 
 
 def _get_supabase_client():
-    """Get Supabase client"""
+    """Get Supabase client (legacy — hiện dùng Neon trực tiếp)."""
     from app.v1.core.supabase import get_supabase_client
     return get_supabase_client()
 
 
 def _execute_admin_query(sql_query: str) -> Dict[str, Any]:
     """
-    Execute admin query via Supabase RPC
+    Execute admin query qua Neon (hàm admin_execute_query — SECURITY DEFINER,
+    chỉ cho phép SELECT). Trước đây dùng Supabase RPC nhưng data giờ nằm ở Neon.
 
     Args:
         sql_query: SQL SELECT query
@@ -38,35 +39,34 @@ def _execute_admin_query(sql_query: str) -> Dict[str, Any]:
         Query result as dict
     """
     try:
-        supabase = _get_supabase_client()
+        # Safety guard: chỉ cho phép SELECT/WITH (chặn INSERT/UPDATE/DELETE/DDL)
+        stripped = sql_query.strip().lower()
+        if not stripped.startswith(("select", "with")):
+            return {"success": False, "error": "Only SELECT/WITH queries are allowed", "query": sql_query}
 
-        # Call RPC function
-        result = supabase.rpc('admin_execute_query', {
-            'query_text': sql_query
-        }).execute()
+        import psycopg2
+        from app.v1.core.config import settings
 
-        if result.data:
-            # Check for error in result
-            if isinstance(result.data, dict) and result.data.get('error'):
-                return {
-                    "success": False,
-                    "error": result.data.get('message', 'Unknown error'),
-                    "query": sql_query
-                }
+        conn = psycopg2.connect(settings.DATABASE_URL)
+        try:
+            with conn.cursor() as cur:
+                # Hàm admin_execute_query trả về jsonb -> psycopg2 parse thành list/dict
+                cur.execute("SELECT admin_execute_query(%s)", (sql_query,))
+                row = cur.fetchone()
+            data = row[0] if row else []
+        finally:
+            conn.close()
 
-            return {
-                "success": True,
-                "data": result.data,
-                "row_count": len(result.data) if isinstance(result.data, list) else 1,
-                "query": sql_query
-            }
-        else:
-            return {
-                "success": True,
-                "data": [],
-                "row_count": 0,
-                "query": sql_query
-            }
+        if isinstance(data, dict) and data.get("error"):
+            return {"success": False, "error": data.get("message", str(data)), "query": sql_query}
+        if not isinstance(data, list):
+            data = [data] if data else []
+        return {
+            "success": True,
+            "data": data,
+            "row_count": len(data),
+            "query": sql_query,
+        }
 
     except Exception as e:
         logger.error(f"Error executing admin query: {str(e)}")

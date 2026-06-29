@@ -64,29 +64,37 @@ class PaymentService:
                             "EC": 2, "EM": f"Cannot create payment for booking with status: {
                                 booking['status']}", "data": None}
 
-                    # 3. Kiểm tra đã có payment pending chưa
+                    # 3. Kiểm tra đã có payment chưa.
+                    # Lưu ý: booking_id là UNIQUE trong bảng payments → phải tái dùng payment_id
+                    # hiện có (pending/failed) thay vì INSERT bản ghi khác (sẽ lỗi unique violation).
                     cur.execute("""
-                        SELECT payment_id, status FROM payments
-                        WHERE booking_id = %s AND status IN ('pending', 'completed')
+                        SELECT payment_id, payment_status
+                        FROM payments
+                        WHERE booking_id = %s
+                        ORDER BY created_at DESC
+                        LIMIT 1
                     """, (booking_id,))
                     existing = cur.fetchone()
 
                     if existing:
-                        if existing['status'] == 'completed':
+                        if existing['payment_status'] == 'completed':
                             return {"EC": 3, "EM": "Booking already paid", "data": None}
-                        return await self._regenerate_payment_url(existing['payment_id'], booking, ip_addr)
+                        # pending hoặc failed/expired → tái dùng payment_id, sinh lại URL VNPay
+                        return await self._regenerate_payment_url(
+                            existing['payment_id'], booking, ip_addr, client_return_url)
 
                     # 4. Tạo payment record
                     amount = float(booking['total_amount'])
                     now = datetime.now(timezone.utc)
 
                     cur.execute("""
-                        INSERT INTO payments (booking_id, amount, payment_method, status, created_at)
+                        INSERT INTO payments (booking_id, amount, payment_method, payment_status, created_at)
                         VALUES (%s, %s, %s, 'pending', %s)
-                        RETURNING payment_id, booking_id, amount, payment_method, status, created_at
+                        RETURNING payment_id, booking_id, amount, payment_method, payment_status, created_at
                     """, (booking_id, amount, payment_method, now))
                     payment = dict(cur.fetchone())
-                    payment["payment_status"] = payment["status"]
+                    # Cột DB là `payment_status`; giữ alias `status` để các consumer cũ vẫn dùng được
+                    payment["status"] = payment["payment_status"]
                     conn.commit()
 
                     # 5. Generate VNPay URL
@@ -114,9 +122,10 @@ class PaymentService:
         self,
         payment_id: str,
         booking: Dict[str, Any],
-        ip_addr: str
+        ip_addr: str,
+        client_return_url: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Regenerate payment URL for existing pending payment"""
+        """Regenerate payment URL for existing pending/failed payment"""
         try:
             amount = float(booking['total_amount'])
             tour_name = booking.get('package_name', 'Tour')
@@ -126,7 +135,8 @@ class PaymentService:
                 payment_id=str(payment_id),
                 amount=amount,
                 order_info=order_info,
-                ip_addr=ip_addr
+                ip_addr=ip_addr,
+                client_return_url=client_return_url
             )
 
             with self._pg_conn() as conn:
@@ -134,7 +144,7 @@ class PaymentService:
                     cur.execute("SELECT * FROM payments WHERE payment_id = %s", (payment_id,))
                     payment = dict(cur.fetchone()) if cur.rowcount else {}
                     if payment:
-                        payment["payment_status"] = payment["status"]
+                        payment["status"] = payment["payment_status"]
                         payment["amount"] = float(payment["amount"])
 
             payment['payment_url'] = payment_url
@@ -156,7 +166,7 @@ class PaymentService:
                 return {"EC": 1, "EM": "Payment not found", "data": None}
 
             payment_dict = dict(payment)
-            payment_dict["payment_status"] = payment_dict["status"]
+            payment_dict["status"] = payment_dict["payment_status"]
             payment_dict["amount"] = float(payment_dict["amount"])
             if payment_dict.get("booking_type") == "flight" and payment_dict.get("flight_booking_id"):
                 payment_dict["booking_id"] = payment_dict["flight_booking_id"]
@@ -186,7 +196,7 @@ class PaymentService:
                 return {"EC": 1, "EM": "Payment not found for this booking", "data": None}
 
             payment_dict = dict(payment)
-            payment_dict["payment_status"] = payment_dict["status"]
+            payment_dict["status"] = payment_dict["payment_status"]
             payment_dict["amount"] = float(payment_dict["amount"])
             if payment_dict.get("booking_type") == "flight" and payment_dict.get("flight_booking_id"):
                 payment_dict["booking_id"] = payment_dict["flight_booking_id"]
@@ -213,7 +223,7 @@ class PaymentService:
                         paid_at = datetime.now(timezone.utc).isoformat()
 
                     cur.execute("""
-                        UPDATE payments SET status = %s, transaction_id = COALESCE(%s, transaction_id),
+                        UPDATE payments SET payment_status = %s, transaction_id = COALESCE(%s, transaction_id),
                         paid_at = COALESCE(%s, paid_at)
                         WHERE payment_id = %s
                         RETURNING *
@@ -225,7 +235,7 @@ class PaymentService:
                 return {"EC": 1, "EM": "Payment not found", "data": None}
 
             payment_dict = dict(payment)
-            payment_dict["payment_status"] = payment_dict["status"]
+            payment_dict["status"] = payment_dict["payment_status"]
             logger.info(f"Updated payment {payment_id} status to {status}")
             return {"EC": 0, "EM": "Payment status updated", "data": payment_dict}
 
@@ -360,13 +370,13 @@ class PaymentService:
                         return {"EC": 3, "EM": "Booking already paid", "data": None}
 
                     cur.execute(
-                        f"SELECT * FROM payments WHERE {id_col} = %s AND status IN ('pending', 'completed')",
+                        f"SELECT * FROM payments WHERE {id_col} = %s AND payment_status IN ('pending', 'completed')",
                         (booking_id,)
                     )
                     existing = cur.fetchone()
                     if existing:
                         existing_payment = dict(existing)
-                        if existing_payment["status"] == "completed":
+                        if existing_payment["payment_status"] == "completed":
                             return {"EC": 3, "EM": "Already paid", "data": None}
                         amount = float(booking["total_price"])
                         order_info = f"Thanh toan ve {'may bay' if booking_type == 'flight' else 'tau'} {booking_id}"
@@ -378,7 +388,7 @@ class PaymentService:
                             client_return_url=client_return_url
                         )
                         existing_payment["payment_url"] = payment_url
-                        existing_payment["payment_status"] = existing_payment["status"]
+                        existing_payment["status"] = existing_payment["payment_status"]
                         existing_payment["booking_id"] = booking_id
                         existing_payment["amount"] = float(existing_payment["amount"])
                         return {
@@ -391,14 +401,14 @@ class PaymentService:
                     now = datetime.now(timezone.utc)
 
                     cur.execute(
-                        f"INSERT INTO payments (booking_type, {id_col}, amount, payment_method, status, created_at) VALUES (%s, %s, %s, %s, 'pending', %s) RETURNING payment_id, amount, payment_method, status, created_at",
+                        f"INSERT INTO payments (booking_type, {id_col}, amount, payment_method, payment_status, created_at) VALUES (%s, %s, %s, %s, 'pending', %s) RETURNING payment_id, amount, payment_method, payment_status, created_at",
                         (booking_type,
                          booking_id,
                          amount,
                          payment_method,
                          now))
                     payment = dict(cur.fetchone())
-                    payment["payment_status"] = payment["status"]
+                    payment["status"] = payment["payment_status"]
                     payment["amount"] = float(payment["amount"])
                     conn.commit()
 
@@ -444,7 +454,7 @@ class PaymentService:
                     params = [user_id]
 
                     if status:
-                        query += " AND p.status = %s"
+                        query += " AND p.payment_status = %s"
                         params.append(status)
 
                     query += " ORDER BY p.created_at DESC"
@@ -467,7 +477,7 @@ class PaymentService:
                     """
                     count_params = [user_id]
                     if status:
-                        count_query += " AND p.status = %s"
+                        count_query += " AND p.payment_status = %s"
                         count_params.append(status)
                     cur.execute(count_query, count_params)
                     total = cur.fetchone()['count']
@@ -479,7 +489,7 @@ class PaymentService:
                     "booking_id": str(p['booking_id']),
                     "amount": float(p['amount']),
                     "payment_method": p['payment_method'],
-                    "status": p['status'],
+                    "status": p['payment_status'],
                     "transaction_id": p.get('transaction_id'),
                     "paid_at": p.get('paid_at').isoformat() if p.get('paid_at') else None,
                     "created_at": p['created_at'].isoformat() if p.get('created_at') else None,
@@ -521,19 +531,19 @@ class PaymentService:
 
                     # 2. Kiểm tra đã có payment completed chưa
                     cur.execute(
-                        "SELECT payment_id FROM payments WHERE booking_id = %s AND status = 'completed'", (booking_id,))
+                        "SELECT payment_id FROM payments WHERE booking_id = %s AND payment_status = 'completed'", (booking_id,))
                     if cur.fetchone():
                         return {"EC": 3, "EM": "Payment already exists for this booking", "data": None}
 
                     # 3. Tạo payment với status completed
                     now = datetime.now(timezone.utc)
                     cur.execute("""
-                        INSERT INTO payments (booking_id, amount, payment_method, status, transaction_id, paid_at, created_at)
+                        INSERT INTO payments (booking_id, amount, payment_method, payment_status, transaction_id, paid_at, created_at)
                         VALUES (%s, %s, %s, 'completed', %s, %s, %s)
                         RETURNING *
                     """, (booking_id, booking['total_amount'], payment_method, transaction_id, now, now))
                     payment = dict(cur.fetchone())
-                    payment["payment_status"] = payment["status"]
+                    payment["status"] = payment["payment_status"]
 
                     # 4. Cập nhật booking status
                     cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
@@ -573,13 +583,13 @@ class PaymentService:
 
                     # 2. Kiểm tra payment hiện có
                     cur.execute(
-                        "SELECT payment_id, status, payment_method FROM payments WHERE booking_id = %s", (booking_id,))
+                        "SELECT payment_id, payment_status, payment_method FROM payments WHERE booking_id = %s", (booking_id,))
                     existing = cur.fetchone()
 
                     now = datetime.now(timezone.utc)
 
                     if existing:
-                        if existing['status'] == 'completed':
+                        if existing['payment_status'] == 'completed':
                             return {
                                 "EC": 3,
                                 "EM": "Booking này đã có payment completed. Không thể tạo payment mới.",
@@ -587,20 +597,20 @@ class PaymentService:
 
                         # Update existing payment
                         cur.execute("""
-                            UPDATE payments SET payment_method = 'cash', status = 'completed', paid_at = %s, transaction_id = NULL
+                            UPDATE payments SET payment_method = 'cash', payment_status = 'completed', paid_at = %s, transaction_id = NULL
                             WHERE payment_id = %s RETURNING *
                         """, (now, existing['payment_id']))
                         payment = dict(cur.fetchone())
                     else:
                         # Create new payment
                         cur.execute("""
-                            INSERT INTO payments (booking_id, amount, payment_method, status, paid_at, created_at)
+                            INSERT INTO payments (booking_id, amount, payment_method, payment_status, paid_at, created_at)
                             VALUES (%s, %s, 'cash', 'completed', %s, %s)
                             RETURNING *
                         """, (booking_id, booking['total_amount'], now, now))
                         payment = dict(cur.fetchone())
 
-                    payment["payment_status"] = payment["status"]
+                    payment["status"] = payment["payment_status"]
 
                     # Update booking status
                     cur.execute("UPDATE bookings SET status = 'confirmed' WHERE booking_id = %s", (booking_id,))
@@ -633,14 +643,14 @@ class PaymentService:
                 with conn.cursor() as cur:
                     # 1. Lấy thông tin payment
                     cur.execute(
-                        "SELECT payment_id, booking_id, amount, status, refunded_at FROM payments WHERE payment_id = %s", (payment_id,))
+                        "SELECT payment_id, booking_id, amount, payment_status, refunded_at FROM payments WHERE payment_id = %s", (payment_id,))
                     payment = cur.fetchone()
 
                     if not payment:
                         return {"EC": 1, "EM": "Payment not found", "data": None}
 
-                    if payment['status'] != 'completed':
-                        return {"EC": 2, "EM": f"Cannot refund payment with status '{payment['status']}'", "data": None}
+                    if payment['payment_status'] != 'completed':
+                        return {"EC": 2, "EM": f"Cannot refund payment with status '{payment['payment_status']}'", "data": None}
 
                     if payment['refunded_at'] is not None:
                         return {"EC": 3, "EM": "Payment already refunded", "data": None}
@@ -661,11 +671,11 @@ class PaymentService:
                     # 3. Update payment với thông tin refund
                     now = datetime.now(timezone.utc)
                     cur.execute("""
-                        UPDATE payments SET status = 'refunded', refunded_at = %s, refund_amount = %s, refund_reason = %s
+                        UPDATE payments SET payment_status = 'refunded', refunded_at = %s, refund_amount = %s, refund_reason = %s
                         WHERE payment_id = %s RETURNING *
                     """, (now, payment['amount'], refund_reason, payment_id))
                     refunded = dict(cur.fetchone())
-                    refunded["payment_status"] = refunded["status"]
+                    refunded["status"] = refunded["payment_status"]
 
                     # 4. Update booking status về pending
                     cur.execute("UPDATE bookings SET status = 'pending' WHERE booking_id = %s",
@@ -700,7 +710,7 @@ class PaymentService:
                     params = []
 
                     if status:
-                        query += " AND p.status = %s"
+                        query += " AND p.payment_status = %s"
                         params.append(status)
 
                     if user_id:
@@ -723,7 +733,7 @@ class PaymentService:
                     count_query = "SELECT COUNT(*) FROM payments p JOIN bookings b ON p.booking_id = b.booking_id WHERE 1=1"
                     count_params = []
                     if status:
-                        count_query += " AND p.status = %s"
+                        count_query += " AND p.payment_status = %s"
                         count_params.append(status)
                     if user_id:
                         count_query += " AND b.user_id = %s"
@@ -739,7 +749,7 @@ class PaymentService:
                     "user_id": str(p['user_id']) if p.get('user_id') else None,
                     "amount": float(p['amount']),
                     "payment_method": p['payment_method'],
-                    "status": p['status'],
+                    "status": p['payment_status'],
                     "transaction_id": p.get('transaction_id'),
                     "paid_at": p['paid_at'].isoformat() if p.get('paid_at') else None,
                     "created_at": p['created_at'].isoformat() if p.get('created_at') else None,

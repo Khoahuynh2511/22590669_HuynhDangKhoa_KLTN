@@ -119,6 +119,9 @@ class Settings(BaseSettings):
 
     # OTP & Email Configuration
     OTP_EXPIRE_MINUTES: int = 5  # OTP hết hạn sau 5 phút
+    # Demo mode: trả otp_code trong API response (hiện OTP trên UI cho tiện test).
+    # =false để ép user phải đọc mã trong email (luồng SMTP real). OTP vẫn gửi mail kể cả khi true.
+    OTP_SHOW_IN_RESPONSE: bool = True
     SENDGRID_API_KEY: str = ""  # SendGrid API key (fallback khi SMTP fail)
     SENDGRID_FROM_EMAIL: str = "noreply@yourdomain.com"  # Email gửi đi (fallback)
 
@@ -153,11 +156,26 @@ class Settings(BaseSettings):
     OPEN_METEO_GEOCODE_URL: str = "https://geocoding-api.open-meteo.com/v1/search"
     OVERPASS_API_URL: str = "https://overpass-api.de/api/interpreter"
     WIKIPEDIA_REST_URL: str = "https://en.wikipedia.org/api/rest_v1"
-    # Contact email cho User-Agent (yêu cầu của OSM usage policy)
+    # Wikimedia Commons (ảnh CC) cho thư viện ảnh điểm đến + Open-Meteo Archive
+    # (khí hậu lịch sử) cho gợi ý "mùa đẹp nhất". Cả hai open-source, không cần key.
+    WIKIMEDIA_COMMONS_URL: str = "https://commons.wikimedia.org/w/api.php"
+    OPEN_METEO_ARCHIVE_URL: str = "https://archive-api.open-meteo.com/v1/archive"
+    # Contact email cho User-Agent (yêu cầu của OSM/MediaWiki usage policy)
     OSM_CONTACT_EMAIL: str = "uittraveling@example.com"
     PLACE_CACHE_TTL_SECONDS: int = 86400  # 24h - respect OSM usage policy
     PLACE_REQUEST_TIMEOUT: float = 10.0  # geocoders/Wikimedia timeout
     OVERPASS_TIMEOUT: float = 30.0  # Overpass có thể chậm
+    # Wikidata SPARQL — sự kiện/lễ hội địa phương theo tỉnh/tháng (open-source, key-free).
+    WIKIDATA_SPARQL_URL: str = "https://query.wikidata.org/sparql"
+    WIKIDATA_REQUEST_TIMEOUT: float = 20.0  # SPARQL endpoint có thể chậm
+    WIKIDATA_CACHE_TTL_SECONDS: int = 604800  # 7 ngày - lễ hội ít thay đổi
+    # Nager.Date — ngày nghỉ pháp định toàn cầu (open-source, MIT, không cần key).
+    # Bổ sung cho nguồn lễ hội: SPARQL/Wikipedia mạnh về lễ hội văn hóa, Nager mạnh về public holidays.
+    NAGER_DATE_BASE_URL: str = "https://date.nager.at"
+    NAGER_REQUEST_TIMEOUT: float = 10.0
+    # Base URL frontend RIÊNG cho link chia sẻ lịch trình công khai (không dùng
+    # FRONTEND_BASE_URL chung — biến đó trỏ về /home cho payment redirect).
+    SHARE_LINK_BASE_URL: str = "http://localhost:4200"
 
     @field_validator('OPENAI_API_KEY', mode='before')
     @classmethod

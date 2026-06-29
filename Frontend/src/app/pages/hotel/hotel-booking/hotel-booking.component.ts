@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HotelBookingService, HotelBookingCreateRequest } from '../../../services/hotel-booking.service';
 import { HotelService } from '../../../services/hotel.service';
+import { AuthService } from '../../../services/auth.service';
 import { OtpPopupComponent } from '../../../shared/otp-popup/otp-popup.component';
 import { firstValueFrom } from 'rxjs';
 
@@ -56,7 +57,8 @@ export class HotelBookingComponent implements OnInit {
     private route: ActivatedRoute,
     private router: Router,
     private hotelBookingService: HotelBookingService,
-    private hotelService: HotelService
+    private hotelService: HotelService,
+    private authService: AuthService
   ) {}
 
   async ngOnInit() {
@@ -126,7 +128,8 @@ export class HotelBookingComponent implements OnInit {
     this.errorMessage = '';
 
     try {
-      const userId = localStorage.getItem('user_id') || '';
+      const currentUser = this.authService.getUser();
+      const userId = currentUser?.user_id || '';
       if (!userId) {
         this.errorMessage = 'Vui lòng đăng nhập để đặt phòng';
         return;

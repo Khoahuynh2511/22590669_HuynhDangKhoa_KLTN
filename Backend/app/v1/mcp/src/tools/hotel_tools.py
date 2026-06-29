@@ -57,20 +57,29 @@ class HotelMCPService:
         try:
             with self._get_conn() as conn:
                 with conn.cursor() as cur:
-                    sql = "SELECT * FROM hotels WHERE is_active = TRUE"
+                    # Match theo thành phố (location), tên KS, hoặc tên tỉnh
+                    # (province_name / province_name_en) để "Đà Lạt", "Lâm Đồng",
+                    # "lam_dong" đều tìm được.
+                    sql = ("SELECT h.* FROM hotels h "
+                           "LEFT JOIN provinces p ON h.province_id = p.province_id "
+                           "WHERE h.is_active = TRUE")
                     params = []
 
                     if location:
-                        sql += " AND location ILIKE %s"
-                        params.append(f"%{location}%")
+                        sql += """ AND (
+                            h.location ILIKE %s OR h.hotel_name ILIKE %s
+                            OR p.province_name ILIKE %s OR p.province_name_en ILIKE %s
+                        )"""
+                        pat = f"%{location}%"
+                        params += [pat, pat, pat, pat]
                     if min_price > 0:
-                        sql += " AND price >= %s"
+                        sql += " AND h.price >= %s"
                         params.append(min_price)
                     if max_price > 0:
-                        sql += " AND price <= %s"
+                        sql += " AND h.price <= %s"
                         params.append(max_price)
 
-                    sql += " ORDER BY review_score DESC LIMIT %s"
+                    sql += " ORDER BY h.review_score DESC LIMIT %s"
                     params.append(min(limit, 20))
 
                     cur.execute(sql, params)

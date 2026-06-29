@@ -171,6 +171,12 @@ async def chat_stream(
 
                     # Stream LLM tokens
                     if event_type == "on_chat_model_stream":
+                        # Chỉ stream token sinh từ node chat_llm (phản hồi cuối cho user).
+                        # Bỏ qua các LLM call nội bộ khác (vd: structured output của
+                        # customer_query_agent NLU) để không leak JSON ra frontend.
+                        node = (event.get("metadata") or {}).get("langgraph_node") or ""
+                        if node and node != "chat_llm":
+                            continue
                         chunk = event.get("data", {}).get("chunk", {})
                         if hasattr(chunk, "content") and chunk.content:
                             # Handle complex content (string, list of strings, list of dicts)
@@ -371,11 +377,7 @@ async def chat_stream(
                     # Update room title từ message đầu tiên nếu chưa có title tùy chỉnh
                     if full_response:
                         # Check if this is first message in room
-                        msg_count_result = chat_room_service.supabase.table('chat_history')\
-                            .select("*", count="exact")\
-                            .eq('room_id', room_id)\
-                            .execute()
-                        msg_count = msg_count_result.count if hasattr(msg_count_result, 'count') else 0
+                        msg_count = chat_room_service.count_messages(room_id)
 
                         # Nếu chỉ có 2 messages (user + assistant), update title
                         if msg_count == 2:
@@ -502,11 +504,7 @@ async def chat(
 
             # Update room title từ message đầu tiên nếu chưa có title tùy chỉnh
             # Check if this is first message in room
-            msg_count_result = chat_room_service.supabase.table('chat_history')\
-                .select("*", count="exact")\
-                .eq('room_id', room_id)\
-                .execute()
-            msg_count = msg_count_result.count if hasattr(msg_count_result, 'count') else 0
+            msg_count = chat_room_service.count_messages(room_id)
 
             # Nếu chỉ có 2 messages (user + assistant), update title
             if msg_count == 2:

@@ -48,6 +48,12 @@ class GetWeatherForecastInput(BaseModel):
     days: int = Field(default=5, description="Number of days to forecast (1-5)")
 
 
+class GetLocalFestivalsInput(BaseModel):
+    """Input schema for get_local_festivals tool (lễ hội / sự kiện từ Wikidata SPARQL)."""
+    province: str = Field(default="", description="Tên tỉnh/thành (vd: Huế, Hà Nội). Bỏ trống để lấy cả Việt Nam.")
+    month: Optional[int] = Field(default=None, description="Tháng (1-12) để lọc lễ hội diễn ra trong tháng đó.")
+
+
 class SearchEpisodesInput(BaseModel):
     """Input schema for search_mem0_episodes tool"""
     query_text: str = Field(description="Search query text to find relevant episodes in Mem0 conversation history")
@@ -106,6 +112,32 @@ class BookBusInput(BaseModel):
     user_id: Optional[str] = Field(default=None, description="User ID if available")
 
 
+class SearchHotelsInput(BaseModel):
+    """Input schema for search_hotels tool"""
+    location: str = Field(default="", description="Địa điểm tìm kiếm (vd: 'Đà Lạt', 'Hà Nội', 'Đà Nẵng'). Bỏ trống để lấy tất cả.")
+    min_price: float = Field(default=0, description="Giá tối thiểu (VND/phòng/đêm), 0 = không giới hạn")
+    max_price: float = Field(default=0, description="Giá tối đa (VND/phòng/đêm), 0 = không giới hạn")
+    limit: int = Field(default=5, description="Số kết quả tối đa (1-20)")
+
+
+class GetHotelDetailsInput(BaseModel):
+    """Input schema for get_hotel_details tool"""
+    hotel_id: str = Field(description="Hotel ID từ kết quả search_hotels")
+
+
+class BookHotelInput(BaseModel):
+    """Input schema for book_hotel tool"""
+    hotel_id: str = Field(description="Hotel ID từ kết quả search_hotels")
+    guest_name: str = Field(description="Họ tên khách đặt phòng")
+    guest_phone: str = Field(description="Số điện thoại")
+    guest_email: str = Field(description="Email")
+    check_in: str = Field(description="Ngày nhận phòng (YYYY-MM-DD)")
+    check_out: str = Field(description="Ngày trả phòng (YYYY-MM-DD)")
+    num_rooms: int = Field(default=1, description="Số phòng")
+    num_guests: int = Field(default=1, description="Số khách")
+    user_id: Optional[str] = Field(default=None, description="User ID (tự động inject)")
+
+
 class CreateTransportPaymentInput(BaseModel):
     """Input schema for create_transport_payment tool"""
     booking_type: str = Field(description="Transport booking type: flight or train")
@@ -132,3 +164,19 @@ class RequestTrainSearchInput(BaseModel):
     departure_city: Optional[str] = Field(default=None, description="Departure city or station code if mentioned")
     arrival_city: Optional[str] = Field(default=None, description="Arrival city or station code if mentioned")
     date: Optional[str] = Field(default=None, description="Travel date if mentioned (YYYY-MM-DD)")
+
+
+class RequestBusSearchInput(BaseModel):
+    """Input schema for request_bus_search tool - triggers Bus Agent"""
+    user_query: str = Field(description="User's bus search request in natural language")
+    departure_city: Optional[str] = Field(default=None, description="Departure city or bus station code if mentioned")
+    arrival_city: Optional[str] = Field(default=None, description="Arrival city or bus station code if mentioned")
+    date: Optional[str] = Field(default=None, description="Travel date if mentioned (YYYY-MM-DD)")
+
+
+class RequestHotelSearchInput(BaseModel):
+    """Input schema for request_hotel_search tool - triggers Hotel Agent"""
+    user_query: str = Field(description="User's hotel search request in natural language")
+    location: Optional[str] = Field(default=None, description="Location/city if mentioned")
+    check_in: Optional[str] = Field(default=None, description="Check-in date if mentioned (YYYY-MM-DD)")
+    check_out: Optional[str] = Field(default=None, description="Check-out date if mentioned (YYYY-MM-DD)")

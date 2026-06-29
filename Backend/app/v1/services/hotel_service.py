@@ -25,6 +25,7 @@ class HotelService:
         search: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
+        province_id: Optional[str] = None,
         limit: Optional[int] = None,
         offset: Optional[int] = None
     ) -> Dict[str, Any]:
@@ -38,6 +39,9 @@ class HotelService:
                     if location:
                         sql += " AND location ILIKE %s"
                         params.append(f"%{location}%")
+                    if province_id:
+                        sql += " AND province_id = %s"
+                        params.append(province_id)
                     if search:
                         sql += " AND (hotel_name ILIKE %s OR location ILIKE %s)"
                         params.extend([f"%{search}%", f"%{search}%"])

@@ -16,6 +16,7 @@ import { VnpayCallbackComponent } from './pages/payment/vnpay-callback.component
 import { PromotionsComponent } from './pages/promotions/promotions.component';
 import { MyFavoritesComponent } from './pages/my-favorites/my-favorites.component';
 import { ExploreMapComponent } from './pages/explore-map/explore-map.component';
+import { LeaderboardComponent } from './pages/leaderboard/leaderboard.component';
 import { authGuard } from './guards/auth.guard';
 import { guestGuard } from './guards/guest.guard';
 import { FlightsComponent } from './pages/flights/flights.component';
@@ -120,6 +121,21 @@ export const routes: Routes = [
   },
   {
     path: 'explore-map', component: ExploreMapComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'leaderboard', component: LeaderboardComponent, canActivate: [authGuard]
+  },
+  {
+    path: 'itinerary/:shareId',
+    loadComponent: () => import('./pages/shared-itinerary/shared-itinerary.component').then(m => m.SharedItineraryComponent)
+  },
+  {
+    path: 'festivals',
+    loadComponent: () => import('./pages/festivals/festivals.component').then(m => m.FestivalsComponent)
+  },
+  {
+    path: 'festival-details/:name',
+    loadComponent: () => import('./pages/festival-details/festival-details.component').then(m => m.FestivalDetailsComponent)
   },
   {
     path: 'chat-room',

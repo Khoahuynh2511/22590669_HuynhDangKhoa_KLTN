@@ -1,0 +1,54 @@
+<div class="si-page">
+  <div class="si-card">
+    <!-- Loading -->
+    <div class="si-state" *ngIf="loading">
+      <span class="si-spinner"></span> Đang tải lịch trình…
+    </div>
+
+    <!-- Error -->
+    <div class="si-state si-error" *ngIf="errorMsg && !loading">
+      <i class="fa-solid fa-circle-exclamation"></i>
+      <p>{{ errorMsg }}</p>
+      <a routerLink="/home" class="si-cta-link">Về trang chủ</a>
+    </div>
+
+    <!-- Itinerary -->
+    <ng-container *ngIf="!loading && !errorMsg && itinerary">
+      <div class="si-hero">
+        <div class="si-brand"><i class="fa-solid fa-plane-departure"></i> UITravel</div>
+        <h1 class="si-title">{{ title || itinerary.destination || 'Lịch trình chuyến đi' }}</h1>
+        <div class="si-meta">
+          <span *ngIf="itinerary.destination"><i class="fa-solid fa-location-dot"></i> {{ itinerary.destination }}</span>
+          <span *ngIf="itinerary.travel_date"><i class="fa-regular fa-calendar"></i> {{ itinerary.travel_date }}</span>
+          <span *ngIf="itinerary.duration_days"><i class="fa-solid fa-clock"></i> {{ itinerary.duration_days }} ngày</span>
+          <span *ngIf="itinerary.group_size"><i class="fa-solid fa-users"></i> {{ itinerary.group_size }} khách</span>
+        </div>
+      </div>
+
+      <div class="si-days" *ngIf="days().length">
+        <div class="si-day" *ngFor="let d of days()">
+          <div class="si-day-head">Ngày {{ d.day }}</div>
+          <div class="si-slot" *ngFor="let s of slots">
+            <span class="si-slot-label"><i class="fa-solid" [class]="'fa-' + s.icon"></i> {{ s.label }}</span>
+            <span class="si-slot-items">
+              <ng-container *ngIf="slotItems(d, s.key).length; else empty">
+                <span class="si-chip" *ngFor="let it of slotItems(d, s.key)">{{ it }}</span>
+              </ng-container>
+              <ng-template #empty><span class="si-empty">—</span></ng-template>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="si-foot">
+        <div class="si-total" *ngIf="itinerary.total_price">Tổng chi phí: {{ itinerary.total_price | number }} đ</div>
+        <div class="si-views"><i class="fa-regular fa-eye"></i> {{ viewCount }} lượt xem</div>
+      </div>
+
+      <div class="si-cta">
+        <p>Thích lịch trình này? Tự thiết kế chuyến đi mang dấu ấn riêng của bạn tại UITravel.</p>
+        <a routerLink="/activities" class="si-cta-btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Lập lịch trình ngay</a>
+      </div>
+    </ng-container>
+  </div>
+</div>

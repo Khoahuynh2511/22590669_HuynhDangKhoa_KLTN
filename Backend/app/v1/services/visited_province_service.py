@@ -197,6 +197,116 @@ class VisitedProvinceService:
                 "provinces": [],
             }
 
+    # --------------------------- leaderboard ---------------------------
+    async def get_leaderboard(
+        self, limit: int = 20, offset: int = 0, viewer_user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Bảng xếp hạng người khám phá: top user theo số tỉnh đã check-in.
+        - items: top N user (kèm số tỉnh + phân chia 3 miền).
+        - total: tổng số explorer (đã check-in ít nhất 1 tỉnh).
+        - my_rank: hạng của viewer (None nếu viewer chưa check-in tỉnh nào).
+        """
+        try:
+            with self._pg_conn() as conn:
+                with conn.cursor() as cur:
+                    # 1) Tổng số explorer
+                    cur.execute(
+                        """
+                        SELECT COUNT(DISTINCT vp.user_id) AS n
+                        FROM visited_provinces vp
+                        JOIN users u ON u.user_id = vp.user_id
+                        WHERE u.is_active = TRUE
+                        """
+                    )
+                    total = (cur.fetchone() or {}).get("n", 0) or 0
+
+                    # 2) Top N user
+                    cur.execute(
+                        """
+                        SELECT u.user_id,
+                               u.full_name,
+                               u.avatar_url,
+                               COUNT(vp.province_id) AS provinces_visited,
+                               COUNT(*) FILTER (WHERE p.region = 'north')   AS north_count,
+                               COUNT(*) FILTER (WHERE p.region = 'central') AS central_count,
+                               COUNT(*) FILTER (WHERE p.region = 'south')   AS south_count,
+                               MAX(vp.visited_at) AS last_visit_at
+                        FROM visited_provinces vp
+                        JOIN provinces p ON p.province_id = vp.province_id
+                        JOIN users u ON u.user_id = vp.user_id
+                        WHERE u.is_active = TRUE
+                        GROUP BY u.user_id, u.full_name, u.avatar_url
+                        ORDER BY provinces_visited DESC, last_visit_at ASC
+                        LIMIT %s OFFSET %s
+                        """,
+                        (limit, offset),
+                    )
+                    items = self._serialize_rows(cur.fetchall())
+
+                    # 3) Hạng của viewer = số user xếp trước + 1
+                    my_rank = None
+                    my_provinces_visited = 0
+                    if viewer_user_id:
+                        cur.execute(
+                            """
+                            SELECT COUNT(*) AS c, MAX(vp.visited_at) AS last_visit
+                            FROM visited_provinces vp
+                            WHERE vp.user_id = %s
+                            """,
+                            (viewer_user_id,),
+                        )
+                        mine = cur.fetchone() or {}
+                        my_provinces_visited = mine.get("c", 0) or 0
+                        my_last = mine.get("last_visit")
+                        if my_provinces_visited > 0:
+                            cur.execute(
+                                """
+                                SELECT COUNT(*) AS ahead
+                                FROM (
+                                    SELECT vp.user_id,
+                                           COUNT(vp.province_id) AS cnt,
+                                           MAX(vp.visited_at) AS last_visit
+                                    FROM visited_provinces vp
+                                    JOIN users u ON u.user_id = vp.user_id
+                                    WHERE u.is_active = TRUE
+                                    GROUP BY vp.user_id
+                                ) s
+                                WHERE s.cnt > %s
+                                   OR (s.cnt = %s AND s.last_visit < %s)
+                                """,
+                                (my_provinces_visited, my_provinces_visited, my_last),
+                            )
+                            ahead = (cur.fetchone() or {}).get("ahead", 0) or 0
+                            my_rank = ahead + 1
+
+            return {
+                "EC": 0,
+                "EM": "Successfully retrieved leaderboard",
+                "data": {
+                    "items": items,
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                    "my_rank": my_rank,
+                    "my_provinces_visited": my_provinces_visited,
+                },
+            }
+        except Exception as e:
+            logger.error("Error getting leaderboard: %s", e)
+            return {
+                "EC": 1,
+                "EM": f"Error retrieving leaderboard: {e}",
+                "data": {
+                    "items": [],
+                    "total": 0,
+                    "limit": limit,
+                    "offset": offset,
+                    "my_rank": None,
+                    "my_provinces_visited": 0,
+                },
+            }
+
     # ----------------------------- write --------------------------------
     async def add_visited(self, user_id: str, province_id: str) -> Dict[str, Any]:
         """Check-in một tỉnh (manual). Đã tồn tại thì trả về is_visited=True (idempotent)."""

@@ -137,3 +137,78 @@ class CombinedCollectionResponse(BaseModel):
     total_visited: int = Field(0, description="Số tỉnh đã check-in")
     wishlist: List[SavedPlaceItem] = Field(default_factory=list)
     visited_provinces: List[dict] = Field(default_factory=list)
+
+
+# ============================ Feature: Thư viện ảnh (Wikimedia Commons) ============================
+
+
+class GalleryImage(BaseModel):
+    """Một ảnh từ Wikimedia Commons cho một địa điểm."""
+    title: str = Field(..., description="Tên file trên Commons (vd: 'Halong Bay.jpg')")
+    thumb_url: str = Field(..., description="URL ảnh thu nhỏ (đã resize)")
+    full_url: str = Field(..., description="URL ảnh gốc")
+    description: Optional[str] = Field(None, description="Mô tả ngắn (nếu có)")
+    license: Optional[str] = Field(None, description="Giấy phép rút gọn (vd: CC BY-SA 4.0)")
+    license_url: Optional[str] = Field(None, description="URL giấy phép")
+    author: Optional[str] = Field(None, description="Tác giả (có thể chứa HTML)")
+
+
+class PlaceGalleryResponse(BaseModel):
+    """Response cho GET /api/v1/places/gallery."""
+    EC: int = Field(0, description="Error code")
+    EM: str = Field("Success", description="Error message")
+    place: str = ""
+    total: int = Field(0, description="Số ảnh tìm thấy")
+    images: List[GalleryImage] = Field(default_factory=list)
+
+
+# ============================ Feature: Mùa đẹp nhất (Open-Meteo Archive) ============================
+
+
+class SeasonMonth(BaseModel):
+    """Trung bình khí hậu của 1 tháng (dựa trên dữ liệu lịch sử)."""
+    month: int = Field(..., description="1-12")
+    name: str = Field(..., description="Tên tháng tiếng Việt (vd: 'Tháng 1')")
+    temp: Optional[float] = Field(None, description="Nhiệt độ trung bình (°C)")
+    rain: Optional[float] = Field(None, description="Tổng lượng mưa (mm)")
+
+
+class BestSeasonResponse(BaseModel):
+    """Response cho GET /api/v1/places/best-season."""
+    EC: int = Field(0, description="Error code")
+    EM: str = Field("Success", description="Error message")
+    place: str = ""
+    monthly: List[SeasonMonth] = Field(default_factory=list, description="12 tháng khí hậu")
+    best_months: List[SeasonMonth] = Field(
+        default_factory=list, description="Các tháng lý tưởng nhất để đi (đã sắp xếp theo điểm)"
+    )
+    summary: str = Field("", description="Câu tóm tắt gợi ý mùa")
+
+
+class FestivalItem(BaseModel):
+    """Một lễ hội / sự kiện địa phương (từ Wikidata SPARQL / Wikipedia / dataset tĩnh)."""
+    name: str = Field(..., description="Tên lễ hội")
+    description: Optional[str] = Field(None, description="Mô tả ngắn")
+    start_date: Optional[str] = Field(None, description="Ngày bắt đầu (YYYY-MM-DD)")
+    end_date: Optional[str] = Field(None, description="Ngày kết thúc (YYYY-MM-DD)")
+    location: Optional[str] = Field(None, description="Địa điểm")
+    image_url: Optional[str] = Field(None, description="Ảnh đại diện")
+    wikidata_url: Optional[str] = Field(None, description="Link thực thể Wikidata")
+    wikipedia_url: Optional[str] = Field(None, description="Link bài Wikipedia")
+    month: Optional[int] = Field(None, description="Tháng dương lịch xấp xỉ (1-12)")
+    region: Optional[str] = Field(None, description="Miền: north/central/south (rỗng = cả nước)")
+    lunar: Optional[str] = Field(None, description="Ghi chú lịch âm (nếu có)")
+    country: Optional[str] = Field(None, description="Quốc gia (vd: Việt Nam, Japan); 'world' nếu trộn toàn cầu")
+    source: Optional[str] = Field(None, description="Nguồn: curated/wikidata/wikipedia/nager")
+
+
+class FestivalResponse(BaseModel):
+    """Response cho GET /api/v1/places/festivals."""
+    EC: int = Field(0, description="Error code")
+    EM: str = Field("Success", description="Error message")
+    province: str = Field("", description="Tên tỉnh đã lọc (rỗng nếu không lọc)")
+    month: Optional[int] = Field(None, description="Tháng đã lọc (1-12, None nếu không lọc)")
+    region: str = Field("", description="Miền đã lọc (rỗng nếu không lọc)")
+    country: str = Field("", description="Quốc gia đã lọc (rỗng = Việt Nam mặc định; 'world' = toàn cầu)")
+    festivals: List[FestivalItem] = Field(default_factory=list, description="Danh sách lễ hội")
+    total: int = Field(0, description="Tổng số lễ hội tìm thấy")

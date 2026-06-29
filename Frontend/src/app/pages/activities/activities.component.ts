@@ -2,8 +2,13 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, HostListener } from '@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { DialogModule } from 'primeng/dialog';
+import * as QRCode from 'qrcode';
 import { ActivityService, ActivityPackage } from '../../services/activity.service';
 import { AuthStateService } from '../../services/auth-state.service';
+import { SharedItineraryService, ItineraryPayload } from '../../services/shared-itinerary.service';
+import { TripPlannerService } from '../../services/trip-planner.service';
+import html2canvas from 'html2canvas';
 
 /** A single placement of an activity inside a slot. A slot holds many of these,
  *  each optionally assigned to a "khung giờ" (time frame) via `time`. */
@@ -52,7 +57,7 @@ interface DragOverTarget {
 @Component({
   selector: 'app-activities',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DialogModule],
   templateUrl: './activities.component.html',
   styleUrl: './activities.component.scss',
 })
@@ -69,6 +74,12 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   isLoadingDestinations = false;
   isLoadingActivities = false;
   isCheckingOut = false;
+  isSharing = false;
+  isOptimizing = false;
+  /** Bảng giải thích sau khi AI tối ưu (mỗi dòng: ngày · buổi: thay đổi + lý do). */
+  optimizeExplanation: string[] = [];
+  optimizeWeather: { day: string; rain: boolean }[] = [];
+  showOptimizePanel = false;
   errorMessage = '';
   successMessage = '';
   /** Transient toast for soft warnings (duplicate add, etc.). */
@@ -128,6 +139,8 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
     private router: Router,
     private activityService: ActivityService,
     private authStateService: AuthStateService,
+    private sharedItineraryService: SharedItineraryService,
+    private tripPlannerService: TripPlannerService,
     private cdr: ChangeDetectorRef,
   ) {}
 
@@ -551,6 +564,59 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
     this.afterItineraryChange();
   }
 
+  /** Gọi backend AI optimizer: gap-fill slot trống + thời tiết + preference.
+   *  Giữ nguyên activity user đã đặt, chỉ bổ sung chỗ trống + gợi ý. */
+  async optimizeWithAI(): Promise<void> {
+    if (!this.selectedDestination) {
+      this.flashInfo('Hãy chọn điểm đến trước.');
+      return;
+    }
+    if (this.activitiesPool.length === 0) {
+      this.flashInfo('Chưa tải được hoạt động để tối ưu.');
+      return;
+    }
+    this.isOptimizing = true;
+    try {
+      const theme = this.themes.find(t => t.key === this.selectedTheme);
+      const prefs = theme?.categories || [];
+      const result = await this.tripPlannerService.optimizeItinerary(
+        this.serializeItineraryForCheckout(),
+        this.selectedDestination,
+        this.durationDays,
+        prefs,
+        this.travelDate,
+      );
+      if (result?.EC === 0 && result.data?.itinerary) {
+        // Rebuild itinerary từ kết quả optimizer (user's activities + slot fills).
+        this.itinerary = {};
+        Object.entries(result.data.itinerary).forEach(([dayKey, day]) => {
+          const toPlaced = (arr: any[]) => (arr || []).map(a => ({ uid: this.nextUid(), activity: { ...a } }));
+          this.itinerary[dayKey] = {
+            morning: toPlaced(day.morning),
+            afternoon: toPlaced(day.afternoon),
+            evening: toPlaced(day.evening),
+          };
+        });
+        this.optimizeExplanation = result.data.explanation || [];
+        this.optimizeWeather = result.data.weather || [];
+        this.showOptimizePanel = this.optimizeExplanation.length > 0;
+        this.activeMode = 'ai';
+        this.afterItineraryChange();
+        this.flashInfo('✨ Đã tối ưu lịch trình bằng AI.');
+      } else {
+        this.flashInfo(result?.EM || 'Không tối ưu được lịch trình.');
+      }
+    } catch (e: any) {
+      this.flashInfo(e?.message || 'Lỗi khi tối ưu lịch trình.');
+    } finally {
+      this.isOptimizing = false;
+    }
+  }
+
+  closeOptimizePanel(): void {
+    this.showOptimizePanel = false;
+  }
+
   rollSurpriseActivity(dayKey: string, slot: string): void {
     const slotKey = `${dayKey}_${slot}`;
     if (this.isRollingSlot[slotKey]) return;
@@ -698,6 +764,136 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
         this.isCheckingOut = false;
       },
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Share itinerary as image (quảng bá qua mạng xã hội)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Render poster lịch trình (off-screen, text-only để tránh CORS taint) thành PNG
+   * qua html2canvas, rồi dùng Web Share API (nếu hỗ trợ) hoặc tải file về.
+   */
+  async shareItinerary(): Promise<void> {
+    if (this.selectedActivitiesCount === 0) {
+      this.flashInfo('Hãy thêm ít nhất một hoạt động để chia sẻ.');
+      return;
+    }
+    this.isSharing = true;
+    this.errorMessage = '';
+    try {
+      const el = document.querySelector<HTMLElement>('.share-poster');
+      if (!el) throw new Error('Không tạo được ảnh lịch trình.');
+      // Chờ một frame để chắc chắn poster đã render với dữ liệu mới nhất.
+      await new Promise(r => requestAnimationFrame(() => r(null)));
+      const canvas = await html2canvas(el, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      const blob: Blob | null = await new Promise(resolve => canvas.toBlob(b => resolve(b), 'image/png'));
+      if (!blob) throw new Error('Không tạo được file ảnh.');
+
+      const fileName = `UITravel-${(this.selectedDestination || 'lich-trinh').replace(/\s+/g, '-')}.png`;
+      const navAny = navigator as any;
+      const file = new File([blob], fileName, { type: 'image/png' });
+
+      if (navAny.canShare && navAny.canShare({ files: [file] })) {
+        await navAny.share({
+          files: [file],
+          title: `Lịch trình ${this.selectedDestination}`,
+          text: `Lịch trình ${this.selectedDestination} do tôi tự thiết kế trên UITravel!`,
+        });
+      } else {
+        // Fallback: tải ảnh về để user tự đăng lên MXH.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        this.flashInfo('Đã tải ảnh lịch trình — hãy chia sẻ lên mạng xã hội nhé!');
+      }
+    } catch (e: any) {
+      // AbortError = user tự hủy khung share -> không báo lỗi.
+      if (e?.name !== 'AbortError') {
+        this.errorMessage = e?.message || 'Không thể chia sẻ lịch trình lúc này.';
+      }
+    } finally {
+      this.isSharing = false;
+    }
+  }
+
+  // --- Share via QR + public link (backend persistence) ---
+  shareLinkVisible = false;
+  shareUrl = '';
+  shareQr = '';
+  isShareLinkLoading = false;
+  shareLinkError = '';
+  shareLinkCopied = false;
+
+  /** Đóng gói trạng thái lịch trình hiện tại thành payload để lưu & chia sẻ. */
+  buildItineraryPayload(): ItineraryPayload {
+    const days = this.getItineraryDays().map(d => ({
+      day: d.num,
+      morning: this.getSlotItems(d.day, this.slots[0]).map(p => p.activity.name),
+      afternoon: this.getSlotItems(d.day, this.slots[1]).map(p => p.activity.name),
+      evening: this.getSlotItems(d.day, this.slots[2]).map(p => p.activity.name),
+    }));
+    return {
+      destination: this.selectedDestination || '',
+      travel_date: this.travelDate || '',
+      duration_days: this.durationDays,
+      group_size: this.groupSize,
+      total_price: this.totalPrice,
+      days,
+    };
+  }
+
+  /** Mở dialog QR + link: tạo share backend -> sinh QR -> hiển thị. */
+  async openShareLink(): Promise<void> {
+    if (this.selectedActivitiesCount === 0) {
+      this.flashInfo('Hãy thêm ít nhất một hoạt động để chia sẻ.');
+      return;
+    }
+    this.shareLinkVisible = true;
+    this.isShareLinkLoading = true;
+    this.shareLinkError = '';
+    this.shareUrl = '';
+    this.shareQr = '';
+    this.shareLinkCopied = false;
+    try {
+      const title = this.selectedDestination
+        ? `${this.selectedDestination} ${this.durationDays} ngày`
+        : 'Lịch trình UITravel';
+      const res = await this.sharedItineraryService.createShare(this.buildItineraryPayload(), title);
+      this.shareUrl = res.url || '';
+      if (this.shareUrl) {
+        this.shareQr = await QRCode.toDataURL(this.shareUrl, { width: 240, margin: 1 });
+      }
+    } catch (e: any) {
+      this.shareLinkError = e?.message || 'Không tạo được link chia sẻ lúc này.';
+    } finally {
+      this.isShareLinkLoading = false;
+    }
+  }
+
+  closeShareLink(): void {
+    this.shareLinkVisible = false;
+  }
+
+  async copyShareLink(): Promise<void> {
+    if (!this.shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(this.shareUrl);
+      this.shareLinkCopied = true;
+      setTimeout(() => (this.shareLinkCopied = false), 2000);
+    } catch {
+      this.flashInfo('Không sao chép được — hãy copy thủ công từ ô link.');
+    }
   }
 
   // ---------------------------------------------------------------------------

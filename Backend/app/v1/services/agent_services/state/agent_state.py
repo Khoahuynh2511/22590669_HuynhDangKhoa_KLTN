@@ -17,6 +17,11 @@ class AgentState(MessagesState):
     conversation_id: str
     user_id: str
 
+    # Customer Query Agent (NLU front-door) — intent/slots đã rút trích
+    intent: str
+    nlu_slots: Dict[str, Any]
+    nlu_missing_slots: List[str]
+
     # Chat Agent outputs
     chat_response: str
 
@@ -27,6 +32,12 @@ class AgentState(MessagesState):
     # Shared data
     recommended_package_ids: List[str]
     tour_packages: List[Dict[str, Any]]  # Full tour package objects for API response
+
+    # Ephemeral UI artifacts (cards / payment UI). Reset each new turn so stale
+    # recommendations from a previous turn don't re-render. NOTE: tour_packages is
+    # intentionally NOT reset here — it's reused by create_booking validation/fallback.
+    mcp_ui_resource: Optional[Dict[str, Any]]
+    mcp_ui_html: Optional[str]
 
     # OTP & Booking tracking
     user_email: Optional[str]  # Email của user để gửi OTP
@@ -40,6 +51,14 @@ class AgentState(MessagesState):
     # Train Agent
     needs_train: bool
     train_params: Dict[str, Any]
+
+    # Bus Agent
+    needs_bus: bool
+    bus_params: Dict[str, Any]
+
+    # Hotel Agent
+    needs_hotel: bool
+    hotel_params: Dict[str, Any]
 
     # Final output
     final_response: str

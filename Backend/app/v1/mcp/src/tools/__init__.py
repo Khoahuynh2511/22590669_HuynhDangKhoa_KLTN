@@ -8,6 +8,7 @@ from .booking_tools import register_booking_tools
 from .search_personalization import register_search_personalization_tools
 from .tour_search_tools import register_tour_search_tools
 from .hotel_tools import register_hotel_tools
+from .festival_tools import register_festival_tools
 
 
 def register_all_tools(mcp: FastMCP):
@@ -25,6 +26,7 @@ def register_all_tools(mcp: FastMCP):
     register_search_personalization_tools(mcp)
     register_tour_search_tools(mcp)
     register_hotel_tools(mcp)
+    register_festival_tools(mcp)
 
 
 __all__ = [
@@ -36,5 +38,6 @@ __all__ = [
     "register_booking_tools",
     "register_search_personalization_tools",
     "register_tour_search_tools",
-    "register_hotel_tools"
+    "register_hotel_tools",
+    "register_festival_tools"
 ]
